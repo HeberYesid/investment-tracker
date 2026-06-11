@@ -1,65 +1,63 @@
-import Image from "next/image";
+import Link from "next/link";
+
+import { MainNavigation } from "@/components/layout/main-navigation";
+import { Button } from "@/components/ui/button";
 
 export default function Home() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <main className="min-h-screen bg-slate-950 text-slate-950">
+      <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-6 bg-slate-50 px-4 py-5 sm:px-6 lg:px-8">
+        <MainNavigation />
+
+        <section className="rounded-[2rem] bg-white p-5 shadow-sm ring-1 ring-slate-200 sm:p-8">
+          <p className="text-sm font-semibold uppercase tracking-[0.24em] text-emerald-600">
+            Base USD · Costo operativo USD 0
           </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+          <div className="mt-5 grid gap-6 lg:grid-cols-[1.4fr_1fr] lg:items-end">
+            <div>
+              <h1 className="text-4xl font-bold tracking-tight text-slate-950 sm:text-5xl">
+                Tu portafolio consolidado
+              </h1>
+              <p className="mt-4 max-w-2xl text-base leading-7 text-slate-600">
+                Registra operaciones manuales, importa CSV de tus brokers y
+                prepara el terreno para métricas de rentabilidad, drawdown y
+                distribución por broker, sector y país.
+              </p>
+            </div>
+            <div className="grid gap-3 rounded-3xl bg-slate-950 p-4 text-white">
+              <span className="text-sm text-slate-300">Equity total</span>
+              <strong className="text-3xl">USD 0.00</strong>
+              <span className="text-sm text-emerald-300">
+                Listo para conectar operaciones
+              </span>
+            </div>
+          </div>
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            <Button asChild>
+              <Link href="/trades">Registrar operación</Link>
+            </Button>
+            <Button asChild variant="secondary">
+              <Link href="/import">Importar CSV</Link>
+            </Button>
+          </div>
+        </section>
+
+        <section className="grid gap-3 sm:grid-cols-3">
+          {[
+            ["Brokers", "eToro · XTB · Trii · eTrading"],
+            ["Moneda base", "USD con conversión COP→USD"],
+            ["Privacidad", "RLS activo desde la primera migración"],
+          ].map(([title, body]) => (
+            <article
+              className="rounded-3xl bg-white p-4 shadow-sm ring-1 ring-slate-200"
+              key={title}
+            >
+              <h2 className="font-semibold text-slate-950">{title}</h2>
+              <p className="mt-2 text-sm leading-6 text-slate-600">{body}</p>
+            </article>
+          ))}
+        </section>
+      </div>
+    </main>
   );
 }
