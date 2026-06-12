@@ -1,0 +1,126 @@
+"use client";
+
+import { Pencil, Trash2 } from "lucide-react";
+
+import { getTradeLabels } from "@/lib/i18n/trades";
+import { cn } from "@/lib/utils";
+import type { TradeDTO } from "@/lib/validations/trades";
+
+const labels = getTradeLabels();
+
+const typeBadgeClasses: Record<TradeDTO["trade_type"], string> = {
+  BUY: "bg-emerald-100 text-emerald-700",
+  SELL: "bg-red-100 text-red-700",
+  DIVIDEND: "bg-blue-100 text-blue-700",
+  FEE: "bg-amber-100 text-amber-700",
+  TRANSFER_IN: "bg-cyan-100 text-cyan-700",
+  TRANSFER_OUT: "bg-orange-100 text-orange-700",
+};
+
+const currencyFormatter = new Intl.NumberFormat("es-CO", {
+  style: "currency",
+  currency: "USD",
+});
+
+const dateFormatter = new Intl.DateTimeFormat("es", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+});
+
+interface TradeListProps {
+  trades: TradeDTO[];
+  onEdit: (id: string) => void;
+  onDelete: (id: string) => void;
+}
+
+export function TradeList({ trades, onEdit, onDelete }: TradeListProps) {
+  if (trades.length === 0) {
+    return (
+      <div className="rounded-3xl bg-white p-8 text-center shadow-sm ring-1 ring-slate-200">
+        <p className="text-lg font-semibold text-slate-950">
+          {labels.noTrades}
+        </p>
+        <p className="mt-2 text-sm text-slate-600">
+          {labels.noTradesDescription}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {trades.map((trade) => {
+        const totalUsd = trade.total_invested_usd;
+        const dateFormatted = dateFormatter.format(new Date(trade.trade_date));
+
+        return (
+          <article
+            key={trade.id}
+            className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <span
+                  className={cn(
+                    "inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold",
+                    typeBadgeClasses[trade.trade_type],
+                  )}
+                >
+                  {labels[trade.trade_type]}
+                </span>
+                <span className="text-sm font-semibold text-slate-950">
+                  {trade.asset_id.slice(0, 8).toUpperCase()}
+                </span>
+              </div>
+              <span className="text-xs text-slate-500">{dateFormatted}</span>
+            </div>
+
+            <div className="mt-3 grid grid-cols-3 gap-2 text-sm">
+              <div>
+                <span className="text-slate-500">{labels.quantity}</span>
+                <p className="font-medium text-slate-950">{trade.quantity}</p>
+              </div>
+              <div>
+                <span className="text-slate-500">{labels.price}</span>
+                <p className="font-medium text-slate-950">
+                  {currencyFormatter.format(trade.price_original)}
+                </p>
+              </div>
+              <div>
+                <span className="text-slate-500">{labels.total}</span>
+                <p
+                  className={cn(
+                    "font-medium",
+                    totalUsd >= 0 ? "text-slate-950" : "text-red-600",
+                  )}
+                >
+                  {currencyFormatter.format(Math.abs(totalUsd))}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-3 flex justify-end gap-2 border-t border-slate-100 pt-3">
+              <button
+                type="button"
+                onClick={() => onEdit(trade.id)}
+                className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-950"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+                {labels.edit}
+              </button>
+              <button
+                type="button"
+                onClick={() => onDelete(trade.id)}
+                className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                {labels.delete}
+              </button>
+            </div>
+          </article>
+        );
+      })}
+    </div>
+  );
+}

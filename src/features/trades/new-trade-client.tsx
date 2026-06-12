@@ -1,0 +1,53 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+
+import { TradeForm, type TradeFormValues } from "./trade-form";
+
+export function NewTradeClient() {
+  const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (data: TradeFormValues) => {
+    setError(null);
+
+    try {
+      const res = await fetch("/api/v1/trades", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          trade_type: data.trade_type,
+          trade_date: data.trade_date,
+          broker_code: data.broker_code,
+          ticker: data.ticker,
+          quantity: data.quantity,
+          price_original: data.price_original,
+          currency_original: data.currency_original,
+          commission_original: data.commission_original,
+          fx_rate_to_usd: data.fx_rate_to_usd,
+        }),
+      });
+
+      if (!res.ok) {
+        const json = await res.json().catch(() => null);
+        throw new Error(json?.error ?? "Error al guardar la operación");
+      }
+
+      router.push("/trades");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error desconocido");
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {error && (
+        <div className="rounded-2xl bg-red-50 p-4 text-sm text-red-600 ring-1 ring-red-200">
+          {error}
+        </div>
+      )}
+      <TradeForm mode="create" onSubmit={handleSubmit} />
+    </div>
+  );
+}
