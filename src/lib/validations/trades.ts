@@ -100,6 +100,10 @@ export const TradeDTO = z.object({
   created_at: z.string(),
   updated_at: z.string(),
   deleted_at: z.string().nullable().optional(),
+  ticker: z.string().optional(),
+  asset_name: z.string().optional(),
+  broker_name: z.string().optional(),
+  broker_code: z.string().optional(),
 });
 
 export type TradeDTO = z.infer<typeof TradeDTO>;
@@ -109,11 +113,13 @@ export const TradeListQuery = z.object({
   limit: z.coerce.number().positive().max(100).default(20),
   ticker: z.string().optional(),
   broker_id: z.string().uuid().optional(),
+  broker_code: z.enum(["ETORO", "XTB", "TRII", "ETRADING_BANCOLOMBIA"]).optional(),
   trade_type: z.enum(TRADE_TYPES).optional(),
   currency_original: z.enum(SUPPORTED_CURRENCIES).optional(),
   source: z.enum(SOURCES).optional(),
   date_from: z.string().optional(),
   date_to: z.string().optional(),
+  min_total_usd: z.coerce.number().min(0).optional(),
 });
 
 export type TradeListQuery = z.infer<typeof TradeListQuery>;

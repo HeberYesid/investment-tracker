@@ -1,5 +1,7 @@
+export type BrokerCode = "ETORO" | "XTB" | "TRII" | "ETRADING_BANCOLOMBIA";
+
 export type BrokerSeed = {
-  code: "ETORO" | "XTB" | "TRII" | "ETRADING_BANCOLOMBIA";
+  code: BrokerCode;
   name: string;
   defaultCurrency: "USD" | "COP";
 };

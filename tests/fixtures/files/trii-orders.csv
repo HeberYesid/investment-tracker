@@ -1,0 +1,5 @@
+Fecha y hora,Símbolo de la acción,Tipo de orden,Estado,Acciones completadas,Acciones pendientes,Precio por acción,Total invertido,Valor comisión,Total estimado
+"14 may 2026, 8:43 a. m.",AAPLCO,Compra,Aprobado,10,0,50000,500000,0,500000
+"15 may 2026, 10:00 a. m.",MSFTCO,Venta,Aprobado,5,0,120000,600000,5000,595000
+"16 may 2026, 2:30 p. m.",NUCO,Compra,Cancelado,20,0,1500,30000,0,30000
+"17 may 2026, 9:00 a. m.",GOOGCO,Compra,Aprobado,8,0,45000,360000,1500,361500

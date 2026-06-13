@@ -1,0 +1,4 @@
+Symbol,Type,Volume,Open price,Close price,Open time,Close time,Commission,Swap,Profit,Comment
+AAPL.US,BUY,15,150.00,0,2024-01-15 10:00:00,2024-01-15 10:00:00,2.5,0,0,
+MSFT.US,SELL,8,320.50,0,2024-02-20 14:00:00,2024-02-20 14:00:00,1.8,0,45.0,
+TSLA.US,BUY,10,180.75,0,2024-03-10 09:15:00,2024-03-10 09:15:00,3.0,0.5,0,

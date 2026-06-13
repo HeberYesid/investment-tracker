@@ -168,15 +168,31 @@ describe("POST /api/v1/trades", () => {
 });
 
 describe("GET /api/v1/trades", () => {
-  it("returns a paginated list of trades", async () => {
-    queuedResults.push({ data: [mockTrade], error: null, count: 1 });
+  it("returns a paginated list of trades with ticker and broker", async () => {
+    queuedResults.push({
+      data: [
+        {
+          ...mockTrade,
+          assets: { ticker: "AAPL", name: "Apple Inc" },
+          brokers: { name: "eToro", code: "ETORO" },
+        },
+      ],
+      error: null,
+      count: 1,
+    });
 
     const request = new NextRequest("http://localhost/api/v1/trades?page=1&limit=20");
     const response = await GET(request);
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(body.data).toEqual([mockTrade]);
+    expect(body.data).toHaveLength(1);
+    expect(body.data[0].ticker).toBe("AAPL");
+    expect(body.data[0].asset_name).toBe("Apple Inc");
+    expect(body.data[0].broker_name).toBe("eToro");
+    expect(body.data[0].broker_code).toBe("ETORO");
+    expect(body.data[0].assets).toBeUndefined();
+    expect(body.data[0].brokers).toBeUndefined();
     expect(body.meta).toEqual({ page: 1, limit: 20, total: 1, totalPages: 1 });
   });
 

@@ -62,8 +62,8 @@ The project is designed to run at USD 0 monthly operating cost for MVP and early
 ## Phase Status
 
 - Phase 0: foundation complete.
-- Phase 1: trades MVP pending.
-- Phase 2: CSV import MVP pending.
+- Phase 1: trades MVP complete.
+- Phase 2: CSV import MVP complete.
 - Phase 3: dashboard MVP pending.
 - Phase 4: auth and permissions pending.
 - Phase 5: market data and FX pending.

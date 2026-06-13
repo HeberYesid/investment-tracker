@@ -45,6 +45,7 @@ export const tradeLabels = {
     allTypes: "Todos los tipos",
     allBrokers: "Todos los brókeres",
     allCurrencies: "Todas las monedas",
+    allSources: "Todos los orígenes",
     search: "Buscar...",
     filters: "Filtros",
 

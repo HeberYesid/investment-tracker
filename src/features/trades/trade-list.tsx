@@ -60,20 +60,34 @@ export function TradeList({ trades, onEdit, onDelete }: TradeListProps) {
             className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200"
           >
             <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-2">
+              <div className="flex min-w-0 flex-1 items-center gap-2">
                 <span
                   className={cn(
-                    "inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold",
+                    "inline-flex shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold",
                     typeBadgeClasses[trade.trade_type],
                   )}
                 >
                   {labels[trade.trade_type]}
                 </span>
-                <span className="text-sm font-semibold text-slate-950">
-                  {trade.asset_id.slice(0, 8).toUpperCase()}
-                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-slate-950">
+                    {trade.ticker ?? "—"}
+                  </p>
+                  {trade.asset_name && trade.asset_name !== trade.ticker && (
+                    <p className="truncate text-xs text-slate-500">
+                      {trade.asset_name}
+                    </p>
+                  )}
+                </div>
               </div>
-              <span className="text-xs text-slate-500">{dateFormatted}</span>
+              <div className="flex shrink-0 flex-col items-end gap-0.5">
+                <span className="text-xs text-slate-500">{dateFormatted}</span>
+                {trade.broker_name && (
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
+                    {trade.broker_name}
+                  </span>
+                )}
+              </div>
             </div>
 
             <div className="mt-3 grid grid-cols-3 gap-2 text-sm">

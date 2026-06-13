@@ -11,6 +11,8 @@ import { TradeList } from "./trade-list";
 
 const labels = getTradeLabels();
 
+const SMALL_TRADE_THRESHOLD_USD = 1;
+
 export function TradesPageClient() {
   const router = useRouter();
   const [trades, setTrades] = useState<TradeDTO[]>([]);
@@ -20,6 +22,8 @@ export function TradesPageClient() {
     page: 1,
     limit: 20,
   });
+  const [hideSmallTrades, setHideSmallTrades] = useState(false);
+  const [total, setTotal] = useState(0);
 
   const fetchTrades = useCallback(async () => {
     setLoading(true);
@@ -32,18 +36,22 @@ export function TradesPageClient() {
           params.set(key, String(value));
         }
       }
+      if (hideSmallTrades) {
+        params.set("min_total_usd", String(SMALL_TRADE_THRESHOLD_USD));
+      }
 
       const res = await fetch(`/api/v1/trades?${params.toString()}`);
       if (!res.ok) throw new Error(labels.errorLoading);
 
       const json = await res.json();
-      setTrades(json.data ?? json);
+      setTrades(json.data ?? []);
+      setTotal(json.meta?.total ?? 0);
     } catch (err) {
       setError(err instanceof Error ? err.message : labels.errorLoading);
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, [filters, hideSmallTrades]);
 
   useEffect(() => {
     fetchTrades();
@@ -64,6 +72,7 @@ export function TradesPageClient() {
       const res = await fetch(`/api/v1/trades/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Error al eliminar");
       setTrades((prev) => prev.filter((t) => t.id !== id));
+      setTotal((prev) => Math.max(0, prev - 1));
     } catch {
       alert("Error al eliminar la operación");
     }
@@ -71,7 +80,12 @@ export function TradesPageClient() {
 
   return (
     <div className="space-y-4">
-      <TradeFilters filters={filters} onFilterChange={handleFilterChange} />
+      <TradeFilters
+        filters={filters}
+        onFilterChange={handleFilterChange}
+        hideSmallTrades={hideSmallTrades}
+        onHideSmallTradesChange={setHideSmallTrades}
+      />
 
       {loading && (
         <div className="py-12 text-center text-sm text-slate-500">
@@ -86,7 +100,21 @@ export function TradesPageClient() {
       )}
 
       {!loading && !error && (
-        <TradeList trades={trades} onEdit={handleEdit} onDelete={handleDelete} />
+        <>
+          <p className="text-xs text-slate-500">
+            {total === 0
+              ? "Sin operaciones para mostrar"
+              : `${total} operación${total === 1 ? "" : "es"}`}
+            {hideSmallTrades && total > 0
+              ? ` (filtrando |total| < ${SMALL_TRADE_THRESHOLD_USD} USD)`
+              : ""}
+          </p>
+          <TradeList
+            trades={trades}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+          />
+        </>
       )}
     </div>
   );

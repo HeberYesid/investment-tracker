@@ -4,6 +4,7 @@ import { ChevronDown, ChevronUp } from "lucide-react";
 import { useState } from "react";
 
 import { getTradeLabels } from "@/lib/i18n/trades";
+import { BROKER_SEEDS } from "@/lib/reference/brokers";
 import {
   TRADE_TYPES,
   SUPPORTED_CURRENCIES,
@@ -15,11 +16,15 @@ const labels = getTradeLabels();
 interface TradeFiltersProps {
   filters: Partial<TradeListQuery>;
   onFilterChange: (filters: Partial<TradeListQuery>) => void;
+  hideSmallTrades: boolean;
+  onHideSmallTradesChange: (value: boolean) => void;
 }
 
 export function TradeFilters({
   filters,
   onFilterChange,
+  hideSmallTrades,
+  onHideSmallTradesChange,
 }: TradeFiltersProps) {
   const [expanded, setExpanded] = useState(false);
 
@@ -63,6 +68,34 @@ export function TradeFilters({
               {TRADE_TYPES.map((type) => (
                 <option key={type} value={type}>
                   {labels[type]}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-1.5">
+            <label
+              htmlFor="filter-broker"
+              className="block text-xs font-medium text-slate-500"
+            >
+              {labels.broker}
+            </label>
+            <select
+              id="filter-broker"
+              value={filters.broker_code ?? ""}
+              onChange={(e) =>
+                onFilterChange({
+                  broker_code: (e.target.value || undefined) as
+                    | TradeListQuery["broker_code"]
+                    | undefined,
+                })
+              }
+              className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-950 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
+            >
+              <option value="">{labels.allBrokers}</option>
+              {BROKER_SEEDS.map((b) => (
+                <option key={b.code} value={b.code}>
+                  {b.name}
                 </option>
               ))}
             </select>
@@ -136,6 +169,18 @@ export function TradeFilters({
               />
             </div>
           </div>
+
+          <label className="flex cursor-pointer items-center gap-2 pt-1">
+            <input
+              type="checkbox"
+              checked={hideSmallTrades}
+              onChange={(e) => onHideSmallTradesChange(e.target.checked)}
+              className="h-4 w-4 rounded border-slate-300 text-slate-950 focus:ring-2 focus:ring-slate-200"
+            />
+            <span className="text-sm text-slate-700">
+              Ocultar operaciones menores a USD 1
+            </span>
+          </label>
         </div>
       )}
     </div>

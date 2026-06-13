@@ -1,0 +1,4 @@
+Position ID,Action,Amount,Units,Open Date,Close Date,Leverage,Spread,Profit,Take profit rate,Stop loss rate,Rollover fees,Copied From,Type,ISIN,Notes
+12345,BUY,1500,10,2024-01-15 10:30,2024-01-15 10:30,1,0.5,0,,,,"","","AAPL","US0378331005",
+12346,SELL,2000,5,2024-02-20 14:00,2024-02-20 14:00,1,0.3,25.5,,,,"","","MSFT","US5949181045",
+12347,BUY,3500,7,2024-03-10 09:15,2024-03-10 09:15,1,1.2,0,,,0.5,"","","TSLA","US88160R1014",

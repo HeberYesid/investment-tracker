@@ -22,18 +22,33 @@ export async function GET(request: NextRequest) {
       limit,
       ticker,
       broker_id,
+      broker_code,
       trade_type,
       currency_original,
       source,
       date_from,
       date_to,
+      min_total_usd,
     } = parsed.data;
 
     const supabase = createServerSupabaseClient();
 
+    // If broker_code is provided, resolve to broker_id
+    let resolvedBrokerId = broker_id;
+    if (broker_code && !broker_id) {
+      const { data: broker } = await supabase
+        .from("brokers")
+        .select("id")
+        .eq("code", broker_code)
+        .single();
+      if (broker) {
+        resolvedBrokerId = broker.id;
+      }
+    }
+
     let query = supabase
       .from("trades")
-      .select("*, assets(ticker, name)", { count: "exact" })
+      .select("*, assets(ticker, name), brokers(name, code)", { count: "exact" })
       .is("deleted_at", null)
       .order("trade_date", { ascending: false })
       .order("created_at", { ascending: false });
@@ -41,8 +56,8 @@ export async function GET(request: NextRequest) {
     if (ticker) {
       query = query.eq("assets.ticker", ticker);
     }
-    if (broker_id) {
-      query = query.eq("broker_id", broker_id);
+    if (resolvedBrokerId) {
+      query = query.eq("broker_id", resolvedBrokerId);
     }
     if (trade_type) {
       query = query.eq("trade_type", trade_type);
@@ -59,6 +74,13 @@ export async function GET(request: NextRequest) {
     if (date_to) {
       query = query.lte("trade_date", date_to);
     }
+    if (min_total_usd !== undefined && min_total_usd > 0) {
+      // Filter on |total_invested_usd| >= min. PostgREST has no abs(),
+      // so we express it as a union of two ranged filters.
+      query = query.or(
+        `total_invested_usd.gte.${min_total_usd},total_invested_usd.lte.${-min_total_usd}`,
+      );
+    }
 
     const from = (page - 1) * limit;
     const to = page * limit - 1;
@@ -70,11 +92,33 @@ export async function GET(request: NextRequest) {
       return badRequest(error.message);
     }
 
+    // Flatten the assets and brokers joins into top-level fields
+    const flattened = (data ?? []).map((row) => {
+      const assets = (row as { assets?: { ticker?: string; name?: string } })
+        .assets;
+      const brokers = (row as { brokers?: { name?: string; code?: string } })
+        .brokers;
+      const { assets: _assets, brokers: _brokers, ...rest } = row as Record<
+        string,
+        unknown
+      > & {
+        assets?: { ticker?: string; name?: string };
+        brokers?: { name?: string; code?: string };
+      };
+      return {
+        ...rest,
+        ticker: assets?.ticker ?? null,
+        asset_name: assets?.name ?? null,
+        broker_name: brokers?.name ?? null,
+        broker_code: brokers?.code ?? null,
+      };
+    });
+
     const total = count ?? 0;
     const totalPages = Math.ceil(total / limit);
 
     return NextResponse.json({
-      data,
+      data: flattened,
       meta: { page, limit, total, totalPages },
     });
   } catch {
