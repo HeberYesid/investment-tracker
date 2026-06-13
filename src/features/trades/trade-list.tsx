@@ -98,7 +98,7 @@ export function TradeList({ trades, onEdit, onDelete }: TradeListProps) {
               <div>
                 <span className="text-slate-500">{labels.price}</span>
                 <p className="font-medium text-slate-950">
-                  {currencyFormatter.format(trade.price_original)}
+                  {currencyFormatter.format(trade.price_usd)}
                 </p>
               </div>
               <div>
