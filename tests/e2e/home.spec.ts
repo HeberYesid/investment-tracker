@@ -1,6 +1,6 @@
 import { expect, test } from "playwright/test";
 
-test("renders the Spanish home page on a mobile viewport", async ({ page }) => {
+test("renders the Spanish dashboard home on a mobile viewport", async ({ page }) => {
   await page.goto("/");
 
   await expect(

@@ -31,18 +31,18 @@ tests/integration/dashboard/
 
 ## Tasks
 
-- [ ] Define dashboard DTO schemas.
-- [ ] Implement holdings calculation from trades.
-- [ ] Implement total equity calculation using latest available price or trade cost fallback.
-- [ ] Implement invested capital calculation.
-- [ ] Implement realized and unrealized P/L.
-- [ ] Implement return percentage.
-- [ ] Implement distribution calculations by broker, sector, and country.
-- [ ] Implement monthly/yearly profitability aggregation.
-- [ ] Implement drawdown calculation from portfolio value series.
-- [ ] Build dashboard API endpoints.
-- [ ] Build mobile-first dashboard UI with charts.
-- [ ] Add benchmark comparison UI with placeholder data until Phase 5.
+- [x] Define dashboard DTO schemas.
+- [x] Implement holdings calculation from trades.
+- [x] Implement total equity calculation using latest available price or trade cost fallback.
+- [x] Implement invested capital calculation.
+- [x] Implement realized and unrealized P/L.
+- [x] Implement return percentage.
+- [x] Implement distribution calculations by broker, sector, and country.
+- [x] Implement monthly/yearly profitability aggregation.
+- [x] Implement drawdown calculation from portfolio value series.
+- [x] Build dashboard API endpoints.
+- [x] Build mobile-first dashboard UI with charts.
+- [x] Add benchmark comparison UI with placeholder data until Phase 5.
 
 ## Calculation Rules
 
