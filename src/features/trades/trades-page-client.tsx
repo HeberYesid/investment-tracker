@@ -20,10 +20,11 @@ export function TradesPageClient() {
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<Partial<TradeListQuery>>({
     page: 1,
-    limit: 20,
+    limit: 50,
   });
-  const [hideSmallTrades, setHideSmallTrades] = useState(false);
+  const [hideSmallTrades, setHideSmallTrades] = useState(true);
   const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
 
   const fetchTrades = useCallback(async () => {
     setLoading(true);
@@ -46,6 +47,7 @@ export function TradesPageClient() {
       const json = await res.json();
       setTrades(json.data ?? []);
       setTotal(json.meta?.total ?? 0);
+      setTotalPages(json.meta?.totalPages ?? 1);
     } catch (err) {
       setError(err instanceof Error ? err.message : labels.errorLoading);
     } finally {
@@ -59,6 +61,10 @@ export function TradesPageClient() {
 
   const handleFilterChange = (updated: Partial<TradeListQuery>) => {
     setFilters((prev) => ({ ...prev, ...updated, page: 1 }));
+  };
+
+  const handlePageChange = (newPage: number) => {
+    setFilters((prev) => ({ ...prev, page: newPage }));
   };
 
   const handleEdit = (id: string) => {
@@ -114,6 +120,34 @@ export function TradesPageClient() {
             onEdit={handleEdit}
             onDelete={handleDelete}
           />
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between rounded-2xl bg-white p-3 shadow-sm ring-1 ring-slate-200">
+              <p className="text-xs text-slate-500">
+                Página {filters.page ?? 1} de {totalPages}
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={(filters.page ?? 1) <= 1 || loading}
+                  onClick={() => handlePageChange((filters.page ?? 1) - 1)}
+                  className="rounded-lg px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+                >
+                  ‹ Anterior
+                </button>
+                <span className="text-xs font-medium text-slate-700">
+                  {filters.page ?? 1} / {totalPages}
+                </span>
+                <button
+                  type="button"
+                  disabled={(filters.page ?? 1) >= totalPages || loading}
+                  onClick={() => handlePageChange((filters.page ?? 1) + 1)}
+                  className="rounded-lg px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+                >
+                  Siguiente ›
+                </button>
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>
