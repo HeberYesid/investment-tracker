@@ -2,18 +2,30 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { buildPortfolioValueSeries } from "@/lib/calculations/evolution";
 import { badRequest, serverError, validationError } from "@/lib/api/errors";
-import { loadDashboardData, resolveDefaultPortfolioId } from "@/lib/dashboard/loader";
+import { requireApiUser } from "@/lib/api/auth";
+import { getCurrentPortfolio } from "@/lib/supabase/auth";
+import { loadDashboardData } from "@/lib/dashboard/loader";
 import { EvolutionQuery } from "@/lib/validations/dashboard";
 
 export async function GET(request: NextRequest) {
+  const auth = await requireApiUser();
+  if (auth.response) return auth.response;
+  const { supabase } = auth;
+
   try {
     const params = Object.fromEntries(request.nextUrl.searchParams);
     const parsed = EvolutionQuery.safeParse(params);
     if (!parsed.success) return validationError(parsed.error.issues);
 
-    const portfolioId =
-      parsed.data.portfolio_id ?? (await resolveDefaultPortfolioId());
-    const data = await loadDashboardData(portfolioId);
+    const portfolio = await getCurrentPortfolio();
+    if (!portfolio) return badRequest("No se encontró un portafolio.");
+    if (
+      parsed.data.portfolio_id &&
+      parsed.data.portfolio_id !== portfolio.portfolioId
+    ) {
+      return badRequest("portfolio_id no coincide con tu portafolio.");
+    }
+    const data = await loadDashboardData(portfolio.portfolioId, supabase);
 
     const series = buildPortfolioValueSeries(data.trades, {
       granularity: parsed.data.granularity,

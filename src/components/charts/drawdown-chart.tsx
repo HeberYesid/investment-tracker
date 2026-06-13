@@ -129,7 +129,7 @@ export function DrawdownChart({ data }: DrawdownChartProps) {
             />
             <ReferenceLine y={0} stroke="#cbd5e1" />
             <Tooltip
-              formatter={(value: number) => `${value}%`}
+              formatter={(value) => `${Number(value)}%`}
               labelFormatter={safeFormatLongDate}
               contentStyle={{
                 backgroundColor: "white",

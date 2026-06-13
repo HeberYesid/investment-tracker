@@ -19,7 +19,7 @@ type ImportRecord = {
 
 const labels = getImportLabels();
 
-export function ImportHistory({ portfolioId }: { portfolioId: string }) {
+export function ImportHistory() {
   const [imports, setImports] = useState<ImportRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -29,37 +29,16 @@ export function ImportHistory({ portfolioId }: { portfolioId: string }) {
     setError(null);
 
     try {
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      const anonKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-
-      if (!supabaseUrl || !anonKey) {
-        // Fallback: fetch from local API
-        const res = await fetch(
-          `/api/v1/imports/history?portfolio_id=${portfolioId}`,
-        );
-        if (!res.ok) throw new Error("Error al cargar historial");
-        const data = await res.json();
-        setImports(data.data ?? []);
-        return;
-      }
-
-      const { createClient } = await import("@supabase/supabase-js");
-      const supabase = createClient(supabaseUrl, anonKey);
-      const { data, error: dbError } = await supabase
-        .from("csv_imports")
-        .select("*, brokers(name, code)")
-        .eq("portfolio_id", portfolioId)
-        .order("created_at", { ascending: false })
-        .limit(50);
-
-      if (dbError) throw new Error(dbError.message);
-      setImports((data as ImportRecord[]) ?? []);
+      const res = await fetch("/api/v1/imports/history");
+      if (!res.ok) throw new Error("Error al cargar historial");
+      const data = await res.json();
+      setImports(data.data ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error desconocido");
     } finally {
       setLoading(false);
     }
-  }, [portfolioId]);
+  }, []);
 
   useEffect(() => {
     fetchHistory();

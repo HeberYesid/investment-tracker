@@ -26,6 +26,27 @@ vi.mock("@/features/dashboard/use-dashboard-data", () => ({
   }),
 }));
 
+vi.mock("@/lib/supabase/auth", () => ({
+  getCurrentUser: () => Promise.resolve(null),
+  requireUser: () => Promise.resolve(null),
+  getCurrentPortfolio: () => Promise.resolve(null),
+  requireCurrentPortfolio: () => Promise.resolve(null),
+}));
+
+vi.mock("@/lib/supabase/client", () => ({
+  createBrowserSupabaseClient: () => ({
+    auth: {
+      getUser: () => Promise.resolve({ data: { user: null }, error: null }),
+    },
+  }),
+}));
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
+  usePathname: () => "/",
+}));
+
 import Home from "./page";
 
 describe("home page", () => {

@@ -1,4 +1,4 @@
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AssetMeta, BrokerMeta, DashboardTrade } from "@/lib/calculations/holdings";
 import type { MarketPriceRow } from "@/lib/calculations/pricing";
 
@@ -14,6 +14,7 @@ type TradeRow = {
   asset_id: string;
   broker_id: string;
   trade_type: DashboardTrade["trade_type"];
+  trade_date: string;
   quantity: number;
   price_usd: number;
   commission_usd: number;
@@ -35,13 +36,14 @@ function firstJoin<T>(value: T | T[] | null | undefined): T | null {
   return value;
 }
 
-export async function loadDashboardData(portfolioId: string): Promise<DashboardData> {
-  const supabase = createServerSupabaseClient();
-
+export async function loadDashboardData(
+  portfolioId: string,
+  supabase: SupabaseClient,
+): Promise<DashboardData> {
   const { data: tradesData, error: tradesError } = await supabase
     .from("trades")
     .select(
-      "asset_id, broker_id, trade_type, quantity, price_usd, commission_usd, total_invested_usd, deleted_at, assets(ticker, name, sector, country), brokers(code, name)",
+      "asset_id, broker_id, trade_type, trade_date, quantity, price_usd, commission_usd, total_invested_usd, deleted_at, assets(ticker, name, sector, country), brokers(code, name)",
     )
     .eq("portfolio_id", portfolioId)
     .is("deleted_at", null);
@@ -56,6 +58,7 @@ export async function loadDashboardData(portfolioId: string): Promise<DashboardD
     asset_id: row.asset_id,
     broker_id: row.broker_id,
     trade_type: row.trade_type,
+    trade_date: row.trade_date,
     quantity: Number(row.quantity),
     price_usd: Number(row.price_usd),
     commission_usd: Number(row.commission_usd),
@@ -123,30 +126,4 @@ export async function loadDashboardData(portfolioId: string): Promise<DashboardD
     latestMarketPrices,
     portfolioId,
   };
-}
-
-export async function resolveDefaultPortfolioId(): Promise<string> {
-  const supabase = createServerSupabaseClient();
-  const { data: existing, error: existingError } = await supabase
-    .from("portfolios")
-    .select("id")
-    .eq("name", "Default")
-    .limit(1)
-    .maybeSingle();
-
-  if (existingError) {
-    throw new Error(existingError.message);
-  }
-  if (existing) return existing.id;
-
-  const { data: created, error: createError } = await supabase
-    .from("portfolios")
-    .insert({ name: "Default", base_currency: "USD" })
-    .select("id")
-    .single();
-
-  if (createError || !created) {
-    throw new Error("No se pudo crear el portafolio por defecto");
-  }
-  return created.id;
 }

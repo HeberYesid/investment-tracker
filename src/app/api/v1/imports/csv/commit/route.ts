@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { requireApiUser } from "@/lib/api/auth";
+import { getCurrentPortfolio } from "@/lib/supabase/auth";
 import { normalizeTradeUsdValues, type CreateTradeInput } from "@/lib/validations/trades";
 import type { ParsedCsvTrade } from "@/lib/csv/types";
 import { badRequest, serverError } from "@/lib/api/errors";
@@ -7,10 +8,13 @@ import { z } from "zod";
 
 const CommitBody = z.object({
   import_id: z.string().uuid(),
-  portfolio_id: z.string().uuid(),
 });
 
 export async function POST(request: NextRequest) {
+  const auth = await requireApiUser();
+  if (auth.response) return auth.response;
+  const { supabase } = auth;
+
   try {
     const body = await request.json();
     const parsed = CommitBody.safeParse(body);
@@ -22,10 +26,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { import_id, portfolio_id } = parsed.data;
-    const supabase = createServerSupabaseClient();
+    const { import_id } = parsed.data;
+    const portfolio = await getCurrentPortfolio();
+    if (!portfolio) {
+      return badRequest("No se encontró un portafolio para el usuario.");
+    }
 
-    // Fetch the import record
     const { data: importRecord, error: importError } = await supabase
       .from("csv_imports")
       .select("*")
@@ -36,41 +42,6 @@ export async function POST(request: NextRequest) {
       return badRequest("Importación no encontrada.");
     }
 
-    // Resolve portfolio: prefer the one from the import record, fallback to "Default"
-    let resolvedPortfolioId: string;
-    const { data: providedPortfolio } = await supabase
-      .from("portfolios")
-      .select("id")
-      .eq("id", portfolio_id)
-      .maybeSingle();
-
-    if (providedPortfolio) {
-      resolvedPortfolioId = providedPortfolio.id;
-    } else {
-      const { data: existingPortfolio } = await supabase
-        .from("portfolios")
-        .select("id")
-        .eq("name", "Default")
-        .limit(1)
-        .maybeSingle();
-
-      if (existingPortfolio) {
-        resolvedPortfolioId = existingPortfolio.id;
-      } else {
-        const { data: newPortfolio, error: portfolioError } = await supabase
-          .from("portfolios")
-          .insert({ name: "Default", base_currency: "USD" })
-          .select("id")
-          .single();
-
-        if (portfolioError || !newPortfolio) {
-          return badRequest("No se pudo crear el portafolio por defecto.");
-        }
-        resolvedPortfolioId = newPortfolio.id;
-      }
-    }
-
-    // Prevent duplicate commits
     if (importRecord.status === "COMMITTED") {
       return NextResponse.json(
         { error: "Esta importación ya fue confirmada." },
@@ -84,7 +55,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Fetch valid rows only
     const { data: validRows, error: rowsError } = await supabase
       .from("csv_import_rows")
       .select("*")
@@ -101,7 +71,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get broker info from the import
     const broker_id = importRecord.broker_id;
 
     let importedCount = 0;
@@ -112,7 +81,6 @@ export async function POST(request: NextRequest) {
       if (!parsedData) continue;
 
       try {
-        // Upsert asset
         const ticker = parsedData.ticker.toUpperCase();
         const { data: existingAsset } = await supabase
           .from("assets")
@@ -145,9 +113,8 @@ export async function POST(request: NextRequest) {
           asset_id = newAsset.id;
         }
 
-        // Build the trade input
         const tradeInput: CreateTradeInput = {
-          portfolio_id: resolvedPortfolioId,
+          portfolio_id: portfolio.portfolioId,
           broker_id,
           asset_id,
           trade_date: parsedData.trade_date,
@@ -162,9 +129,8 @@ export async function POST(request: NextRequest) {
 
         const usdValues = normalizeTradeUsdValues(tradeInput);
 
-        // Insert the trade
         const { error: tradeError } = await supabase.from("trades").insert({
-          portfolio_id: resolvedPortfolioId,
+          portfolio_id: portfolio.portfolioId,
           broker_id,
           asset_id,
           trade_date: parsedData.trade_date,
@@ -194,16 +160,14 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Update import status
     const finalStatus = importedCount > 0 ? "COMMITTED" : "FAILED";
     await supabase
       .from("csv_imports")
       .update({ status: finalStatus })
       .eq("id", import_id);
 
-    // Record audit event
     await supabase.from("audit_events").insert({
-      portfolio_id: resolvedPortfolioId,
+      portfolio_id: portfolio.portfolioId,
       entity_type: "csv_import",
       entity_id: import_id,
       action: "IMPORT",
@@ -211,7 +175,7 @@ export async function POST(request: NextRequest) {
         import_id,
         imported_count: importedCount,
         error_count: errors.length,
-        errors: errors.slice(0, 10), // Limit error storage
+        errors: errors.slice(0, 10),
       },
     });
 

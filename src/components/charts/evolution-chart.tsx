@@ -110,7 +110,7 @@ export function EvolutionChart({ data, isEstimated }: EvolutionChartProps) {
               width={70}
             />
             <Tooltip
-              formatter={(value: number) => usdFormatter.format(value)}
+              formatter={(value) => usdFormatter.format(Number(value))}
               labelFormatter={safeFormatLongDate}
               contentStyle={{
                 backgroundColor: "white",

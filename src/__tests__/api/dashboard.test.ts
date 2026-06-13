@@ -22,10 +22,30 @@ function createBuilder(): MockBuilder {
 
 const mockSupabase = {
   from: vi.fn().mockImplementation(() => createBuilder()),
+  auth: {
+    getUser: vi.fn().mockResolvedValue({
+      data: { user: { id: "user-id-1" } },
+      error: null,
+    }),
+  },
 };
 
 vi.mock("@/lib/supabase/server", () => ({
-  createServerSupabaseClient: () => mockSupabase,
+  createUserSupabaseClient: () => Promise.resolve(mockSupabase),
+  createServiceSupabaseClient: () => mockSupabase,
+}));
+
+vi.mock("@/lib/supabase/auth", () => ({
+  getCurrentPortfolio: () =>
+    Promise.resolve({
+      portfolioId: "p1",
+      role: "OWNER",
+      portfolio: {
+        id: "p1",
+        name: "Mi portafolio",
+        base_currency: "USD",
+      },
+    }),
 }));
 
 import { GET as summaryGET } from "@/app/api/v1/dashboard/summary/route";
@@ -39,10 +59,6 @@ beforeEach(() => {
   queuedResults.length = 0;
   builders.length = 0;
 });
-
-function pushPortfolioLookup() {
-  queuedResults.push({ data: { id: "p1" }, error: null });
-}
 
 function pushTrades(rows: unknown[] = []) {
   queuedResults.push({ data: rows, error: null });
@@ -60,7 +76,6 @@ describe("GET /api/v1/dashboard/summary", () => {
   });
 
   it("returns 200 with summary shape for a portfolio with one BUY", async () => {
-    pushPortfolioLookup();
     pushTrades([
       {
         asset_id: "a1",
@@ -103,7 +118,6 @@ describe("GET /api/v1/dashboard/distribution", () => {
   });
 
   it("returns broker slices with percentages summing to 100", async () => {
-    pushPortfolioLookup();
     pushTrades([
       {
         asset_id: "a1",
@@ -140,7 +154,6 @@ describe("GET /api/v1/dashboard/evolution", () => {
   });
 
   it("returns empty points when there are no trades", async () => {
-    pushPortfolioLookup();
     pushTrades([]);
     pushPrices([]);
 
@@ -162,7 +175,6 @@ describe("GET /api/v1/dashboard/returns", () => {
   });
 
   it("returns rows sorted by totalPnlUsd descending", async () => {
-    pushPortfolioLookup();
     pushTrades([
       {
         asset_id: "a1",
@@ -193,7 +205,6 @@ describe("GET /api/v1/dashboard/returns", () => {
 
 describe("GET /api/v1/dashboard/drawdown", () => {
   it("returns maxDrawdownPct 0 when there are no trades", async () => {
-    pushPortfolioLookup();
     pushTrades([]);
     pushPrices([]);
 

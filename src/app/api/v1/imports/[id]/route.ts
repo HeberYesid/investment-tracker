@@ -1,14 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { requireApiUser } from "@/lib/api/auth";
 import { badRequest, notFound, serverError } from "@/lib/api/errors";
 
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const auth = await requireApiUser();
+  if (auth.response) return auth.response;
+  const { supabase } = auth;
+
   try {
     const { id } = await params;
-    const supabase = createServerSupabaseClient();
 
     const { data: importRecord, error } = await supabase
       .from("csv_imports")
@@ -50,9 +53,12 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const auth = await requireApiUser();
+  if (auth.response) return auth.response;
+  const { supabase } = auth;
+
   try {
     const { id } = await params;
-    const supabase = createServerSupabaseClient();
 
     const { data: importRecord, error } = await supabase
       .from("csv_imports")

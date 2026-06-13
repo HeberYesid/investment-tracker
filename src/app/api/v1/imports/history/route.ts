@@ -1,22 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { requireApiUser } from "@/lib/api/auth";
 import { badRequest, serverError } from "@/lib/api/errors";
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
+  const auth = await requireApiUser();
+  if (auth.response) return auth.response;
+  const { supabase } = auth;
+
   try {
-    const searchParams = Object.fromEntries(request.nextUrl.searchParams);
-    const portfolioId = searchParams.portfolio_id;
-
-    if (!portfolioId) {
-      return badRequest("portfolio_id es requerido.");
-    }
-
-    const supabase = createServerSupabaseClient();
-
     const { data, error } = await supabase
       .from("csv_imports")
       .select("*, brokers(name, code)")
-      .eq("portfolio_id", portfolioId)
       .order("created_at", { ascending: false })
       .limit(50);
 

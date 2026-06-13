@@ -49,6 +49,7 @@ export const DistributionResponse = z.object({
 export type DistributionResponse = z.infer<typeof DistributionResponse>;
 
 export const EvolutionGranularity = z.enum(["daily", "monthly"]);
+export type EvolutionGranularity = z.infer<typeof EvolutionGranularity>;
 
 export const EvolutionQuery = z.object({
   granularity: EvolutionGranularity.default("monthly"),
@@ -74,6 +75,7 @@ export const EvolutionResponse = z.object({
 export type EvolutionResponse = z.infer<typeof EvolutionResponse>;
 
 export const ReturnsGroupBy = z.enum(["month", "year", "stock", "broker"]);
+export type ReturnsGroupBy = z.infer<typeof ReturnsGroupBy>;
 
 export const ReturnsQuery = z.object({
   groupBy: ReturnsGroupBy.default("month"),

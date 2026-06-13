@@ -15,3 +15,10 @@ export function validationError(errors: unknown) {
 export function serverError(message: string = "Error interno del servidor") {
   return NextResponse.json({ error: message }, { status: 500 });
 }
+
+export function unauthorized(message: string = "No autenticado.") {
+  return NextResponse.json(
+    { error: { code: "UNAUTHORIZED", message } },
+    { status: 401 },
+  );
+}

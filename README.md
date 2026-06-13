@@ -20,9 +20,34 @@ Copy `.env.example` to `.env.local` and fill in the Supabase values:
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
+NEXT_PUBLIC_SITE_URL=http://127.0.0.1:3000
 ```
 
 Never expose `SUPABASE_SERVICE_ROLE_KEY` in browser code or `NEXT_PUBLIC_` variables.
+
+## Authentication
+
+Phase 4 wires up Supabase Auth with magic-link sign-in. The flow is:
+
+1. User visits `/login` and submits an email.
+2. Supabase sends a magic link with a `redirectTo` pointing at `${NEXT_PUBLIC_SITE_URL}/auth/callback?next=...`.
+3. The callback route exchanges the code for a session, sets the auth cookies, and redirects.
+4. A Next.js middleware (`src/middleware.ts`) protects every other route: unauthenticated page requests redirect to `/login`, unauthenticated API requests return `401 { error: { code: "UNAUTHORIZED", ... } }`.
+5. On signup, a Postgres trigger creates a row in `public.profiles`, a default portfolio named `Mi portafolio`, and an `OWNER` row in `public.portfolio_members` for the new user.
+
+To enable Auth in your Supabase project (one-time, manual):
+
+1. **Authentication → Providers → Email**: leave enabled.
+2. **Authentication → URL Configuration**:
+   - Site URL: `${NEXT_PUBLIC_SITE_URL}`
+   - Additional Redirect URLs: `${NEXT_PUBLIC_SITE_URL}/auth/callback`
+3. **Authentication → Email Templates → Magic link**: customize the sender name if you want.
+4. To drop any orphan portfolios left over from pre-auth MVP testing:
+   ```sql
+   delete from public.portfolios where user_id is null;
+   ```
+
+Application code never uses the service-role key for normal requests. It only exists for trusted server tasks (e.g. background jobs) and is exposed via `createServiceSupabaseClient()`. All Route Handlers and Server Components go through `createUserSupabaseClient()`, which is bound to the request cookies and therefore subject to RLS.
 
 ## Scripts
 
@@ -65,7 +90,7 @@ The project is designed to run at USD 0 monthly operating cost for MVP and early
 - Phase 1: trades MVP complete.
 - Phase 2: CSV import MVP complete.
 - Phase 3: dashboard MVP complete.
-- Phase 4: auth and permissions pending.
+- Phase 4: auth and permissions complete (OWNER-only; members UI deferred to 4.1).
 - Phase 5: market data and FX pending.
 - Phase 6: alerts and monthly summary pending.
 - Phase 7: PWA, exports, crypto, and bilingual support pending.

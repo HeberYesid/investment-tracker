@@ -5,7 +5,7 @@ import { ArrowLeft } from "lucide-react";
 
 import { MainNavigation } from "@/components/layout/main-navigation";
 import { getTradeLabels } from "@/lib/i18n/trades";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { createUserSupabaseClient } from "@/lib/supabase/server";
 import { TradeDTO } from "@/lib/validations/trades";
 
 import { EditTradeClient } from "@/features/trades/edit-trade-client";
@@ -18,7 +18,7 @@ interface EditTradePageProps {
 
 export default async function EditTradePage({ params }: EditTradePageProps) {
   const { id } = await params;
-  const supabase = createServerSupabaseClient();
+  const supabase = await createUserSupabaseClient();
 
   const { data, error } = await supabase
     .from("trades")

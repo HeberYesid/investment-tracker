@@ -10,6 +10,7 @@ export type DashboardTrade = {
   asset_id: string;
   broker_id: string;
   trade_type: TradeType;
+  trade_date: string;
   quantity: number;
   price_usd: number;
   commission_usd: number;

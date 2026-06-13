@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { requireApiUser } from "@/lib/api/auth";
 import {
   UpdateTradeInput,
   normalizeTradeUsdValues,
@@ -18,6 +18,10 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireApiUser();
+  if (auth.response) return auth.response;
+  const { supabase } = auth;
+
   try {
     const { id } = await params;
     const body = await request.json();
@@ -28,7 +32,6 @@ export async function PATCH(
     }
 
     const input = parsed.data;
-    const supabase = createServerSupabaseClient();
 
     const { data: existing, error: fetchError } = await supabase
       .from("trades")
@@ -84,9 +87,12 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireApiUser();
+  if (auth.response) return auth.response;
+  const { supabase } = auth;
+
   try {
     const { id } = await params;
-    const supabase = createServerSupabaseClient();
 
     const { data: existing, error: fetchError } = await supabase
       .from("trades")

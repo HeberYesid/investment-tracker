@@ -40,7 +40,8 @@ Copy `.env.example` to `.env.local` and fill in three Supabase values:
 
 Two Supabase clients exist in `src/lib/supabase/`, pick the right one:
 - `createBrowserSupabaseClient()` uses the publishable key; for client components.
-- `createServerSupabaseClient()` uses the service role key; for Route Handlers under `src/app/api/`. It throws synchronously if env is missing, so API routes will surface a 500 — do not swallow it.
+- `createUserSupabaseClient()` reads the request cookies and returns a user-scoped client. **This is the default for Route Handlers, Server Components, and Server Actions.** It is subject to RLS.
+- `createServiceSupabaseClient()` uses the service role key and bypasses RLS. Reserved for trusted internal tasks (background jobs, admin scripts). Do not use it in `src/app/` — every request handled here will be tied to a user.
 
 ## Architecture (where to put new code)
 

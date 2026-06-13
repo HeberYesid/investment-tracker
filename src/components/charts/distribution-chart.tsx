@@ -104,9 +104,9 @@ export function DistributionChart({ initial }: DistributionChartProps) {
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Tooltip
-                formatter={(value: number, name: string) => [
-                  usdFormatter.format(value),
-                  name,
+                formatter={(value, name) => [
+                  usdFormatter.format(Number(value)),
+                  String(name),
                 ]}
                 contentStyle={{
                   backgroundColor: "white",

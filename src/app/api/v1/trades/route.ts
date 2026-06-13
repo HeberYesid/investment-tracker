@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { requireApiUser } from "@/lib/api/auth";
+import { getCurrentPortfolio } from "@/lib/supabase/auth";
 import {
   TradeFormInput,
   TradeListQuery,
@@ -9,6 +10,10 @@ import type { CreateTradeInput } from "@/lib/validations/trades";
 import { badRequest, validationError, serverError } from "@/lib/api/errors";
 
 export async function GET(request: NextRequest) {
+  const auth = await requireApiUser();
+  if (auth.response) return auth.response;
+  const { supabase } = auth;
+
   try {
     const searchParams = Object.fromEntries(request.nextUrl.searchParams);
     const parsed = TradeListQuery.safeParse(searchParams);
@@ -31,9 +36,6 @@ export async function GET(request: NextRequest) {
       min_total_usd,
     } = parsed.data;
 
-    const supabase = createServerSupabaseClient();
-
-    // If broker_code is provided, resolve to broker_id
     let resolvedBrokerId = broker_id;
     if (broker_code && !broker_id) {
       const { data: broker } = await supabase
@@ -75,8 +77,6 @@ export async function GET(request: NextRequest) {
       query = query.lte("trade_date", date_to);
     }
     if (min_total_usd !== undefined && min_total_usd > 0) {
-      // Filter on |total_invested_usd| >= min. PostgREST has no abs(),
-      // so we express it as a union of two ranged filters.
       query = query.or(
         `total_invested_usd.gte.${min_total_usd},total_invested_usd.lte.${-min_total_usd}`,
       );
@@ -92,7 +92,6 @@ export async function GET(request: NextRequest) {
       return badRequest(error.message);
     }
 
-    // Flatten the assets and brokers joins into top-level fields
     const flattened = (data ?? []).map((row) => {
       const assets = (row as { assets?: { ticker?: string; name?: string } })
         .assets;
@@ -127,6 +126,10 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await requireApiUser();
+  if (auth.response) return auth.response;
+  const { supabase } = auth;
+
   try {
     const body = await request.json();
     const parsed = TradeFormInput.safeParse(body);
@@ -136,7 +139,10 @@ export async function POST(request: NextRequest) {
     }
 
     const input = parsed.data;
-    const supabase = createServerSupabaseClient();
+    const portfolio = await getCurrentPortfolio();
+    if (!portfolio) {
+      return badRequest("No se encontró un portafolio para el usuario.");
+    }
 
     const { data: broker, error: brokerError } = await supabase
       .from("brokers")
@@ -176,36 +182,9 @@ export async function POST(request: NextRequest) {
       asset_id = newAsset.id;
     }
 
-    let portfolio_id: string;
-    if (input.portfolio_id) {
-      portfolio_id = input.portfolio_id;
-    } else {
-      const { data: existingPortfolio } = await supabase
-        .from("portfolios")
-        .select("id")
-        .eq("name", "Default")
-        .limit(1)
-        .maybeSingle();
-
-      if (existingPortfolio) {
-        portfolio_id = existingPortfolio.id;
-      } else {
-        const { data: newPortfolio, error: portfolioError } = await supabase
-          .from("portfolios")
-          .insert({ name: "Default", base_currency: "USD" })
-          .select("id")
-          .single();
-
-        if (portfolioError || !newPortfolio) {
-          return badRequest("No se pudo crear el portafolio");
-        }
-        portfolio_id = newPortfolio.id;
-      }
-    }
-
     const tradeInput: CreateTradeInput = {
       ...input,
-      portfolio_id,
+      portfolio_id: portfolio.portfolioId,
       broker_id: broker.id,
       asset_id,
       source: "MANUAL",
@@ -215,7 +194,7 @@ export async function POST(request: NextRequest) {
     const { data: trade, error: tradeError } = await supabase
       .from("trades")
       .insert({
-        portfolio_id,
+        portfolio_id: portfolio.portfolioId,
         broker_id: broker.id,
         asset_id,
         trade_date: input.trade_date,

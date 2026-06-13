@@ -1,13 +1,22 @@
 import { expect, test } from "playwright/test";
 
-test("renders the Spanish dashboard home on a mobile viewport", async ({ page }) => {
+test("unauthenticated home redirects to /login", async ({ page }) => {
   await page.goto("/");
 
+  await expect(page).toHaveURL(/\/login(?:\?|$)/);
   await expect(
-    page.getByRole("heading", { name: "Tu portafolio consolidado" }),
+    page.getByRole("heading", { name: "Inicia sesión" }),
   ).toBeVisible();
+});
+
+test("login page shows the email input", async ({ page }) => {
+  await page.goto("/login");
+
   await expect(
-    page.getByRole("navigation", { name: "Navegación principal" }),
+    page.getByRole("heading", { name: "Inicia sesión" }),
   ).toBeVisible();
-  await expect(page.getByRole("link", { name: "Operaciones" })).toBeVisible();
+  await expect(page.getByLabel("Correo electrónico")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Enviar enlace mágico" }),
+  ).toBeVisible();
 });

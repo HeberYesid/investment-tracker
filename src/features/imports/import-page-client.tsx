@@ -52,7 +52,6 @@ type ImportState =
   | { step: "done"; brokerCode: BrokerCode; result: CommitResult };
 
 // UUID v4 válido: versión 4, variante 8
-const DEFAULT_PORTFOLIO_ID = "00000000-0000-4000-8000-000000000001";
 
 const labels = getImportLabels();
 
@@ -68,7 +67,7 @@ const ACCEPTED_EXTENSIONS: Record<BrokerCode, string> = {
   ETRADING_BANCOLOMBIA: ".xls",
 };
 
-export function ImportPageClient() {
+export function ImportPageClient({ portfolioId: _portfolioId }: { portfolioId: string }) {
   const [state, setState] = useState<ImportState>({ step: "select" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -104,7 +103,6 @@ export function ImportPageClient() {
       const formData = new FormData();
       formData.append("file", state.file);
       formData.append("broker_code", state.brokerCode);
-      formData.append("portfolio_id", DEFAULT_PORTFOLIO_ID);
 
       const fxRateNum = Number.parseFloat(state.fxRate);
       if (!Number.isNaN(fxRateNum) && fxRateNum > 0) {
@@ -158,7 +156,6 @@ export function ImportPageClient() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           import_id: state.preview.import.id,
-          portfolio_id: DEFAULT_PORTFOLIO_ID,
         }),
       });
 
@@ -562,7 +559,7 @@ export function ImportPageClient() {
       )}
 
       {/* Import history (always visible at bottom) */}
-      <ImportHistory portfolioId={DEFAULT_PORTFOLIO_ID} />
+      <ImportHistory />
     </div>
   );
 }

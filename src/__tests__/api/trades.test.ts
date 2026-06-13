@@ -44,10 +44,30 @@ function createBuilder(): MockBuilder {
 
 const mockSupabase = {
   from: vi.fn().mockImplementation(() => createBuilder()),
+  auth: {
+    getUser: vi.fn().mockResolvedValue({
+      data: { user: { id: "user-id-1" } },
+      error: null,
+    }),
+  },
 };
 
 vi.mock("@/lib/supabase/server", () => ({
-  createServerSupabaseClient: () => mockSupabase,
+  createUserSupabaseClient: () => Promise.resolve(mockSupabase),
+  createServiceSupabaseClient: () => mockSupabase,
+}));
+
+vi.mock("@/lib/supabase/auth", () => ({
+  getCurrentPortfolio: () =>
+    Promise.resolve({
+      portfolioId: "550e8400-e29b-41d4-a716-446655440000",
+      role: "OWNER",
+      portfolio: {
+        id: "550e8400-e29b-41d4-a716-446655440000",
+        name: "Mi portafolio",
+        base_currency: "USD",
+      },
+    }),
 }));
 
 import { GET, POST } from "@/app/api/v1/trades/route";
@@ -75,7 +95,6 @@ describe("POST /api/v1/trades", () => {
   it("returns 201 for a valid trade", async () => {
     queuedResults.push({ data: { id: mockTrade.broker_id }, error: null });
     queuedResults.push({ data: { id: mockTrade.asset_id }, error: null });
-    queuedResults.push({ data: { id: mockTrade.portfolio_id }, error: null });
     queuedResults.push({ data: mockTrade, error: null });
     queuedResults.push({ data: null, error: null });
 
@@ -121,7 +140,6 @@ describe("POST /api/v1/trades", () => {
   it("computes USD values correctly", async () => {
     queuedResults.push({ data: { id: mockTrade.broker_id }, error: null });
     queuedResults.push({ data: { id: mockTrade.asset_id }, error: null });
-    queuedResults.push({ data: { id: mockTrade.portfolio_id }, error: null });
     queuedResults.push({ data: mockTrade, error: null });
     queuedResults.push({ data: null, error: null });
 
@@ -133,7 +151,7 @@ describe("POST /api/v1/trades", () => {
 
     await POST(request);
 
-    const tradesBuilder = builders[3];
+    const tradesBuilder = builders[2];
     const insertedPayload = tradesBuilder.insert.mock.calls[0][0];
 
     expect(insertedPayload.price_usd).toBe(100);
@@ -144,7 +162,6 @@ describe("POST /api/v1/trades", () => {
   it("creates an audit event after trade creation", async () => {
     queuedResults.push({ data: { id: mockTrade.broker_id }, error: null });
     queuedResults.push({ data: { id: mockTrade.asset_id }, error: null });
-    queuedResults.push({ data: { id: mockTrade.portfolio_id }, error: null });
     queuedResults.push({ data: mockTrade, error: null });
     queuedResults.push({ data: null, error: null });
 
@@ -157,7 +174,7 @@ describe("POST /api/v1/trades", () => {
     await POST(request);
 
     expect(mockSupabase.from).toHaveBeenCalledWith("audit_events");
-    const auditBuilder = builders[4];
+    const auditBuilder = builders[3];
     const auditPayload = auditBuilder.insert.mock.calls[0][0];
 
     expect(auditPayload.entity_type).toBe("trade");
