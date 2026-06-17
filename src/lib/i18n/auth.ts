@@ -20,9 +20,6 @@ export const authStrings = {
   },
   nav: {
     signIn: "Iniciar sesión",
-    signOut: "Cerrar sesión",
-  },
-  userMenu: {
-    signedInAs: "Conectado como",
+    signOut: "Salir",
   },
 } as const;

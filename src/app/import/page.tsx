@@ -9,7 +9,7 @@ export default async function ImportPage() {
   const portfolio = await requireCurrentPortfolio();
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-950">
+    <main className="min-h-screen bg-slate-100 text-slate-950">
       <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-6 bg-slate-50 px-4 py-5 sm:px-6 lg:px-8">
         <MainNavigation />
 
