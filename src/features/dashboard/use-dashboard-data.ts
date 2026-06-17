@@ -7,6 +7,7 @@ import type {
   DrawdownResponse,
   EvolutionResponse,
   ReturnsResponse,
+  SnapshotResponse,
   SummaryResponse,
 } from "@/lib/validations/dashboard";
 
@@ -20,6 +21,7 @@ export type DashboardPayload = {
   evolution: EvolutionResponse | null;
   returns: ReturnsResponse | null;
   drawdown: DrawdownResponse | null;
+  snapshot: SnapshotResponse | null;
 };
 
 export type DashboardDataState = {
@@ -35,6 +37,7 @@ const initialPayload: DashboardPayload = {
   evolution: null,
   returns: null,
   drawdown: null,
+  snapshot: null,
 };
 
 async function fetchJson<T>(url: string, signal: AbortSignal): Promise<T> {
@@ -58,7 +61,7 @@ export function useDashboardData(): DashboardDataState {
     setError(null);
 
     try {
-      const [summary, distribution, evolution, returnsResp, drawdown] =
+      const [summary, distribution, evolution, returnsResp, drawdown, snapshot] =
         await Promise.all([
           fetchJson<SummaryResponse>("/api/v1/dashboard/summary", signal),
           fetchJson<DistributionResponse>(
@@ -74,6 +77,7 @@ export function useDashboardData(): DashboardDataState {
             signal,
           ),
           fetchJson<DrawdownResponse>("/api/v1/dashboard/drawdown", signal),
+          fetchJson<SnapshotResponse>("/api/v1/dashboard/snapshot", signal),
         ]);
 
       setPayload({
@@ -82,6 +86,7 @@ export function useDashboardData(): DashboardDataState {
         evolution,
         returns: returnsResp,
         drawdown,
+        snapshot,
       });
     } catch (err) {
       if ((err as { name?: string })?.name === "AbortError") return;

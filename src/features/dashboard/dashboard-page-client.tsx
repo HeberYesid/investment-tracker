@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 
-import { BenchmarkPlaceholder } from "@/components/charts/benchmark-placeholder";
+import { BenchmarkChart } from "@/components/charts/benchmark-chart";
 import { DistributionChart } from "@/components/charts/distribution-chart";
 import { DrawdownChart } from "@/components/charts/drawdown-chart";
 import { EvolutionChart } from "@/components/charts/evolution-chart";
@@ -84,7 +84,12 @@ export function DashboardPageClient() {
       {payload.distribution && <DistributionChart initial={payload.distribution} />}
       {payload.returns && <ReturnsTable initial={payload.returns} />}
       {payload.drawdown && <DrawdownChart data={payload.drawdown} />}
-      <BenchmarkPlaceholder />
+      {payload.evolution && payload.snapshot?.benchmark && (
+        <BenchmarkChart
+          evolution={payload.evolution}
+          benchmark={payload.snapshot.benchmark}
+        />
+      )}
     </div>
   );
 }

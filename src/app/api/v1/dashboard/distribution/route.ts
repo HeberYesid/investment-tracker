@@ -6,6 +6,7 @@ import { badRequest, serverError, validationError } from "@/lib/api/errors";
 import { requireApiUser } from "@/lib/api/auth";
 import { getCurrentPortfolio } from "@/lib/supabase/auth";
 import { loadDashboardData } from "@/lib/dashboard/loader";
+import { computeAssetStaleness } from "@/lib/dashboard/snapshot";
 import { DistributionQuery } from "@/lib/validations/dashboard";
 
 export async function GET(request: NextRequest) {
@@ -31,17 +32,36 @@ export async function GET(request: NextRequest) {
     const holdings = aggregateHoldings(data.trades, data.assets, data.brokers);
 
     const equityByHolding = new Map<string, number>();
+    const stalenessByHolding = new Map<string, "fresh" | "stale" | "estimated">();
     for (const holding of holdings) {
       const key = `${holding.assetId}::${holding.brokerId}`;
-      if (equityByHolding.has(key)) continue;
-      const latest = data.latestMarketPrices.find((m) => m.asset_id === holding.assetId);
-      const priceUsd = latest && (!latest.delayed_until || latest.delayed_until <= new Date().toISOString())
-        ? Number(latest.price_usd)
-        : holding.averageCost;
-      equityByHolding.set(key, priceUsd * holding.quantity);
+      if (!equityByHolding.has(key)) {
+        const latest = data.latestMarketPrices.find((m) => m.asset_id === holding.assetId);
+        const priceUsd = latest && (!latest.delayed_until || latest.delayed_until <= new Date().toISOString())
+          ? Number(latest.price_usd)
+          : holding.averageCost;
+        equityByHolding.set(key, priceUsd * holding.quantity);
+      }
+      if (!stalenessByHolding.has(key)) {
+        const activeAssetIds = Array.from(
+          new Set(
+            holdings
+              .filter((h) => h.quantity > 0)
+              .map((h) => h.assetId),
+          ),
+        );
+        const staleness = computeAssetStaleness(activeAssetIds, data.latestMarketPrices);
+        const holdingStaleness = staleness.get(holding.assetId) ?? "estimated";
+        stalenessByHolding.set(key, holdingStaleness);
+      }
     }
 
-    const result = groupByDimension(holdings, equityByHolding, parsed.data.dim);
+    const result = groupByDimension(
+      holdings,
+      equityByHolding,
+      parsed.data.dim,
+      stalenessByHolding,
+    );
 
     return NextResponse.json({
       dim: result.dim,

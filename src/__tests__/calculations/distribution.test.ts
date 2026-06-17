@@ -94,4 +94,61 @@ describe("groupByDimension", () => {
     expect(result.totalUsd).toBe(0);
     expect(result.slices).toEqual([]);
   });
+
+  it("aggregates staleness as the worst of all holdings in the slice", () => {
+    const equity = new Map([
+      ["a1::b1", 600],
+      ["a2::b1", 400],
+    ]);
+    const staleness = new Map<string, "fresh" | "stale" | "estimated">([
+      ["a1::b1", "fresh"],
+      ["a2::b1", "stale"],
+    ]);
+    const result = groupByDimension(
+      [
+        holding({ brokerId: "b1", brokerName: "eToro" }),
+        holding({
+          assetId: "a2",
+          ticker: "NVDA",
+          brokerId: "b1",
+          brokerName: "eToro",
+        }),
+      ],
+      equity,
+      "broker",
+      staleness,
+    );
+    expect(result.slices[0].staleness).toBe("stale");
+  });
+
+  it("uses estimated when no staleness map is provided", () => {
+    const equity = new Map([["a1::b1", 1000]]);
+    const result = groupByDimension(
+      [holding()],
+      equity,
+      "broker",
+    );
+    expect(result.slices[0].staleness).toBe("estimated");
+  });
+
+  it("treats a fresh and estimated mix as estimated (worst wins)", () => {
+    const equity = new Map([
+      ["a1::b1", 300],
+      ["a2::b1", 700],
+    ]);
+    const staleness = new Map<string, "fresh" | "stale" | "estimated">([
+      ["a1::b1", "fresh"],
+      ["a2::b1", "estimated"],
+    ]);
+    const result = groupByDimension(
+      [
+        holding({ brokerId: "b1" }),
+        holding({ assetId: "a2", ticker: "NVDA", brokerId: "b1" }),
+      ],
+      equity,
+      "broker",
+      staleness,
+    );
+    expect(result.slices[0].staleness).toBe("estimated");
+  });
 });

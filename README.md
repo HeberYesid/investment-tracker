@@ -70,7 +70,54 @@ It creates the core investment tables, enables RLS on every public table, and se
 - Trii, COP.
 - eTrading Bancolombia, COP.
 
-The migration smoke test uses PGlite to apply the schema DDL in memory and validate public tables, RLS, and broker seeds.
+Additional migrations add auth (`0003_auth_and_permissions.sql`) and the market-data infrastructure (`0004_market_data_sync.sql`): the S&P 500 benchmark asset, the `market_sync_runs` table, the `enqueue_sync_run` function, and the `pg_cron` schedules that drive the Edge Functions.
+
+The migration smoke test uses PGlite to apply the schema DDL in memory and validate public tables, RLS, broker seeds, and the market-data tables.
+
+## Sincronización de precios y FX
+
+Phase 5 wires up two free providers behind adapter interfaces:
+
+- **Yahoo Finance** (`https://query1.finance.yahoo.com/v8/finance/chart/{symbol}`) for delayed quotes and the S&P 500 benchmark series. No API key. CORS-restricted, so the call lives inside a Supabase Edge Function.
+- **open.er-api.com** (`https://open.er-api.com/v6/latest/USD`) for the USD/COP rate. No API key.
+
+The providers sit behind `src/lib/market-data/{yahoo,open-er-api,config,types}.ts` and the dashboard / trade form read from the cached `market_prices` and `fx_rates` tables — they never call the providers on the read path. The benchmark chart overlays a normalized S&P 500 series on the portfolio evolution chart, and the trade form pre-fills `fx_rate_to_usd` with the latest USD→COP rate when the user picks COP.
+
+### Cadence
+
+- **Market prices** (`sync-prices-30m`): every 30 minutes via `pg_cron`.
+- **FX rates** (`sync-fx-rates-daily`): daily at 06:00 UTC via `pg_cron`.
+
+### Monthly cost estimate
+
+With the 30-minute cadence and a single global batch, the Edge Functions run ~1,500 times/month for prices and once/day for FX. Add a small buffer for the on-demand admin trigger and we land around **~43,000 invocations / month**, well under the Supabase Free limit of 500,000. No external paid service is involved.
+
+### Disabling the crons
+
+To pause automated syncs (e.g. during maintenance), unschedule the jobs from `psql`:
+
+```sql
+select cron.unschedule('sync-prices-30m');
+select cron.unschedule('sync-fx-rates-daily');
+```
+
+The functions and tables stay in place — they are inert without the crons. The `Sincronizar ahora` button in `BenchmarkChart` (dev-only, gated by `NODE_ENV !== 'production'`) still triggers a one-off run via `POST /api/v1/admin/sync/run`.
+
+### Fallback if `pg_cron` is not enabled
+
+On Supabase Free, `pg_cron` is available out of the box. If you ever run on a project without it, deploy a GitHub Actions workflow on a schedule that calls the Edge Function URL with the service-role bearer. The schedule can match the same cadence; the only thing that changes is the trigger.
+
+### Required sync settings (per environment)
+
+The `enqueue_sync_run` function reads the Edge Function base URL and the anon (publishable) key from `public.sync_settings`. Insert both rows once per database (do **not** commit real values):
+
+```sql
+insert into public.sync_settings (key, value) values
+  ('EDGE_FUNCTION_BASE', 'https://<project-ref>.supabase.co'),
+  ('SUPABASE_ANON_KEY', '<anon/publishable key from Supabase dashboard>');
+```
+
+Replace `<project-ref>` with your Supabase project reference and `<anon/publishable key>` with the project's anon key (the same value as `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`). Supabase Edge Functions require a Bearer JWT in the `Authorization` header; the anon key is safe to store here because it is already public. The service role key is never stored in the database — Supabase injects it into the Edge Functions automatically via `SUPABASE_SERVICE_ROLE_KEY`.
 
 ## Cost Guardrails
 
@@ -91,6 +138,6 @@ The project is designed to run at USD 0 monthly operating cost for MVP and early
 - Phase 2: CSV import MVP complete.
 - Phase 3: dashboard MVP complete.
 - Phase 4: auth and permissions complete (OWNER-only; members UI deferred to 4.1).
-- Phase 5: market data and FX pending.
+- Phase 5: market data and FX complete.
 - Phase 6: alerts and monthly summary pending.
 - Phase 7: PWA, exports, crypto, and bilingual support pending.

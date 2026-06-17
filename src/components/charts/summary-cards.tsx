@@ -38,11 +38,27 @@ export function SummaryCards({ summary }: SummaryCardsProps) {
         <div
           role="status"
           className="flex items-start gap-3 rounded-2xl bg-amber-50 p-4 text-sm text-amber-900 ring-1 ring-amber-200"
+          data-testid="summary-estimated-banner"
         >
           <div>
             <p className="font-semibold">{labels.estimatedBanner}</p>
             <p className="mt-1 text-xs text-amber-800">
               {labels.estimatedBannerDescription}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {summary.isAnyStale && !summary.isEstimated && (
+        <div
+          role="status"
+          className="flex items-start gap-3 rounded-2xl bg-orange-50 p-4 text-sm text-orange-900 ring-1 ring-orange-200"
+          data-testid="summary-stale-banner"
+        >
+          <div>
+            <p className="font-semibold">{labels.staleBanner}</p>
+            <p className="mt-1 text-xs text-orange-800">
+              {labels.staleBannerDescription}
             </p>
           </div>
         </div>

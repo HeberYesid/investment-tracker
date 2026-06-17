@@ -73,12 +73,17 @@ src/lib/                Shared logic (no React)
     date-parsers.ts     Broker-specific date parsing
     xtb-comment-parser.ts  Extracts metadata from XTB comment fields
     file-reader.ts      File → raw text
-  i18n/                 Spanish label dictionaries (dictionary.ts, trades.ts, imports.ts)
+  i18n/                 Spanish label dictionaries (dictionary.ts, dashboard.ts, trades.ts, imports.ts)
   reference/brokers.ts  BrokerCode union and BROKER_SEEDS — single source of truth
   supabase/             See "Environment" above
-  validations/          Zod schemas (TradeFormInput, TradeListQuery, normalizeTradeUsdValues)
+  market-data/          Price + FX providers (yahoo.ts, open-er-api.ts) and staleness helpers
+  dashboard/
+    loader.ts          loadDashboardData (trades + assets + brokers + latest prices)
+    snapshot.ts        Per-asset staleness map, benchmark series loader
+  validations/          Zod schemas (TradeFormInput, TradeListQuery, normalizeTradeUsdValues, dashboard, fx)
 src/test/setup.ts       Vitest setup (loads @testing-library/jest-dom/vitest)
 supabase/migrations/    Numbered SQL migrations; see "Database"
+  functions/            Deno Edge Functions (sync-prices, sync-fx-rates) — see "Sincronización" in README
 tests/
   unit/                 Vitest unit tests (tests/unit/csv/*)
   e2e/                  Playwright tests (tests/e2e/home.spec.ts) — **excluded from vitest**

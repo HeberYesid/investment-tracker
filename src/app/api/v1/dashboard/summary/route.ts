@@ -7,6 +7,7 @@ import { badRequest, serverError, validationError } from "@/lib/api/errors";
 import { requireApiUser } from "@/lib/api/auth";
 import { getCurrentPortfolio } from "@/lib/supabase/auth";
 import { loadDashboardData } from "@/lib/dashboard/loader";
+import { computeAssetStaleness } from "@/lib/dashboard/snapshot";
 import { SummaryQuery } from "@/lib/validations/dashboard";
 
 export async function GET(request: NextRequest) {
@@ -36,6 +37,21 @@ export async function GET(request: NextRequest) {
     );
     const pnl = calculatePortfolioPnl(holdings, equityUsd);
 
+    const activeAssetIds = Array.from(
+      new Set(
+        holdings
+          .filter((h) => h.quantity > 0)
+          .map((h) => h.assetId),
+      ),
+    );
+    const staleness = computeAssetStaleness(
+      activeAssetIds,
+      data.latestMarketPrices,
+    );
+    const isAnyStale = Array.from(staleness.values()).some(
+      (value) => value === "stale",
+    );
+
     return NextResponse.json({
       equityUsd,
       investedUsd: pnl.investedUsd,
@@ -45,6 +61,7 @@ export async function GET(request: NextRequest) {
       returnPct: pnl.returnPct,
       holdingsCount: holdings.filter((h) => h.quantity > 0).length,
       isEstimated: isAnyEstimated,
+      isAnyStale,
     });
   } catch (err) {
     if (err instanceof Error) return badRequest(err.message);

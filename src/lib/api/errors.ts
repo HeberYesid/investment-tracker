@@ -22,3 +22,10 @@ export function unauthorized(message: string = "No autenticado.") {
     { status: 401 },
   );
 }
+
+export function forbidden(message: string = "No tienes permiso para esta acción.") {
+  return NextResponse.json(
+    { error: { code: "FORBIDDEN", message } },
+    { status: 403 },
+  );
+}

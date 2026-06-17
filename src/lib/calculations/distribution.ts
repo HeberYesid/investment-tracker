@@ -1,4 +1,5 @@
 import type { Holding } from "./holdings";
+import type { AssetStalenessValue } from "@/lib/dashboard/snapshot";
 
 export type DistributionDimension = "broker" | "sector" | "country";
 
@@ -8,6 +9,7 @@ export type DistributionSlice = {
   valueUsd: number;
   percent: number;
   holdingsCount: number;
+  staleness: AssetStalenessValue;
 };
 
 export type DistributionResult = {
@@ -19,6 +21,19 @@ export type DistributionResult = {
 
 const UNCLASSIFIED_KEY = "__unclassified__";
 const UNCLASSIFIED_LABEL = "Sin clasificar";
+
+const STALENESS_RANK: Record<AssetStalenessValue, number> = {
+  fresh: 0,
+  stale: 1,
+  estimated: 2,
+};
+
+function worseStaleness(
+  a: AssetStalenessValue,
+  b: AssetStalenessValue,
+): AssetStalenessValue {
+  return STALENESS_RANK[a] >= STALENESS_RANK[b] ? a : b;
+}
 
 function valueForDim(holding: Holding, dim: DistributionDimension): {
   key: string;
@@ -52,6 +67,7 @@ export function groupByDimension(
   holdings: Holding[],
   equityByHolding: Map<string, number>,
   dim: DistributionDimension,
+  stalenessByHolding?: Map<string, AssetStalenessValue>,
 ): DistributionResult {
   type Bucket = {
     key: string;
@@ -59,6 +75,7 @@ export function groupByDimension(
     valueUsd: number;
     holdingsCount: number;
     unclassified: boolean;
+    staleness: AssetStalenessValue;
   };
   const buckets = new Map<string, Bucket>();
   let totalUsd = 0;
@@ -69,15 +86,20 @@ export function groupByDimension(
     if (equity <= 0) continue;
     const v = valueForDim(holding, dim);
     if (v.unclassified) unclassified = true;
+    const holdingStaleness: AssetStalenessValue =
+      stalenessByHolding?.get(`${holding.assetId}::${holding.brokerId}`) ??
+      "estimated";
     const bucket = buckets.get(v.key) ?? {
       key: v.key,
       label: v.label,
       valueUsd: 0,
       holdingsCount: 0,
       unclassified: v.unclassified,
+      staleness: holdingStaleness,
     };
     bucket.valueUsd += equity;
     bucket.holdingsCount += 1;
+    bucket.staleness = worseStaleness(bucket.staleness, holdingStaleness);
     buckets.set(v.key, bucket);
     totalUsd += equity;
   }
@@ -89,6 +111,7 @@ export function groupByDimension(
       valueUsd: b.valueUsd,
       percent: totalUsd > 0 ? (b.valueUsd / totalUsd) * 100 : 0,
       holdingsCount: b.holdingsCount,
+      staleness: b.staleness,
     }),
   );
 

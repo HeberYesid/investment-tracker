@@ -14,6 +14,11 @@ export const tradeLabels = {
     currency: "Moneda",
     commission: "Comisión",
     fxRate: "Tasa de cambio (a USD)",
+    fxRateFresh: "Tasa actualizada",
+    fxRateStale: "Tasa desactualizada",
+    fxRateMissing: "Sin tasa de cambio disponible — ingresa manualmente",
+    fxRateUpdatedAt: "Actualizada el {date}",
+    fxRateSource: "Fuente: {source}",
 
     BUY: "Compra",
     SELL: "Venta",

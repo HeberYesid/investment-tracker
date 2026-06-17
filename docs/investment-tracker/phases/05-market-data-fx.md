@@ -41,16 +41,16 @@ export interface FxRateProvider {
 
 ## Tasks
 
-- [ ] Implement provider interfaces.
-- [ ] Implement Yahoo Finance provider behind `MarketDataProvider`.
-- [ ] Implement free FX provider behind `FxRateProvider`.
-- [ ] Validate third-party responses with Zod.
-- [ ] Store quotes in `market_prices`.
-- [ ] Store rates in `fx_rates`.
-- [ ] Build scheduled Supabase Edge Function for quote refresh.
-- [ ] Build scheduled Supabase Edge Function for FX refresh.
-- [ ] Add benchmark comparison to dashboard.
-- [ ] Add stale-data indicators in the UI.
+- [x] Implement provider interfaces.
+- [x] Implement Yahoo Finance provider behind `MarketDataProvider`.
+- [x] Implement free FX provider behind `FxRateProvider`.
+- [x] Validate third-party responses with Zod.
+- [x] Store quotes in `market_prices`.
+- [x] Store rates in `fx_rates`.
+- [x] Build scheduled Supabase Edge Function for quote refresh.
+- [x] Build scheduled Supabase Edge Function for FX refresh.
+- [x] Add benchmark comparison to dashboard.
+- [x] Add stale-data indicators in the UI.
 
 ## Refresh Strategy
 

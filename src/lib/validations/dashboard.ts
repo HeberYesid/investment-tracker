@@ -15,6 +15,7 @@ export const SummaryResponse = z.object({
   returnPct: z.number(),
   holdingsCount: z.number(),
   isEstimated: z.boolean(),
+  isAnyStale: z.boolean(),
 });
 
 export type SummaryResponse = z.infer<typeof SummaryResponse>;
@@ -29,12 +30,16 @@ export const DistributionQuery = z.object({
 
 export type DistributionQuery = z.infer<typeof DistributionQuery>;
 
+export const AssetStaleness = z.enum(["fresh", "stale", "estimated"]);
+export type AssetStaleness = z.infer<typeof AssetStaleness>;
+
 export const DistributionSlice = z.object({
   key: z.string(),
   label: z.string(),
   valueUsd: z.number(),
   percent: z.number(),
   holdingsCount: z.number(),
+  staleness: AssetStaleness,
 });
 
 export type DistributionSlice = z.infer<typeof DistributionSlice>;
@@ -115,3 +120,43 @@ export const DrawdownResponse = z.object({
 });
 
 export type DrawdownResponse = z.infer<typeof DrawdownResponse>;
+
+export const SnapshotAsset = z.object({
+  id: z.string().uuid(),
+  ticker: z.string(),
+  isEstimated: z.boolean(),
+  isStale: z.boolean(),
+  observedAt: z.string().nullable(),
+  staleness: AssetStaleness,
+});
+
+export type SnapshotAsset = z.infer<typeof SnapshotAsset>;
+
+export const BenchmarkPoint = z.object({
+  date: z.string(),
+  value: z.number(),
+});
+
+export type BenchmarkPoint = z.infer<typeof BenchmarkPoint>;
+
+export const BenchmarkSeries = z.object({
+  symbol: z.string(),
+  label: z.string(),
+  normalizedTo: z.number(),
+  from: z.string(),
+  to: z.string(),
+  points: z.array(BenchmarkPoint),
+  lastObservedAt: z.string().nullable(),
+  isStale: z.boolean(),
+});
+
+export type BenchmarkSeries = z.infer<typeof BenchmarkSeries>;
+
+export const SnapshotResponse = z.object({
+  assets: z.array(SnapshotAsset),
+  isAnyEstimated: z.boolean(),
+  isAnyStale: z.boolean(),
+  benchmark: BenchmarkSeries.nullable(),
+});
+
+export type SnapshotResponse = z.infer<typeof SnapshotResponse>;

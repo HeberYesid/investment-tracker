@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -9,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { getTradeLabels } from "@/lib/i18n/trades";
 import { BROKER_SEEDS } from "@/lib/reference/brokers";
 import { TRADE_TYPES, SUPPORTED_CURRENCIES } from "@/lib/validations/trades";
+import type { LatestFxResponse } from "@/lib/validations/fx";
 
 const labels = getTradeLabels();
 
@@ -48,11 +50,27 @@ function todayString(): string {
   return `${y}-${m}-${day}`;
 }
 
+const longDateFormatter = new Intl.DateTimeFormat("es-CO", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
+function formatDate(value: string | null): string {
+  if (!value) return "";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "";
+  return longDateFormatter.format(d);
+}
+
 export function TradeForm({ initialData, onSubmit }: TradeFormProps) {
   const {
     register,
     handleSubmit,
     watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<TradeFormValues>({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -71,7 +89,48 @@ export function TradeForm({ initialData, onSubmit }: TradeFormProps) {
   });
 
   const currency = watch("currency_original");
+  const fxRateValue = watch("fx_rate_to_usd");
   const showFxRate = currency === "COP";
+
+  const [fxRate, setFxRate] = useState<LatestFxResponse | null>(null);
+  const [fxLoading, setFxLoading] = useState(false);
+  const [fxError, setFxError] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setFxLoading(true);
+    setFxError(false);
+    fetch("/api/v1/fx/latest?from=USD&to=COP")
+      .then((res) => (res.ok ? res.json() : Promise.reject(res)))
+      .then((data: LatestFxResponse) => {
+        if (!cancelled) setFxRate(data);
+      })
+      .catch(() => {
+        if (!cancelled) setFxError(true);
+      })
+      .finally(() => {
+        if (!cancelled) setFxLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (currency !== "COP") return;
+    if (!fxRate) return;
+    if (fxRateValue !== 1) return;
+    if (fxRate.rate && fxRate.rate > 0) {
+      setValue("fx_rate_to_usd", fxRate.rate, { shouldDirty: false });
+    }
+  }, [currency, fxRate, fxRateValue, setValue]);
+
+  const fxFreshness = (() => {
+    if (fxLoading) return "loading" as const;
+    if (fxError || !fxRate) return "missing" as const;
+    if (fxRate.rate === null) return "missing" as const;
+    return fxRate.isStale ? ("stale" as const) : ("fresh" as const);
+  })();
 
   return (
     <form
@@ -260,6 +319,11 @@ export function TradeForm({ initialData, onSubmit }: TradeFormProps) {
             {...register("fx_rate_to_usd")}
             className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-950 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
           />
+          <FxRateIndicator
+            status={fxFreshness}
+            observedAt={fxRate?.observedAt ?? null}
+            source={fxRate?.source ?? null}
+          />
           {errors.fx_rate_to_usd && (
             <p className="text-xs text-red-600">
               {errors.fx_rate_to_usd.message}
@@ -288,5 +352,57 @@ export function TradeForm({ initialData, onSubmit }: TradeFormProps) {
         </Button>
       </div>
     </form>
+  );
+}
+
+interface FxRateIndicatorProps {
+  status: "loading" | "fresh" | "stale" | "missing";
+  observedAt: string | null;
+  source: string | null;
+}
+
+function FxRateIndicator({ status, observedAt, source }: FxRateIndicatorProps) {
+  if (status === "loading") {
+    return (
+      <p className="text-xs text-slate-500" data-testid="fx-rate-loading">
+        {labels.loading}
+      </p>
+    );
+  }
+  if (status === "missing") {
+    return (
+      <p
+        className="text-xs text-amber-600"
+        data-testid="fx-rate-missing"
+        role="status"
+      >
+        {labels.fxRateMissing}
+      </p>
+    );
+  }
+  const tone =
+    status === "fresh"
+      ? "text-emerald-600"
+      : "text-orange-600";
+  const label = status === "fresh" ? labels.fxRateFresh : labels.fxRateStale;
+  const formattedDate = formatDate(observedAt);
+  const formattedSource = source
+    ? labels.fxRateSource.replace("{source}", source)
+    : null;
+  return (
+    <p
+      className={`text-xs ${tone}`}
+      data-testid={status === "fresh" ? "fx-rate-fresh" : "fx-rate-stale"}
+      role="status"
+    >
+      {label}
+      {formattedDate && (
+        <>
+          {" · "}
+          {labels.fxRateUpdatedAt.replace("{date}", formattedDate)}
+        </>
+      )}
+      {formattedSource && <> · {formattedSource}</>}
+    </p>
   );
 }

@@ -106,7 +106,43 @@ describe("GET /api/v1/dashboard/summary", () => {
       returnPct: 0,
       holdingsCount: 1,
       isEstimated: true,
+      isAnyStale: false,
     });
+  });
+
+  it("returns isAnyStale true when a quote is older than 2h", async () => {
+    const now = Date.now();
+    const oldDate = new Date(now - 5 * 60 * 60 * 1000).toISOString();
+    pushTrades([
+      {
+        asset_id: "a1",
+        broker_id: "b1",
+        trade_type: "BUY",
+        quantity: 10,
+        price_usd: 100,
+        commission_usd: 0,
+        total_invested_usd: 1000,
+        deleted_at: null,
+        assets: { ticker: "AAPL", name: "Apple", sector: null, country: null },
+        brokers: { code: "ETORO", name: "eToro" },
+      },
+    ]);
+    pushPrices([
+      {
+        asset_id: "a1",
+        price_usd: 150,
+        observed_at: oldDate,
+        delayed_until: null,
+      },
+    ]);
+
+    const request = new NextRequest("http://localhost/api/v1/dashboard/summary");
+    const response = await summaryGET(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.isAnyStale).toBe(true);
+    expect(body.isEstimated).toBe(false);
   });
 });
 

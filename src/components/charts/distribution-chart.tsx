@@ -5,6 +5,7 @@ import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 
 import { getDashboardLabels } from "@/lib/i18n/dashboard";
 import type {
+  AssetStaleness,
   DistributionDimension,
   DistributionResponse,
 } from "@/lib/validations/dashboard";
@@ -40,6 +41,24 @@ function dimLabel(dim: DistributionDimension): string {
   if (dim === "broker") return labels.dimBroker;
   if (dim === "sector") return labels.dimSector;
   return labels.dimCountry;
+}
+
+function stalenessGlyph(staleness: AssetStaleness): string {
+  if (staleness === "estimated") return "≈";
+  if (staleness === "stale") return "⏱";
+  return "";
+}
+
+function stalenessColor(staleness: AssetStaleness): string {
+  if (staleness === "estimated") return "text-amber-600";
+  if (staleness === "stale") return "text-orange-600";
+  return "text-slate-500";
+}
+
+function stalenessTooltip(staleness: AssetStaleness): string {
+  if (staleness === "estimated") return labels.distributionEstimatedTooltip;
+  if (staleness === "stale") return labels.distributionStaleTooltip;
+  return "";
 }
 
 export function DistributionChart({ initial }: DistributionChartProps) {
@@ -132,7 +151,11 @@ export function DistributionChart({ initial }: DistributionChartProps) {
                         ? UNCLASSIFIED_COLOR
                         : PIE_COLORS[index % PIE_COLORS.length]
                     }
-                    strokeDasharray={slice.key === "__unclassified__" ? "4 2" : "0"}
+                    strokeDasharray={
+                      slice.staleness === "estimated"
+                        ? "4 2"
+                        : "0"
+                    }
                   />
                 ))}
               </Pie>
@@ -166,6 +189,15 @@ export function DistributionChart({ initial }: DistributionChartProps) {
                 <span className="text-xs text-slate-500">
                   ({slice.holdingsCount})
                 </span>
+                {slice.staleness !== "fresh" && (
+                  <span
+                    aria-hidden
+                    className={`text-xs font-semibold ${stalenessColor(slice.staleness)}`}
+                    title={stalenessTooltip(slice.staleness)}
+                  >
+                    {stalenessGlyph(slice.staleness)}
+                  </span>
+                )}
               </div>
               <div className="flex shrink-0 items-center gap-3 text-right">
                 <span className="font-mono text-xs text-slate-700">
