@@ -2,7 +2,7 @@
 
 ## Goal
 
-Build the consolidated dashboard with portfolio summary, distributions, time evolution, profitability, benchmark comparison placeholder, and drawdown.
+Build the consolidated dashboard with portfolio summary, distributions, time evolution, profitability, and benchmark comparison placeholder.
 
 ## Scope
 
@@ -10,7 +10,6 @@ Build the consolidated dashboard with portfolio summary, distributions, time evo
 - Portfolio evolution chart.
 - Distribution by broker, sector, and country.
 - Profitability by stock, broker, month, and year.
-- Drawdown chart.
 - Snapshot calculation.
 
 ## Files And Areas
@@ -21,7 +20,6 @@ app/api/v1/dashboard/summary/route.ts
 app/api/v1/dashboard/evolution/route.ts
 app/api/v1/dashboard/distribution/route.ts
 app/api/v1/dashboard/returns/route.ts
-app/api/v1/dashboard/drawdown/route.ts
 features/dashboard/
 components/charts/
 lib/calculations/
@@ -39,7 +37,6 @@ tests/integration/dashboard/
 - [x] Implement return percentage.
 - [x] Implement distribution calculations by broker, sector, and country.
 - [x] Implement monthly/yearly profitability aggregation.
-- [x] Implement drawdown calculation from portfolio value series.
 - [x] Build dashboard API endpoints.
 - [x] Build mobile-first dashboard UI with charts.
 - [x] Add benchmark comparison UI with placeholder data until Phase 5.
@@ -51,7 +48,6 @@ tests/integration/dashboard/
 - If no market price exists, use latest trade price as fallback and mark the value as estimated.
 - P/L must be calculated in USD.
 - Distributions must use current position market value when available.
-- Drawdown uses the portfolio value time series.
 
 ## Tests
 
@@ -59,13 +55,12 @@ tests/integration/dashboard/
 - Unit test: total equity uses latest price when available.
 - Unit test: fallback equity uses trade price when market data is missing.
 - Unit test: distribution percentages sum to 100 percent within rounding tolerance.
-- Unit test: drawdown identifies peak-to-trough decline.
 - Integration test: dashboard summary returns expected shape.
 
 ## Acceptance Criteria
 
 - Dashboard shows total equity, P/L, return percentage, and distributions.
-- Dashboard has charts for evolution, distribution, returns, and drawdown.
+- Dashboard has charts for evolution, distribution, and returns.
 - Empty dashboard state works for a new user.
 - Calculations are covered by tests.
 

@@ -11,7 +11,6 @@ function mockAdvanced(overrides: Partial<{
   distribution: unknown;
   evolution: unknown;
   returns: unknown;
-  drawdown: unknown;
   snapshot: unknown;
 }> = {}) {
   vi.doMock("./use-advanced-data", () => ({
@@ -23,7 +22,6 @@ function mockAdvanced(overrides: Partial<{
         distribution: overrides.distribution ?? null,
         evolution: overrides.evolution ?? null,
         returns: overrides.returns ?? null,
-        drawdown: overrides.drawdown ?? null,
         snapshot: overrides.snapshot ?? null,
       },
       reload: reloadMock,
@@ -70,7 +68,7 @@ describe("AvanzadoPageClient", () => {
     expect(screen.getByTestId("avanzado-empty")).toBeInTheDocument();
   });
 
-  it("renders summary, drawdown, benchmark, distribution, and returns when payload is ready", async () => {
+  it("renders summary, benchmark, distribution, and returns when payload is ready", async () => {
     mockAdvanced({
       summary: readySummary,
       evolution: {
@@ -78,13 +76,6 @@ describe("AvanzadoPageClient", () => {
           { date: "2024-01-01", valueUsd: 1000 },
           { date: "2024-02-01", valueUsd: 1100 },
         ],
-      },
-      drawdown: {
-        series: [
-          { date: "2024-01-01", drawdownPct: 0 },
-          { date: "2024-02-01", drawdownPct: -2.5 },
-        ],
-        maxDrawdownPct: -2.5,
       },
       distribution: { dim: "broker", slices: [], unclassified: false },
       returns: { groupBy: "month", rows: [] },
@@ -109,7 +100,6 @@ describe("AvanzadoPageClient", () => {
       expect(screen.getByTestId("avanzado-ready")).toBeInTheDocument();
     });
     expect(screen.getByTestId("summary-cards")).toBeInTheDocument();
-    expect(screen.getByTestId("drawdown-chart-skeleton")).toBeInTheDocument();
     expect(screen.getByTestId("benchmark-chart-skeleton")).toBeInTheDocument();
     expect(screen.getByTestId("distribution-chart-skeleton")).toBeInTheDocument();
     expect(screen.getByTestId("returns-table")).toBeInTheDocument();
@@ -118,7 +108,6 @@ describe("AvanzadoPageClient", () => {
   it("hides benchmark when snapshot has no benchmark series", async () => {
     mockAdvanced({
       summary: readySummary,
-      drawdown: { series: [], maxDrawdownPct: 0 },
       distribution: { dim: "broker", slices: [], unclassified: false },
       returns: { groupBy: "month", rows: [] },
       snapshot: { benchmark: null, assets: [], isAnyEstimated: false, isAnyStale: false },
@@ -129,7 +118,6 @@ describe("AvanzadoPageClient", () => {
     await waitFor(() => {
       expect(screen.getByTestId("avanzado-ready")).toBeInTheDocument();
     });
-    expect(screen.getByTestId("drawdown-chart-skeleton")).toBeInTheDocument();
     expect(screen.queryByTestId("benchmark-chart-skeleton")).not.toBeInTheDocument();
   });
 });

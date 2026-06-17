@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from "react";
 
 import type {
   DistributionResponse,
-  DrawdownResponse,
   EvolutionResponse,
   ReturnsResponse,
   SnapshotResponse,
@@ -20,7 +19,6 @@ export type DashboardPayload = {
   distribution: DistributionResponse | null;
   evolution: EvolutionResponse | null;
   returns: ReturnsResponse | null;
-  drawdown: DrawdownResponse | null;
   snapshot: SnapshotResponse | null;
 };
 
@@ -36,7 +34,6 @@ const initialPayload: DashboardPayload = {
   distribution: null,
   evolution: null,
   returns: null,
-  drawdown: null,
   snapshot: null,
 };
 
@@ -61,7 +58,7 @@ export function useDashboardData(): DashboardDataState {
     setError(null);
 
     try {
-      const [summary, distribution, evolution, returnsResp, drawdown, snapshot] =
+      const [summary, distribution, evolution, returnsResp, snapshot] =
         await Promise.all([
           fetchJson<SummaryResponse>("/api/v1/dashboard/summary", signal),
           fetchJson<DistributionResponse>(
@@ -76,7 +73,6 @@ export function useDashboardData(): DashboardDataState {
             "/api/v1/dashboard/returns?groupBy=month",
             signal,
           ),
-          fetchJson<DrawdownResponse>("/api/v1/dashboard/drawdown", signal),
           fetchJson<SnapshotResponse>("/api/v1/dashboard/snapshot", signal),
         ]);
 
@@ -85,7 +81,6 @@ export function useDashboardData(): DashboardDataState {
         distribution,
         evolution,
         returns: returnsResp,
-        drawdown,
         snapshot,
       });
     } catch (err) {

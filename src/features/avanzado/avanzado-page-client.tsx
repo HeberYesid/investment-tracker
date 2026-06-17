@@ -18,10 +18,6 @@ const DistributionChart = dynamic(
   () => import("@/components/charts/distribution-chart").then((m) => m.DistributionChart),
   { ssr: false, loading: () => <ChartSkeleton testId="distribution-chart-skeleton" /> },
 );
-const DrawdownChart = dynamic(
-  () => import("@/components/charts/drawdown-chart").then((m) => m.DrawdownChart),
-  { ssr: false, loading: () => <ChartSkeleton testId="drawdown-chart-skeleton" /> },
-);
 
 function ChartSkeleton({ testId }: { testId: string }) {
   return (
@@ -94,7 +90,6 @@ export function AvanzadoPageClient() {
   return (
     <div className="space-y-4" data-testid="avanzado-ready">
       {payload.summary && <SummaryCards summary={payload.summary} />}
-      {payload.drawdown && <DrawdownChart data={payload.drawdown} />}
       {payload.evolution && payload.snapshot?.benchmark && (
         <BenchmarkChart
           evolution={payload.evolution}

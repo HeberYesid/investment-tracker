@@ -18,7 +18,6 @@ vi.mock("@/features/avanzado/use-advanced-data", () => ({
         isEstimated: true,
       },
       evolution: null,
-      drawdown: null,
       snapshot: null,
     },
     reload: vi.fn(),

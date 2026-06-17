@@ -50,11 +50,6 @@ export const dashboardLabels = {
     returnsTotal: "Total",
     returnsPct: "Rentabilidad %",
 
-    drawdownTitle: "Drawdown",
-    drawdownEmpty: "Aún no hay datos de drawdown.",
-    drawdownMaxPrefix: "Drawdown máximo:",
-    drawdownMaxSuffix: "",
-
     benchmarkTitle: "Comparación con benchmark",
     benchmarkSubtitle: "Tu portafolio vs. {benchmark} (índice base 100)",
     benchmarkAvailable: "Comparación con benchmark",

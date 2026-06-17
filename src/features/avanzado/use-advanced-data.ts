@@ -5,7 +5,6 @@ import { useCallback, useEffect, useState } from "react";
 import { getDashboardLabels } from "@/lib/i18n/dashboard";
 import type {
   DistributionResponse,
-  DrawdownResponse,
   EvolutionResponse,
   ReturnsResponse,
   SnapshotResponse,
@@ -19,7 +18,6 @@ export type AdvancedPayload = {
   distribution: DistributionResponse | null;
   evolution: EvolutionResponse | null;
   returns: ReturnsResponse | null;
-  drawdown: DrawdownResponse | null;
   snapshot: SnapshotResponse | null;
 };
 
@@ -35,7 +33,6 @@ const initialPayload: AdvancedPayload = {
   distribution: null,
   evolution: null,
   returns: null,
-  drawdown: null,
   snapshot: null,
 };
 
@@ -60,37 +57,29 @@ export function useAdvancedData(): AdvancedDataState {
     setError(null);
 
     try {
-      const [
-        summary,
-        distribution,
-        evolution,
-        returnsResp,
-        drawdown,
-        snapshot,
-      ] = await Promise.all([
-        fetchJson<SummaryResponse>("/api/v1/dashboard/summary", signal),
-        fetchJson<DistributionResponse>(
-          "/api/v1/dashboard/distribution?dim=broker",
-          signal,
-        ),
-        fetchJson<EvolutionResponse>(
-          "/api/v1/dashboard/evolution?granularity=monthly",
-          signal,
-        ),
-        fetchJson<ReturnsResponse>(
-          "/api/v1/dashboard/returns?groupBy=month",
-          signal,
-        ),
-        fetchJson<DrawdownResponse>("/api/v1/dashboard/drawdown", signal),
-        fetchJson<SnapshotResponse>("/api/v1/dashboard/snapshot", signal),
-      ]);
+      const [summary, distribution, evolution, returnsResp, snapshot] =
+        await Promise.all([
+          fetchJson<SummaryResponse>("/api/v1/dashboard/summary", signal),
+          fetchJson<DistributionResponse>(
+            "/api/v1/dashboard/distribution?dim=broker",
+            signal,
+          ),
+          fetchJson<EvolutionResponse>(
+            "/api/v1/dashboard/evolution?granularity=monthly",
+            signal,
+          ),
+          fetchJson<ReturnsResponse>(
+            "/api/v1/dashboard/returns?groupBy=month",
+            signal,
+          ),
+          fetchJson<SnapshotResponse>("/api/v1/dashboard/snapshot", signal),
+        ]);
 
       setPayload({
         summary,
         distribution,
         evolution,
         returns: returnsResp,
-        drawdown,
         snapshot,
       });
     } catch (err) {

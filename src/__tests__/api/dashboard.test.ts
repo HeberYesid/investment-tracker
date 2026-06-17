@@ -52,7 +52,6 @@ import { GET as summaryGET } from "@/app/api/v1/dashboard/summary/route";
 import { GET as distributionGET } from "@/app/api/v1/dashboard/distribution/route";
 import { GET as evolutionGET } from "@/app/api/v1/dashboard/evolution/route";
 import { GET as returnsGET } from "@/app/api/v1/dashboard/returns/route";
-import { GET as drawdownGET } from "@/app/api/v1/dashboard/drawdown/route";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -236,20 +235,5 @@ describe("GET /api/v1/dashboard/returns", () => {
     for (let i = 1; i < body.rows.length; i += 1) {
       expect(body.rows[i - 1].totalPnlUsd).toBeGreaterThanOrEqual(body.rows[i].totalPnlUsd);
     }
-  });
-});
-
-describe("GET /api/v1/dashboard/drawdown", () => {
-  it("returns maxDrawdownPct 0 when there are no trades", async () => {
-    pushTrades([]);
-    pushPrices([]);
-
-    const request = new NextRequest("http://localhost/api/v1/dashboard/drawdown");
-    const response = await drawdownGET(request);
-    const body = await response.json();
-
-    expect(response.status).toBe(200);
-    expect(body.maxDrawdownPct).toBe(0);
-    expect(body.series).toEqual([]);
   });
 });

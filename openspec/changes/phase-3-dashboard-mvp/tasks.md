@@ -6,13 +6,12 @@
 - [x] 1.4 Add `pnl.ts` with `calculatePortfolioPnl(holdings, equity)` and `calculateReturnPct(investedUsd, equityUsd, realizedPnlUsd)` and unit test both (zero invested edge case)
 - [x] 1.5 Add `distribution.ts` with `groupByDimension(holdings, dim: 'broker' | 'sector' | 'country', assets, brokers)` that returns `{ totalUsd, slices, unclassified }` with the residual-rounding rule and unit test it (sums to exactly 100, missing metadata routes to "Sin clasificar")
 - [x] 1.6 Add `evolution.ts` with `buildPortfolioValueSeries(trades, { granularity, from?, to? })` returning `{ points: { date, valueUsd }[] }` and unit test it (ascending sort, monthly bucket boundaries, empty input, single trade)
-- [x] 1.7 Add `drawdown.ts` with `calculateDrawdown(points)` returning `{ series, maxDrawdownPct }` and unit test it (monotonic, peak-to-trough detection, empty input)
-- [x] 1.8 Add `returns-aggregation.ts` with `aggregateReturns(trades, holdings, { groupBy: 'month' | 'year' | 'stock' | 'broker' })` and unit test it (each groupBy, sort order, zero invested)
+- [x] 1.7 Add `returns-aggregation.ts` with `aggregateReturns(trades, holdings, { groupBy: 'month' | 'year' | 'stock' | 'broker' })` and unit test it (each groupBy, sort order, zero invested)
 
 ## 2. Dashboard loader and validations
 
 - [x] 2.1 Add `src/lib/dashboard/loader.ts` exporting `loadDashboardData(portfolioId)` and the `DashboardData` type with `trades`, `latestMarketPrices`, and the joined `assets`/`brokers` metadata needed by the calc modules
-- [x] 2.2 Add `src/lib/validations/dashboard.ts` with Zod schemas for each endpoint's query params (`SummaryQuery`, `DistributionQuery`, `EvolutionQuery`, `ReturnsQuery`, `DrawdownQuery`) and for the response DTOs
+- [x] 2.2 Add `src/lib/validations/dashboard.ts` with Zod schemas for each endpoint's query params (`SummaryQuery`, `DistributionQuery`, `EvolutionQuery`, `ReturnsQuery`) and for the response DTOs
 
 ## 3. Dashboard API endpoints
 
@@ -20,8 +19,7 @@
 - [x] 3.2 Create `src/app/api/v1/dashboard/distribution/route.ts` GET handler that calls the `distribution` module
 - [x] 3.3 Create `src/app/api/v1/dashboard/evolution/route.ts` GET handler that calls the `evolution` module and respects the `from`/`to` window
 - [x] 3.4 Create `src/app/api/v1/dashboard/returns/route.ts` GET handler that calls the `returns-aggregation` module
-- [x] 3.5 Create `src/app/api/v1/dashboard/drawdown/route.ts` GET handler that calls the `drawdown` module on the evolution series
-- [x] 3.6 Add integration tests for each endpoint in `src/__tests__/api/dashboard/` following the mock builder pattern from `src/__tests__/api/trades.test.ts` (validation 422, success shape, error shape)
+- [x] 3.5 Add integration tests for each endpoint in `src/__tests__/api/dashboard/` following the mock builder pattern from `src/__tests__/api/trades.test.ts` (validation 422, success shape, error shape)
 
 ## 4. UI: chart components and dashboard client
 
@@ -30,10 +28,9 @@
 - [x] 4.3 Add `src/components/charts/evolution-chart.tsx` (Recharts `AreaChart`) that hides itself when `points` is empty
 - [x] 4.4 Add `src/components/charts/distribution-chart.tsx` (Recharts `PieChart` + slice list) with the `dim` selector and the "Sin clasificar" tooltip
 - [x] 4.5 Add `src/components/charts/returns-table.tsx` with the `groupBy` selector and a `<table>` showing the four numeric columns
-- [x] 4.6 Add `src/components/charts/drawdown-chart.tsx` (Recharts `AreaChart` with negative-axis fill) and the `maxDrawdownPct` headline
-- [x] 4.7 Add `src/components/charts/benchmark-placeholder.tsx` showing the "Disponible en Fase 5" card
-- [x] 4.8 Add `src/features/dashboard/use-dashboard-data.ts` (custom hook that issues the five requests in parallel via `Promise.all`)
-- [x] 4.9 Add `src/features/dashboard/dashboard-page-client.tsx` that orchestrates the sections and handles `loading` / `empty` / `ready` states
+- [x] 4.6 Add `src/components/charts/benchmark-placeholder.tsx` showing the "Disponible en Fase 5" card
+- [x] 4.7 Add `src/features/dashboard/use-dashboard-data.ts` (custom hook that issues the four requests in parallel via `Promise.all`)
+- [x] 4.8 Add `src/features/dashboard/dashboard-page-client.tsx` that orchestrates the sections and handles `loading` / `empty` / `ready` states
 
 ## 5. Wire dashboard into the home route
 

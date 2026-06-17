@@ -107,20 +107,6 @@ export const ReturnsResponse = z.object({
 
 export type ReturnsResponse = z.infer<typeof ReturnsResponse>;
 
-export const DrawdownResponse = z.object({
-  series: z.array(
-    z.object({
-      date: z.string(),
-      valueUsd: z.number(),
-      peakUsd: z.number(),
-      drawdownPct: z.number(),
-    }),
-  ),
-  maxDrawdownPct: z.number(),
-});
-
-export type DrawdownResponse = z.infer<typeof DrawdownResponse>;
-
 export const SnapshotAsset = z.object({
   id: z.string().uuid(),
   ticker: z.string(),

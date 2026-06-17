@@ -2,16 +2,16 @@
 
 Phases 0–2 of the investment tracker produced a working trade ledger: schema with RLS, four broker seeds, a trades CRUD under `/api/v1/trades`, and a CSV import pipeline under `/api/v1/imports/csv/*`. Every trade is stored with both the original currency and the USD-normalized fields (`price_usd`, `commission_usd`, `total_invested_usd`), so the data layer is already USD-ready. The home route today is a static shell that hard-codes `USD 0.00` and shows marketing copy.
 
-`docs/investment-tracker/phases/03-dashboard-mvp.md` is the authoritative spec for this phase. It defines five chart sections (summary cards, evolution, distribution, returns, drawdown) and an explicit "benchmark placeholder" deferred to Phase 5. The market_prices table exists but is empty, so the design must work in an "estimated" mode where the only available price is the last trade price for each asset.
+`docs/investment-tracker/phases/03-dashboard-mvp.md` is the authoritative spec for this phase. It defines four chart sections (summary cards, evolution, distribution, returns) and an explicit "benchmark placeholder" deferred to Phase 5. The market_prices table exists but is empty, so the design must work in an "estimated" mode where the only available price is the last trade price for each asset.
 
 The repo is Next.js 15 (App Router) + React 19 + Supabase Postgres + Vitest + Playwright. Recharts 3 is already a dependency. TanStack Query 5 is installed but unused; the rest of the codebase uses `fetch` + `useState`/`useEffect`. Spanish is the only locale for this phase.
 
 ## Goals / Non-Goals
 
 **Goals:**
-- Replace `src/app/page.tsx` with a real dashboard that shows equity, P/L, return %, distributions, evolution, returns, and drawdown.
+- Replace `src/app/page.tsx` with a real dashboard that shows equity, P/L, return %, distributions, evolution, and returns.
 - Pure, isolated calculation modules under `src/lib/calculations/` that the API endpoints consume and that are unit-tested independently of the database.
-- Five GET endpoints under `/api/v1/dashboard/*` with Zod query validation and the same error shape as existing endpoints.
+- Four GET endpoints under `/api/v1/dashboard/*` with Zod query validation and the same error shape as existing endpoints.
 - Mobile-first UI built from the existing shadcn-style primitives (Button) and Recharts.
 - A clear "Sin clasificar" bucket for sector/country distributions, with a tooltip explaining that asset metadata will be enriched in Phase 5.
 - A `BenchmarkPlaceholder` card that explicitly states the comparison is "Disponible en Fase 5" so the gap is visible to the user.
@@ -29,7 +29,7 @@ The repo is Next.js 15 (App Router) + React 19 + Supabase Postgres + Vitest + Pl
 ## Decisions
 
 **D1. Pure calculation modules first, API and UI second.**
-- Why: Financial math drifts if it is buried inside route handlers or React components. Keeping the math in `src/lib/calculations/*.ts` with no I/O lets us unit-test the precision of totals, drawdown peaks, and distribution rounding in isolation. The API layer is then a thin translation from `trades` rows to calculation inputs.
+- Why: Financial math drifts if it is buried inside route handlers or React components. Keeping the math in `src/lib/calculations/*.ts` with no I/O lets us unit-test the precision of totals and distribution rounding in isolation. The API layer is then a thin translation from `trades` rows to calculation inputs.
 - Alternative considered: put math inline in route handlers. Rejected because it makes the test surface as wide as Supabase, which is the failure mode phases 0–2 have been carefully avoiding.
 
 **D2. Price resolution: latest non-future market price or trade-price fallback.**
@@ -43,7 +43,7 @@ The repo is Next.js 15 (App Router) + React 19 + Supabase Postgres + Vitest + Pl
 
 **D4. `portfolio_snapshots` is read but not written.**
 - The loader queries `portfolio_snapshots` only to detect existing snapshot dates for an internal "is this point already computed" cache hint; in this phase it has no rows, so the loader is functionally a no-op for that step.
-- The loader writes nothing. All series and drawdown calculations are derived live from the `trades` table.
+- The loader writes nothing. All series calculations are derived live from the `trades` table.
 - Alternative considered: write a snapshot on every trade mutation. Rejected because it complicates the trade CRUD path and the calc cost on Supabase Free is still tiny for the trade volumes this MVP supports.
 
 **D5. Distribution rounding is absorbed by the largest slice.**
@@ -74,7 +74,6 @@ The repo is Next.js 15 (App Router) + React 19 + Supabase Postgres + Vitest + Pl
 - **[R1] Estimated values mislead users** → Mitigation: explicit yellow banner on every summary card area when `isEstimated` is true, plus a footer note on the evolution chart.
 - **[R2] Distribution percentages drift due to floating point** → Mitigation: residual-rounding strategy (D5) plus a unit test that asserts sums to exactly 100.00 within ±0.01.
 - **[R3] `evolution` performance degrades with many trades** → Mitigation: monthly default granularity, plus a `daily` option only when explicitly requested. The loader pulls all active trades for a single portfolio, which is bounded by the user's own data.
-- **[R4] API endpoints run five times per page load** → Mitigation: the dashboard client issues the five requests in parallel (`Promise.all` in a single `useEffect`) so the wall-clock cost is one round trip, not five sequential ones.
+- **[R4] API endpoints run four times per page load** → Mitigation: the dashboard client issues the four requests in parallel (`Promise.all` in a single `useEffect`) so the wall-clock cost is one round trip, not four sequential ones.
 - **[R5] Recharts adds bundle size** → Mitigation: Recharts is already a declared dependency in `package.json` and is not currently used elsewhere, so this phase converts that already-paid bundle cost into visible features.
 - **[R6] No auth means any caller can read any portfolio's data** → Acknowledged. Phase 4 closes this. The service-role client behavior is consistent with existing routes, so we are not making things worse.
-- **[R7] Drawdown depends on the evolution series being sorted by date** → Mitigation: `evolution.ts` enforces ascending sort and the `drawdown.ts` module asserts monotonic date input. Both have unit tests.

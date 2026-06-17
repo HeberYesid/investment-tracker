@@ -20,7 +20,6 @@ vi.mock("@/features/dashboard/use-dashboard-data", () => ({
       distribution: null,
       evolution: null,
       returns: null,
-      drawdown: null,
     },
     reload: vi.fn(),
   }),

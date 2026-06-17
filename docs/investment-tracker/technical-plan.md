@@ -302,7 +302,6 @@ GET    /api/v1/dashboard/summary
 GET    /api/v1/dashboard/evolution
 GET    /api/v1/dashboard/distribution
 GET    /api/v1/dashboard/returns
-GET    /api/v1/dashboard/drawdown
 
 GET    /api/v1/assets/search
 GET    /api/v1/prices
@@ -427,5 +426,5 @@ Detailed phase plans are stored in `docs/investment-tracker/phases/`.
 - Broker CSV formats can change. Mitigation: one parser per broker plus fixture-based parser tests.
 - Supabase Free has a 500 MB database limit. Mitigation: avoid storing original CSV files and keep only normalized rows plus import errors.
 - Scheduled jobs can exceed free function quotas if run too often. Mitigation: run price sync in batches and avoid per-user polling.
-- Financial calculations can drift if not tested. Mitigation: unit-test position, cost basis, realized P/L, unrealized P/L, return, and drawdown calculations.
+- Financial calculations can drift if not tested. Mitigation: unit-test position, cost basis, realized P/L, unrealized P/L, and return calculations.
 
