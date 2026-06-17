@@ -3,6 +3,7 @@ export const dashboardLabels = {
     pageTitle: "Tu portafolio consolidado",
     pageSubtitle:
       "Registra operaciones, importa CSV y mide tu rentabilidad en USD.",
+    pageTitleAdvanced: "Análisis avanzado del portafolio",
     newTrade: "Registrar operación",
     importCsv: "Importar CSV",
 

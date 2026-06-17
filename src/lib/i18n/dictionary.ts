@@ -8,6 +8,7 @@ export type NavigationLabel = {
 const navigationLabels: Record<Locale, NavigationLabel[]> = {
   es: [
     { href: "/", label: "Resumen" },
+    { href: "/avanzado", label: "Avanzado" },
     { href: "/trades", label: "Operaciones" },
     { href: "/import", label: "Importar" },
     { href: "/settings", label: "Ajustes" },

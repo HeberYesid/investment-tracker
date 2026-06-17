@@ -1,17 +1,27 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 
-import { BenchmarkChart } from "@/components/charts/benchmark-chart";
-import { DistributionChart } from "@/components/charts/distribution-chart";
-import { DrawdownChart } from "@/components/charts/drawdown-chart";
-import { EvolutionChart } from "@/components/charts/evolution-chart";
-import { ReturnsTable } from "@/components/charts/returns-table";
 import { SummaryCards } from "@/components/charts/summary-cards";
 import { Button } from "@/components/ui/button";
 import { getDashboardLabels } from "@/lib/i18n/dashboard";
 
 import { useDashboardData } from "./use-dashboard-data";
+
+const EvolutionChart = dynamic(
+  () => import("@/components/charts/evolution-chart").then((m) => m.EvolutionChart),
+  { ssr: false, loading: () => <ChartSkeleton testId="evolution-chart-skeleton" /> },
+);
+
+function ChartSkeleton({ testId }: { testId: string }) {
+  return (
+    <div
+      className="h-64 w-full animate-pulse rounded-2xl bg-slate-100"
+      data-testid={testId}
+    />
+  );
+}
 
 const labels = getDashboardLabels();
 
@@ -79,15 +89,6 @@ export function DashboardPageClient() {
         <EvolutionChart
           data={payload.evolution}
           isEstimated={payload.summary?.isEstimated ?? false}
-        />
-      )}
-      {payload.distribution && <DistributionChart initial={payload.distribution} />}
-      {payload.returns && <ReturnsTable initial={payload.returns} />}
-      {payload.drawdown && <DrawdownChart data={payload.drawdown} />}
-      {payload.evolution && payload.snapshot?.benchmark && (
-        <BenchmarkChart
-          evolution={payload.evolution}
-          benchmark={payload.snapshot.benchmark}
         />
       )}
     </div>
