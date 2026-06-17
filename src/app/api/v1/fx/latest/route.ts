@@ -32,11 +32,16 @@ export async function GET(request: NextRequest) {
 
     const summary = summarizeLatestFxRate(data ?? null);
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       fromCurrency: parsed.data.from,
       toCurrency: parsed.data.to,
       ...summary,
     });
+    response.headers.set(
+      "Cache-Control",
+      "public, s-maxage=300, stale-while-revalidate=3600",
+    );
+    return response;
   } catch (err) {
     if (err instanceof Error) return badRequest(err.message);
     return serverError();

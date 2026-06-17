@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   CartesianGrid,
   Legend,
@@ -147,13 +147,8 @@ function CustomTooltip({ active, label, payload }: CustomTooltipProps) {
 }
 
 export function BenchmarkChart({ evolution, benchmark }: BenchmarkChartProps) {
-  const [hasMounted, setHasMounted] = useState(false);
-  useEffect(() => {
-    setHasMounted(true);
-  }, []);
-
   const rows = buildChartRows(evolution, benchmark);
-  if (rows.length < 2 || !hasMounted) {
+  if (rows.length < 2) {
     return (
       <section
         className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200"

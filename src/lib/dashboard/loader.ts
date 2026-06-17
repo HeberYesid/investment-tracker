@@ -1,3 +1,4 @@
+import { cache } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AssetMeta, BrokerMeta, DashboardTrade } from "@/lib/calculations/holdings";
 import type { MarketPriceRow } from "@/lib/calculations/pricing";
@@ -36,10 +37,15 @@ function firstJoin<T>(value: T | T[] | null | undefined): T | null {
   return value;
 }
 
-export async function loadDashboardData(
+const loadTradesAndAssets = async (
   portfolioId: string,
   supabase: SupabaseClient,
-): Promise<DashboardData> {
+): Promise<{
+  trades: DashboardTrade[];
+  assets: AssetMeta[];
+  brokers: BrokerMeta[];
+  assetIds: string[];
+}> => {
   const { data: tradesData, error: tradesError } = await supabase
     .from("trades")
     .select(
@@ -92,38 +98,62 @@ export async function loadDashboardData(
     }
   }
 
-  const latestMarketPrices: MarketPriceRow[] = [];
-  if (assetIds.size > 0) {
-    const { data: priceData, error: priceError } = await supabase
-      .from("market_prices")
-      .select("asset_id, price_usd, observed_at, delayed_until")
-      .in("asset_id", Array.from(assetIds))
-      .order("observed_at", { ascending: false });
-
-    if (priceError) {
-      throw new Error(priceError.message);
-    }
-
-    const seen = new Set<string>();
-    const nowIso = new Date().toISOString();
-    for (const row of (priceData ?? []) as MarketPriceRow[]) {
-      if (seen.has(row.asset_id)) continue;
-      if (row.delayed_until && row.delayed_until > nowIso) continue;
-      seen.add(row.asset_id);
-      latestMarketPrices.push({
-        asset_id: row.asset_id,
-        price_usd: Number(row.price_usd),
-        observed_at: row.observed_at,
-        delayed_until: row.delayed_until,
-      });
-    }
-  }
-
   return {
     trades,
     assets: Array.from(assetMap.values()),
     brokers: Array.from(brokerMap.values()),
-    latestMarketPrices,
-    portfolioId,
+    assetIds: Array.from(assetIds),
   };
-}
+};
+
+const loadLatestMarketPrices = async (
+  assetIds: string[],
+  supabase: SupabaseClient,
+): Promise<MarketPriceRow[]> => {
+  if (assetIds.length === 0) return [];
+  const { data: priceData, error: priceError } = await supabase
+    .from("market_prices")
+    .select("asset_id, price_usd, observed_at, delayed_until")
+    .in("asset_id", assetIds)
+    .order("observed_at", { ascending: false });
+
+  if (priceError) {
+    throw new Error(priceError.message);
+  }
+
+  const seen = new Set<string>();
+  const nowIso = new Date().toISOString();
+  const result: MarketPriceRow[] = [];
+  for (const row of (priceData ?? []) as MarketPriceRow[]) {
+    if (seen.has(row.asset_id)) continue;
+    if (row.delayed_until && row.delayed_until > nowIso) continue;
+    seen.add(row.asset_id);
+    result.push({
+      asset_id: row.asset_id,
+      price_usd: Number(row.price_usd),
+      observed_at: row.observed_at,
+      delayed_until: row.delayed_until,
+    });
+  }
+  return result;
+};
+
+export const loadDashboardData = cache(
+  async (
+    portfolioId: string,
+    supabase: SupabaseClient,
+  ): Promise<DashboardData> => {
+    const { trades, assets, brokers, assetIds } = await loadTradesAndAssets(
+      portfolioId,
+      supabase,
+    );
+    const latestMarketPrices = await loadLatestMarketPrices(assetIds, supabase);
+    return {
+      trades,
+      assets,
+      brokers,
+      latestMarketPrices,
+      portfolioId,
+    };
+  },
+);

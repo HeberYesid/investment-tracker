@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { Pencil, Trash2 } from "lucide-react";
 
 import { getTradeLabels } from "@/lib/i18n/trades";
@@ -28,6 +29,100 @@ const dateFormatter = new Intl.DateTimeFormat("es", {
   year: "numeric",
 });
 
+interface TradeRowProps {
+  trade: TradeDTO;
+  onEdit: (id: string) => void;
+  onDelete: (id: string) => void;
+}
+
+function TradeRowImpl({ trade, onEdit, onDelete }: TradeRowProps) {
+  const dateFormatted = dateFormatter.format(new Date(trade.trade_date));
+  const totalUsd = trade.total_invested_usd;
+  const totalClass = totalUsd >= 0 ? "text-slate-950" : "text-red-600";
+
+  return (
+    <article
+      className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <span
+            className={cn(
+              "inline-flex shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold",
+              typeBadgeClasses[trade.trade_type],
+            )}
+          >
+            {labels[trade.trade_type]}
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-semibold text-slate-950">
+              {trade.ticker ?? "—"}
+            </p>
+            {trade.asset_name && trade.asset_name !== trade.ticker && (
+              <p className="truncate text-xs text-slate-500">
+                {trade.asset_name}
+              </p>
+            )}
+          </div>
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-0.5">
+          <span className="text-xs text-slate-500">{dateFormatted}</span>
+          {trade.broker_name && (
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
+              {trade.broker_name}
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-3 grid grid-cols-3 gap-2 text-sm">
+        <div>
+          <span className="text-slate-500">{labels.quantity}</span>
+          <p className="font-medium text-slate-950">{trade.quantity}</p>
+        </div>
+        <div>
+          <span className="text-slate-500">{labels.price}</span>
+          <p className="font-medium text-slate-950">
+            {currencyFormatter.format(trade.price_usd)}
+          </p>
+        </div>
+        <div>
+          <span className="text-slate-500">{labels.total}</span>
+          <p className={cn("font-medium", totalClass)}>
+            {currencyFormatter.format(Math.abs(totalUsd))}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-3 flex justify-end gap-2 border-t border-slate-100 pt-3">
+        <button
+          type="button"
+          onClick={() => onEdit(trade.id)}
+          className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-950"
+        >
+          <Pencil className="h-3.5 w-3.5" />
+          {labels.edit}
+        </button>
+        <button
+          type="button"
+          onClick={() => onDelete(trade.id)}
+          className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+          {labels.delete}
+        </button>
+      </div>
+    </article>
+  );
+}
+
+const areTradeRowsEqual = (prev: TradeRowProps, next: TradeRowProps) =>
+  prev.trade === next.trade &&
+  prev.onEdit === next.onEdit &&
+  prev.onDelete === next.onDelete;
+
+export const TradeRow = memo(TradeRowImpl, areTradeRowsEqual);
+
 interface TradeListProps {
   trades: TradeDTO[];
   onEdit: (id: string) => void;
@@ -50,91 +145,14 @@ export function TradeList({ trades, onEdit, onDelete }: TradeListProps) {
 
   return (
     <div className="space-y-3">
-      {trades.map((trade) => {
-        const totalUsd = trade.total_invested_usd;
-        const dateFormatted = dateFormatter.format(new Date(trade.trade_date));
-
-        return (
-          <article
-            key={trade.id}
-            className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200"
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex min-w-0 flex-1 items-center gap-2">
-                <span
-                  className={cn(
-                    "inline-flex shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold",
-                    typeBadgeClasses[trade.trade_type],
-                  )}
-                >
-                  {labels[trade.trade_type]}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-slate-950">
-                    {trade.ticker ?? "—"}
-                  </p>
-                  {trade.asset_name && trade.asset_name !== trade.ticker && (
-                    <p className="truncate text-xs text-slate-500">
-                      {trade.asset_name}
-                    </p>
-                  )}
-                </div>
-              </div>
-              <div className="flex shrink-0 flex-col items-end gap-0.5">
-                <span className="text-xs text-slate-500">{dateFormatted}</span>
-                {trade.broker_name && (
-                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
-                    {trade.broker_name}
-                  </span>
-                )}
-              </div>
-            </div>
-
-            <div className="mt-3 grid grid-cols-3 gap-2 text-sm">
-              <div>
-                <span className="text-slate-500">{labels.quantity}</span>
-                <p className="font-medium text-slate-950">{trade.quantity}</p>
-              </div>
-              <div>
-                <span className="text-slate-500">{labels.price}</span>
-                <p className="font-medium text-slate-950">
-                  {currencyFormatter.format(trade.price_usd)}
-                </p>
-              </div>
-              <div>
-                <span className="text-slate-500">{labels.total}</span>
-                <p
-                  className={cn(
-                    "font-medium",
-                    totalUsd >= 0 ? "text-slate-950" : "text-red-600",
-                  )}
-                >
-                  {currencyFormatter.format(Math.abs(totalUsd))}
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-3 flex justify-end gap-2 border-t border-slate-100 pt-3">
-              <button
-                type="button"
-                onClick={() => onEdit(trade.id)}
-                className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-950"
-              >
-                <Pencil className="h-3.5 w-3.5" />
-                {labels.edit}
-              </button>
-              <button
-                type="button"
-                onClick={() => onDelete(trade.id)}
-                className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-                {labels.delete}
-              </button>
-            </div>
-          </article>
-        );
-      })}
+      {trades.map((trade) => (
+        <TradeRow
+          key={trade.id}
+          trade={trade}
+          onEdit={onEdit}
+          onDelete={onDelete}
+        />
+      ))}
     </div>
   );
 }

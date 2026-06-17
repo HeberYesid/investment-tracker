@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch, type Control } from "react-hook-form";
 import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
@@ -69,7 +69,7 @@ export function TradeForm({ initialData, onSubmit }: TradeFormProps) {
   const {
     register,
     handleSubmit,
-    watch,
+    control,
     setValue,
     formState: { errors, isSubmitting },
   } = useForm<TradeFormValues>({
@@ -87,50 +87,6 @@ export function TradeForm({ initialData, onSubmit }: TradeFormProps) {
       fx_rate_to_usd: initialData?.fx_rate_to_usd ?? 1,
     },
   });
-
-  const currency = watch("currency_original");
-  const fxRateValue = watch("fx_rate_to_usd");
-  const showFxRate = currency === "COP";
-
-  const [fxRate, setFxRate] = useState<LatestFxResponse | null>(null);
-  const [fxLoading, setFxLoading] = useState(false);
-  const [fxError, setFxError] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    setFxLoading(true);
-    setFxError(false);
-    fetch("/api/v1/fx/latest?from=USD&to=COP")
-      .then((res) => (res.ok ? res.json() : Promise.reject(res)))
-      .then((data: LatestFxResponse) => {
-        if (!cancelled) setFxRate(data);
-      })
-      .catch(() => {
-        if (!cancelled) setFxError(true);
-      })
-      .finally(() => {
-        if (!cancelled) setFxLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (currency !== "COP") return;
-    if (!fxRate) return;
-    if (fxRateValue !== 1) return;
-    if (fxRate.rate && fxRate.rate > 0) {
-      setValue("fx_rate_to_usd", fxRate.rate, { shouldDirty: false });
-    }
-  }, [currency, fxRate, fxRateValue, setValue]);
-
-  const fxFreshness = (() => {
-    if (fxLoading) return "loading" as const;
-    if (fxError || !fxRate) return "missing" as const;
-    if (fxRate.rate === null) return "missing" as const;
-    return fxRate.isStale ? ("stale" as const) : ("fresh" as const);
-  })();
 
   return (
     <form
@@ -263,25 +219,12 @@ export function TradeForm({ initialData, onSubmit }: TradeFormProps) {
         </div>
       </div>
 
-      <div className="space-y-1.5">
-        <label
-          htmlFor="currency_original"
-          className="block text-sm font-medium text-slate-700"
-        >
-          {labels.currency}
-        </label>
-        <select
-          id="currency_original"
-          {...register("currency_original")}
-          className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-950 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
-        >
-          {SUPPORTED_CURRENCIES.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
-      </div>
+      <FxCurrencyField
+        control={control}
+        register={register}
+        errors={errors}
+        setValue={setValue}
+      />
 
       <div className="space-y-1.5">
         <label
@@ -304,7 +247,108 @@ export function TradeForm({ initialData, onSubmit }: TradeFormProps) {
         )}
       </div>
 
-      {showFxRate && (
+      <div className="flex gap-3 pt-2">
+        <Button type="submit" disabled={isSubmitting} className="flex-1">
+          {isSubmitting ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              {labels.loading}
+            </>
+          ) : (
+            labels.save
+          )}
+        </Button>
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={() => window.history.back()}
+        >
+          {labels.cancel}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+interface FxCurrencyFieldProps {
+  control: Control<TradeFormValues>;
+  register: ReturnType<typeof useForm<TradeFormValues>>["register"];
+  errors: ReturnType<typeof useForm<TradeFormValues>>["formState"]["errors"];
+  setValue: ReturnType<typeof useForm<TradeFormValues>>["setValue"];
+}
+
+function FxCurrencyField({
+  control,
+  register,
+  errors,
+  setValue,
+}: FxCurrencyFieldProps) {
+  const currency = useWatch({ control, name: "currency_original" });
+  const fxRateValue = useWatch({ control, name: "fx_rate_to_usd" });
+
+  const [fxRate, setFxRate] = useState<LatestFxResponse | null>(null);
+  const [fxLoading, setFxLoading] = useState(false);
+  const [fxError, setFxError] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setFxLoading(true);
+    setFxError(false);
+    fetch("/api/v1/fx/latest?from=USD&to=COP")
+      .then((res) => (res.ok ? res.json() : Promise.reject(res)))
+      .then((data: LatestFxResponse) => {
+        if (cancelled) return;
+        setFxRate(data);
+        if (
+          currency === "COP" &&
+          fxRateValue === 1 &&
+          data.rate &&
+          data.rate > 0
+        ) {
+          setValue("fx_rate_to_usd", data.rate, { shouldDirty: false });
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setFxError(true);
+      })
+      .finally(() => {
+        if (!cancelled) setFxLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [currency, fxRateValue, setValue]);
+
+  const fxFreshness = (() => {
+    if (fxLoading) return "loading" as const;
+    if (fxError || !fxRate) return "missing" as const;
+    if (fxRate.rate === null) return "missing" as const;
+    return fxRate.isStale ? ("stale" as const) : ("fresh" as const);
+  })();
+
+  return (
+    <>
+      <div className="space-y-1.5">
+        <label
+          htmlFor="currency_original"
+          className="block text-sm font-medium text-slate-700"
+        >
+          {labels.currency}
+        </label>
+        <select
+          id="currency_original"
+          {...register("currency_original")}
+          className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-950 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
+        >
+          {SUPPORTED_CURRENCIES.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {currency === "COP" && (
         <div className="space-y-1.5">
           <label
             htmlFor="fx_rate_to_usd"
@@ -331,27 +375,7 @@ export function TradeForm({ initialData, onSubmit }: TradeFormProps) {
           )}
         </div>
       )}
-
-      <div className="flex gap-3 pt-2">
-        <Button type="submit" disabled={isSubmitting} className="flex-1">
-          {isSubmitting ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              {labels.loading}
-            </>
-          ) : (
-            labels.save
-          )}
-        </Button>
-        <Button
-          type="button"
-          variant="secondary"
-          onClick={() => window.history.back()}
-        >
-          {labels.cancel}
-        </Button>
-      </div>
-    </form>
+    </>
   );
 }
 

@@ -10,6 +10,10 @@ const fixFxPath = path.join(migrationsDir, "0002_fix_fx_rate_cop.sql");
 const authPath = path.join(migrationsDir, "0003_auth_and_permissions.sql");
 const marketDataPath = path.join(migrationsDir, "0004_market_data_sync.sql");
 const syncSettingsPath = path.join(migrationsDir, "0005_sync_settings.sql");
+const tradesLiveIndexPath = path.join(
+  migrationsDir,
+  "0006_trades_live_index.sql",
+);
 
 const publicTables = [
   "profiles",
@@ -92,6 +96,10 @@ async function applyMigrations() {
 
   if (await fileExists(syncSettingsPath)) {
     await db.exec(readFileSync(syncSettingsPath, "utf8"));
+  }
+
+  if (await fileExists(tradesLiveIndexPath)) {
+    await db.exec(readFileSync(tradesLiveIndexPath, "utf8"));
   }
 
   return db;
