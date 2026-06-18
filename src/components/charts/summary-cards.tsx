@@ -1,5 +1,3 @@
-"use client";
-
 import { getDashboardLabels } from "@/lib/i18n/dashboard";
 import type { SummaryResponse } from "@/lib/validations/dashboard";
 
