@@ -22,6 +22,7 @@ function createBuilder(): MockBuilder {
 
 const mockSupabase = {
   from: vi.fn().mockImplementation(() => createBuilder()),
+  rpc: vi.fn().mockImplementation(() => Promise.resolve(queuedResults.shift())),
   auth: {
     getUser: vi.fn().mockResolvedValue({
       data: { user: { id: "user-id-1" } },
@@ -33,6 +34,10 @@ const mockSupabase = {
 vi.mock("@/lib/supabase/server", () => ({
   createUserSupabaseClient: () => Promise.resolve(mockSupabase),
   createServiceSupabaseClient: () => mockSupabase,
+}));
+
+vi.mock("next/cache", () => ({
+  unstable_cache: (cb: unknown) => cb,
 }));
 
 vi.mock("@/lib/supabase/auth", () => ({
