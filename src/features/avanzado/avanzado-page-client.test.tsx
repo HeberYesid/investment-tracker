@@ -29,6 +29,14 @@ function mockAdvanced(overrides: Partial<{
   }));
 }
 
+const emptyPayload = {
+  summary: null,
+  distribution: null,
+  evolution: null,
+  returns: null,
+  snapshot: null,
+};
+
 const readySummary = {
   equityUsd: 1000,
   investedUsd: 800,
@@ -46,17 +54,17 @@ describe("AvanzadoPageClient", () => {
     vi.resetModules();
   });
 
-  it("renders the loading state initially", async () => {
-    mockAdvanced({ loading: true });
+  it("renders the reloading banner while refreshing", async () => {
+    mockAdvanced({ loading: true, summary: readySummary });
     const { AvanzadoPageClient: Component } = await import("./avanzado-page-client");
-    render(createElement(Component));
-    expect(screen.getByTestId("avanzado-loading")).toBeInTheDocument();
+    render(createElement(Component, { initialPayload: { ...emptyPayload, summary: readySummary } }));
+    expect(screen.getByTestId("avanzado-reloading")).toBeInTheDocument();
   });
 
   it("renders the error state with a retry button", async () => {
     mockAdvanced({ error: "Algo falló" });
     const { AvanzadoPageClient: Component } = await import("./avanzado-page-client");
-    render(createElement(Component));
+    render(createElement(Component, { initialPayload: emptyPayload }));
     expect(screen.getByTestId("avanzado-error")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Reintentar" })).toBeInTheDocument();
   });
@@ -64,7 +72,7 @@ describe("AvanzadoPageClient", () => {
   it("renders the empty state when the portfolio has no holdings", async () => {
     mockAdvanced({ summary: { ...readySummary, holdingsCount: 0 } });
     const { AvanzadoPageClient: Component } = await import("./avanzado-page-client");
-    render(createElement(Component));
+    render(createElement(Component, { initialPayload: { ...emptyPayload, summary: { ...readySummary, holdingsCount: 0 } } }));
     expect(screen.getByTestId("avanzado-empty")).toBeInTheDocument();
   });
 
@@ -94,7 +102,7 @@ describe("AvanzadoPageClient", () => {
       },
     });
     const { AvanzadoPageClient: Component } = await import("./avanzado-page-client");
-    render(createElement(Component));
+    render(createElement(Component, { initialPayload: { ...emptyPayload, summary: readySummary } }));
 
     await waitFor(() => {
       expect(screen.getByTestId("avanzado-ready")).toBeInTheDocument();
@@ -113,11 +121,28 @@ describe("AvanzadoPageClient", () => {
       snapshot: { benchmark: null, assets: [], isAnyEstimated: false, isAnyStale: false },
     });
     const { AvanzadoPageClient: Component } = await import("./avanzado-page-client");
-    render(createElement(Component));
+    render(createElement(Component, { initialPayload: { ...emptyPayload, summary: readySummary } }));
 
     await waitFor(() => {
       expect(screen.getByTestId("avanzado-ready")).toBeInTheDocument();
     });
     expect(screen.queryByTestId("benchmark-chart-skeleton")).not.toBeInTheDocument();
+  });
+
+  it("shows the benchmark backfill prompt when there is no benchmark series", async () => {
+    mockAdvanced({
+      summary: readySummary,
+      distribution: { dim: "broker", slices: [], unclassified: false },
+      returns: { groupBy: "month", rows: [] },
+      snapshot: { benchmark: null, assets: [], isAnyEstimated: false, isAnyStale: false },
+    });
+    const { AvanzadoPageClient: Component } = await import("./avanzado-page-client");
+    render(createElement(Component, { initialPayload: { ...emptyPayload, summary: readySummary } }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("benchmark-backfill-prompt")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("benchmark-backfill-button")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Cargar historial/i })).toBeInTheDocument();
   });
 });

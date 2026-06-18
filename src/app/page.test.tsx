@@ -3,33 +3,12 @@ import { createElement } from "react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 vi.mock("@/features/dashboard/use-dashboard-data", () => ({
-  useDashboardData: () => ({
+  useDashboardData: (initial: unknown) => ({
     loading: false,
     error: null,
-    payload: {
-      summary: {
-        equityUsd: 0,
-        investedUsd: 0,
-        realizedPnlUsd: 0,
-        unrealizedPnlUsd: 0,
-        totalPnlUsd: 0,
-        returnPct: 0,
-        holdingsCount: 0,
-        isEstimated: true,
-      },
-      distribution: null,
-      evolution: null,
-      returns: null,
-    },
+    payload: initial,
     reload: vi.fn(),
   }),
-}));
-
-vi.mock("@/lib/supabase/auth", () => ({
-  getCurrentUser: () => Promise.resolve(null),
-  requireUser: () => Promise.resolve(null),
-  getCurrentPortfolio: () => Promise.resolve(null),
-  requireCurrentPortfolio: () => Promise.resolve(null),
 }));
 
 vi.mock("@/lib/supabase/client", () => ({
@@ -46,30 +25,38 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/",
 }));
 
-import Home from "./page";
+import { DashboardPageClient } from "@/features/dashboard/dashboard-page-client";
 
-describe("home page", () => {
+const emptyPayload = {
+  summary: null,
+  evolution: null,
+  returns: null,
+  snapshot: null,
+};
+
+const readySummary = {
+  equityUsd: 1000,
+  investedUsd: 800,
+  realizedPnlUsd: 0,
+  unrealizedPnlUsd: 200,
+  totalPnlUsd: 200,
+  returnPct: 25,
+  holdingsCount: 0,
+  isEstimated: false,
+  isAnyStale: false,
+};
+
+describe("home dashboard client", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("renders the Spanish mobile-first dashboard shell", async () => {
-    render(createElement(Home));
-
-    expect(
-      screen.getByRole("heading", { name: "Tu portafolio consolidado" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("navigation", { name: "Navegación principal" }),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Operaciones" })).toHaveAttribute(
-      "href",
-      "/trades",
+  it("shows the empty state when the portfolio has no holdings", async () => {
+    render(
+      createElement(DashboardPageClient, {
+        initialPayload: { ...emptyPayload, summary: readySummary },
+      }),
     );
-  });
-
-  it("shows the empty state when the user has no trades", async () => {
-    render(createElement(Home));
 
     await waitFor(() => {
       expect(screen.getByTestId("dashboard-empty")).toBeInTheDocument();
@@ -77,5 +64,21 @@ describe("home page", () => {
     expect(
       screen.getByRole("heading", { name: "Tu portafolio está vacío" }),
     ).toBeInTheDocument();
+  });
+
+  it("renders the ready state with summary cards when holdings exist", async () => {
+    render(
+      createElement(DashboardPageClient, {
+        initialPayload: {
+          ...emptyPayload,
+          summary: { ...readySummary, holdingsCount: 3 },
+        },
+      }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("dashboard-ready")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("summary-cards")).toBeInTheDocument();
   });
 });

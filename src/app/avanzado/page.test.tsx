@@ -3,32 +3,12 @@ import { createElement } from "react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 vi.mock("@/features/avanzado/use-advanced-data", () => ({
-  useAdvancedData: () => ({
+  useAdvancedData: (initial: unknown) => ({
     loading: false,
     error: null,
-    payload: {
-      summary: {
-        equityUsd: 0,
-        investedUsd: 0,
-        realizedPnlUsd: 0,
-        unrealizedPnlUsd: 0,
-        totalPnlUsd: 0,
-        returnPct: 0,
-        holdingsCount: 0,
-        isEstimated: true,
-      },
-      evolution: null,
-      snapshot: null,
-    },
+    payload: initial,
     reload: vi.fn(),
   }),
-}));
-
-vi.mock("@/lib/supabase/auth", () => ({
-  getCurrentUser: () => Promise.resolve(null),
-  requireUser: () => Promise.resolve(null),
-  getCurrentPortfolio: () => Promise.resolve(null),
-  requireCurrentPortfolio: () => Promise.resolve(null),
 }));
 
 vi.mock("@/lib/supabase/client", () => ({
@@ -45,30 +25,39 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/avanzado",
 }));
 
-import AvanzadoPage from "./page";
+import { AvanzadoPageClient } from "@/features/avanzado/avanzado-page-client";
 
-describe("avanzado page", () => {
+const emptyPayload = {
+  summary: null,
+  distribution: null,
+  evolution: null,
+  returns: null,
+  snapshot: null,
+};
+
+const readySummary = {
+  equityUsd: 1000,
+  investedUsd: 800,
+  realizedPnlUsd: 0,
+  unrealizedPnlUsd: 200,
+  totalPnlUsd: 200,
+  returnPct: 25,
+  holdingsCount: 0,
+  isEstimated: false,
+  isAnyStale: false,
+};
+
+describe("avanzado dashboard client", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("renders the Spanish mobile-first advanced dashboard shell", async () => {
-    render(createElement(AvanzadoPage));
-
-    expect(
-      screen.getByRole("heading", { name: "Análisis avanzado del portafolio" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("navigation", { name: "Navegación principal" }),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Avanzado" })).toHaveAttribute(
-      "href",
-      "/avanzado",
+  it("shows the empty state when the portfolio has no holdings", async () => {
+    render(
+      createElement(AvanzadoPageClient, {
+        initialPayload: { ...emptyPayload, summary: readySummary },
+      }),
     );
-  });
-
-  it("shows the empty state when the user has no trades", async () => {
-    render(createElement(AvanzadoPage));
 
     await waitFor(() => {
       expect(screen.getByTestId("avanzado-empty")).toBeInTheDocument();
@@ -76,5 +65,23 @@ describe("avanzado page", () => {
     expect(
       screen.getByRole("heading", { name: "Tu portafolio está vacío" }),
     ).toBeInTheDocument();
+  });
+
+  it("renders the ready state with summary cards when holdings exist", async () => {
+    render(
+      createElement(AvanzadoPageClient, {
+        initialPayload: {
+          ...emptyPayload,
+          summary: { ...readySummary, holdingsCount: 3 },
+          distribution: { dim: "broker", slices: [], unclassified: false, totalUsd: 0 },
+          returns: { groupBy: "month", rows: [] },
+        },
+      }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("avanzado-ready")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("summary-cards")).toBeInTheDocument();
   });
 });
