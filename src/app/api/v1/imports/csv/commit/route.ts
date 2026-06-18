@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { requireApiUser } from "@/lib/api/auth";
 import { getCurrentPortfolio } from "@/lib/supabase/auth";
 import { normalizeTradeUsdValues, type CreateTradeInput } from "@/lib/validations/trades";
 import type { ParsedCsvTrade } from "@/lib/csv/types";
 import { badRequest, serverError } from "@/lib/api/errors";
+import { createYahooProvider } from "@/lib/market-data/yahoo";
+import { candidateYahooSymbols } from "@/lib/market-data/symbols";
+import type { AssetProfile } from "@/lib/market-data/types";
 import { z } from "zod";
 
 const CommitBody = z.object({
@@ -73,46 +77,109 @@ export async function POST(request: NextRequest) {
 
     const broker_id = importRecord.broker_id;
 
-    let importedCount = 0;
+    const tickerCurrency = new Map<string, string>();
+    for (const row of validRows) {
+      const parsedData = row.parsed_data_json as ParsedCsvTrade | null;
+      if (!parsedData) continue;
+      const upper = parsedData.ticker.toUpperCase();
+      if (!tickerCurrency.has(upper)) {
+        tickerCurrency.set(upper, parsedData.currency_original);
+      }
+    }
+    const uniqueTickers = Array.from(tickerCurrency.keys());
+
+    const assetIdByTicker = new Map<string, string>();
+    if (uniqueTickers.length > 0) {
+      const { data: existingAssets } = await supabase
+        .from("assets")
+        .select("id, ticker")
+        .in("ticker", uniqueTickers);
+      for (const row of existingAssets ?? []) {
+        if (row.ticker) assetIdByTicker.set(row.ticker as string, row.id as string);
+      }
+    }
+
+    const newTickers = uniqueTickers.filter(
+      (t) => !assetIdByTicker.has(t),
+    );
+    const profileByTicker = new Map<string, AssetProfile>();
+    if (newTickers.length > 0) {
+      const profileProvider = createYahooProvider();
+      const CONCURRENCY = 5;
+      try {
+        for (let i = 0; i < newTickers.length; i += CONCURRENCY) {
+          const slice = newTickers.slice(i, i + CONCURRENCY);
+          const profiles = await Promise.all(
+            slice.map(async (ticker) => {
+              try {
+                const candidates = candidateYahooSymbols({
+                  ticker,
+                  yahooSymbol: null,
+                  currency: tickerCurrency.get(ticker) ?? null,
+                });
+                const result =
+                  await profileProvider.fetchProfileWithCandidates(candidates);
+                return [ticker, result] as const;
+              } catch {
+                return [ticker, { status: "error" as const, message: "unknown" }] as const;
+              }
+            }),
+          );
+          for (const [ticker, result] of profiles) {
+            if (result.status === "ok") {
+              profileByTicker.set(ticker, result.profile);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("[csv-commit] asset profile enrichment failed:", err);
+      }
+
+      const newAssetPayloads = newTickers.map((ticker) => {
+        const profile = profileByTicker.get(ticker);
+        const payload: Record<string, string> = {
+          ticker,
+          asset_type: "STOCK",
+          currency: tickerCurrency.get(ticker) ?? "USD",
+          name: ticker,
+        };
+        if (profile?.sector) payload.sector = profile.sector;
+        if (profile?.country) payload.country = profile.country;
+        return payload;
+      });
+
+      const { data: insertedAssets, error: insertAssetsError } = await supabase
+        .from("assets")
+        .insert(newAssetPayloads)
+        .select("id, ticker");
+
+      if (insertAssetsError) {
+        return serverError(
+          `Error al crear activos: ${insertAssetsError.message}`,
+        );
+      }
+      for (const row of insertedAssets ?? []) {
+        if (row.ticker) assetIdByTicker.set(row.ticker as string, row.id as string);
+      }
+    }
+
     const errors: string[] = [];
+    const tradeInserts: Array<Record<string, unknown>> = [];
 
     for (const row of validRows) {
       const parsedData = row.parsed_data_json as ParsedCsvTrade | null;
       if (!parsedData) continue;
 
+      const ticker = parsedData.ticker.toUpperCase();
+      const asset_id = assetIdByTicker.get(ticker);
+      if (!asset_id) {
+        errors.push(
+          `Fila ${row.row_number}: No se pudo resolver el activo ${ticker}.`,
+        );
+        continue;
+      }
+
       try {
-        const ticker = parsedData.ticker.toUpperCase();
-        const { data: existingAsset } = await supabase
-          .from("assets")
-          .select("id")
-          .eq("ticker", ticker)
-          .limit(1)
-          .maybeSingle();
-
-        let asset_id: string;
-        if (existingAsset) {
-          asset_id = existingAsset.id;
-        } else {
-          const { data: newAsset, error: assetError } = await supabase
-            .from("assets")
-            .insert({
-              ticker,
-              asset_type: "STOCK",
-              currency: parsedData.currency_original,
-              name: ticker,
-            })
-            .select("id")
-            .single();
-
-          if (assetError || !newAsset) {
-            errors.push(
-              `Fila ${row.row_number}: No se pudo crear el activo ${ticker}.`,
-            );
-            continue;
-          }
-          asset_id = newAsset.id;
-        }
-
         const tradeInput: CreateTradeInput = {
           portfolio_id: portfolio.portfolioId,
           broker_id,
@@ -129,7 +196,7 @@ export async function POST(request: NextRequest) {
 
         const usdValues = normalizeTradeUsdValues(tradeInput);
 
-        const { error: tradeError } = await supabase.from("trades").insert({
+        tradeInserts.push({
           portfolio_id: portfolio.portfolioId,
           broker_id,
           asset_id,
@@ -144,19 +211,28 @@ export async function POST(request: NextRequest) {
           source_file_id: import_id,
           ...usdValues,
         });
-
-        if (tradeError) {
-          errors.push(
-            `Fila ${row.row_number}: Error al insertar la operación: ${tradeError.message}`,
-          );
-          continue;
-        }
-
-        importedCount++;
       } catch (err) {
         errors.push(
           `Fila ${row.row_number}: ${err instanceof Error ? err.message : "Error desconocido"}`,
         );
+      }
+    }
+
+    let importedCount = 0;
+    const TRADE_BATCH_SIZE = 500;
+    for (let i = 0; i < tradeInserts.length; i += TRADE_BATCH_SIZE) {
+      const chunk = tradeInserts.slice(i, i + TRADE_BATCH_SIZE);
+      const { error: batchError } = await supabase
+        .from("trades")
+        .insert(chunk);
+      if (batchError) {
+        const startRow = i + 1;
+        const endRow = Math.min(i + TRADE_BATCH_SIZE, tradeInserts.length);
+        errors.push(
+          `Lotes ${startRow}-${endRow}: Error al insertar operaciones: ${batchError.message}`,
+        );
+      } else {
+        importedCount += chunk.length;
       }
     }
 
@@ -178,6 +254,9 @@ export async function POST(request: NextRequest) {
         errors: errors.slice(0, 10),
       },
     });
+
+    revalidatePath("/");
+    revalidatePath("/avanzado");
 
     return NextResponse.json(
       {
