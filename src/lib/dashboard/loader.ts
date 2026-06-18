@@ -1,7 +1,9 @@
 import { cache } from "react";
+import { unstable_cache } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AssetMeta, BrokerMeta, DashboardTrade } from "@/lib/calculations/holdings";
 import type { MarketPriceRow } from "@/lib/calculations/pricing";
+import { createServiceSupabaseClient } from "@/lib/supabase/server";
 
 export type DashboardData = {
   trades: DashboardTrade[];
@@ -106,36 +108,30 @@ const loadTradesAndAssets = async (
   };
 };
 
-const loadLatestMarketPrices = async (
-  assetIds: string[],
-  supabase: SupabaseClient,
-): Promise<MarketPriceRow[]> => {
-  if (assetIds.length === 0) return [];
-  const { data: priceData, error: priceError } = await supabase
-    .from("market_prices")
-    .select("asset_id, price_usd, observed_at, delayed_until")
-    .in("asset_id", assetIds)
-    .order("observed_at", { ascending: false });
-
-  if (priceError) {
-    throw new Error(priceError.message);
-  }
-
-  const seen = new Set<string>();
-  const nowIso = new Date().toISOString();
-  const result: MarketPriceRow[] = [];
-  for (const row of (priceData ?? []) as MarketPriceRow[]) {
-    if (seen.has(row.asset_id)) continue;
-    if (row.delayed_until && row.delayed_until > nowIso) continue;
-    seen.add(row.asset_id);
-    result.push({
+const fetchLatestMarketPrices = unstable_cache(
+  async (assetIds: string[]): Promise<MarketPriceRow[]> => {
+    const supabase = createServiceSupabaseClient();
+    const { data, error } = await supabase.rpc("get_latest_market_prices", {
+      p_asset_ids: assetIds,
+    });
+    if (error) throw new Error(error.message);
+    return ((data ?? []) as MarketPriceRow[]).map((row) => ({
       asset_id: row.asset_id,
       price_usd: Number(row.price_usd),
       observed_at: row.observed_at,
       delayed_until: row.delayed_until,
-    });
-  }
-  return result;
+    }));
+  },
+  ["market-prices"],
+  { revalidate: 60, tags: ["market-prices"] },
+);
+
+const loadLatestMarketPrices = async (
+  assetIds: string[],
+  _supabase: SupabaseClient,
+): Promise<MarketPriceRow[]> => {
+  if (assetIds.length === 0) return [];
+  return fetchLatestMarketPrices(assetIds);
 };
 
 export const loadDashboardData = cache(
