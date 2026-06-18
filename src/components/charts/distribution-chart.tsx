@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 
+import { Button } from "@/components/ui/button";
 import { getDashboardLabels } from "@/lib/i18n/dashboard";
 import type {
   AssetStaleness,
@@ -65,6 +66,8 @@ export function DistributionChart({ initial }: DistributionChartProps) {
   const [dim, setDim] = useState<DistributionDimension>(initial.dim);
   const [data, setData] = useState<DistributionResponse>(initial);
   const [loading, setLoading] = useState(false);
+  const [enriching, setEnriching] = useState(false);
+  const [enrichMessage, setEnrichMessage] = useState<string | null>(null);
 
   async function handleDimChange(next: DistributionDimension) {
     if (next === dim) return;
@@ -79,6 +82,96 @@ export function DistributionChart({ initial }: DistributionChartProps) {
       // Keep previous data on error
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleEnrich() {
+    if (enriching) return;
+    setEnriching(true);
+    setEnrichMessage(null);
+    try {
+      let totalSucceeded = 0;
+      let totalNotFound = 0;
+      let totalFailed = 0;
+      let nextOffset: number | null = 0;
+      let firstForbidden = false;
+      while (nextOffset !== null) {
+        const res = await fetch("/api/v1/admin/backfill-asset-metadata", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ limit: 10, offset: nextOffset ?? 0 }),
+        });
+        if (res.status === 403) {
+          firstForbidden = true;
+          break;
+        }
+        if (!res.ok) {
+          const body = (await res.json().catch(() => null)) as
+            | { error?: { message?: string } | string }
+            | null;
+          const message =
+            (typeof body?.error === "object" && body?.error?.message) ||
+            (typeof body?.error === "string" ? body.error : null) ||
+            "Error al enriquecer";
+          setEnrichMessage(message);
+          return;
+        }
+        const body = (await res.json()) as {
+          succeeded: number;
+          notFound: number;
+          failed: number;
+          nextOffset: number | null;
+        };
+        totalSucceeded += body.succeeded;
+        totalNotFound += body.notFound;
+        totalFailed += body.failed;
+        nextOffset = body.nextOffset;
+      }
+      if (firstForbidden) {
+        setEnrichMessage(labels.distributionEnrichForbidden);
+        return;
+      }
+      const totalMissed = totalNotFound + totalFailed;
+      if (totalSucceeded > 0 && totalMissed > 0) {
+        setEnrichMessage(
+          labels.distributionEnrichPartial
+            .replace("{succeeded}", String(totalSucceeded))
+            .replace("{failed}", String(totalMissed)),
+        );
+      } else if (totalSucceeded > 0) {
+        setEnrichMessage(
+          labels.distributionEnrichDone.replace(
+            "{succeeded}",
+            String(totalSucceeded),
+          ),
+        );
+      } else if (totalNotFound > 0) {
+        setEnrichMessage(
+          labels.distributionEnrichAllNotFound.replace(
+            "{total}",
+            String(totalNotFound),
+          ),
+        );
+      } else if (totalFailed > 0) {
+        setEnrichMessage(
+          labels.distributionEnrichPartial
+            .replace("{succeeded}", "0")
+            .replace("{failed}", String(totalFailed)),
+        );
+      } else {
+        setEnrichMessage(
+          labels.distributionEnrichDone.replace("{succeeded}", "0"),
+        );
+      }
+      const res = await fetch(`/api/v1/dashboard/distribution?dim=${dim}`);
+      if (res.ok) {
+        const json = (await res.json()) as DistributionResponse;
+        setData(json);
+      }
+    } catch (err) {
+      setEnrichMessage(err instanceof Error ? err.message : "Error desconocido");
+    } finally {
+      setEnriching(false);
     }
   }
 
@@ -110,11 +203,33 @@ export function DistributionChart({ initial }: DistributionChartProps) {
       </div>
 
       {data.unclassified && (
+        <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <p
+            className="text-xs text-slate-500"
+            title={labels.distributionUnclassifiedTooltip}
+          >
+            ⓘ {labels.distributionUnclassifiedTooltip}
+          </p>
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={handleEnrich}
+            disabled={enriching}
+            data-testid="distribution-enrich-button"
+          >
+            {enriching
+              ? labels.distributionEnrichRunning
+              : labels.distributionEnrichButton}
+          </Button>
+        </div>
+      )}
+
+      {enrichMessage && (
         <p
-          className="mt-2 text-xs text-slate-500"
-          title={labels.distributionUnclassifiedTooltip}
+          className="mt-2 text-xs text-slate-600"
+          data-testid="distribution-enrich-message"
         >
-          ⓘ {labels.distributionUnclassifiedTooltip}
+          {enrichMessage}
         </p>
       )}
 
