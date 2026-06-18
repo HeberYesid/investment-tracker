@@ -1,4 +1,7 @@
 import {
+  type AssetProfile,
+  type AssetProfileCandidateResult,
+  type AssetProfileProvider,
   type FetchedHistory,
   type FetchedHistoryPoint,
   type FetchedQuote,
@@ -10,8 +13,10 @@ import {
   isYahooRange,
 } from "./types";
 import { getMarketDataEnv, type MarketDataEnv } from "./config";
+import { acquireYahooSession, resetYahooSessionForTests } from "./yahoo-session";
 
 const CHART_PATH = "/v8/finance/chart/";
+const PROFILE_PATH = "/v10/finance/quoteSummary/";
 
 export type YahooProviderOptions = {
   fetchImpl?: FetchLike;
@@ -41,7 +46,9 @@ type YahooChartResponse = {
   };
 };
 
-export function createYahooProvider(opts: YahooProviderOptions = {}): PriceProvider {
+export function createYahooProvider(
+  opts: YahooProviderOptions = {},
+): PriceProvider & AssetProfileProvider {
   const env = opts.env ?? getMarketDataEnv();
   const fetchImpl: FetchLike =
     opts.fetchImpl ?? (globalThis.fetch as unknown as FetchLike);
@@ -129,6 +136,125 @@ export function createYahooProvider(opts: YahooProviderOptions = {}): PriceProvi
     return { price, observedAt: new Date(ts * 1000).toISOString() };
   }
 
+  function normalizeProfileField(value: unknown): string | null {
+    if (typeof value !== "string") return null;
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+
+  async function fetchProfileRaw(
+    symbol: string,
+    useSession: boolean = true,
+  ): Promise<{ kind: "ok"; profile: AssetProfile } | { kind: "empty" } | { kind: "error"; message: string }> {
+    const session = useSession ? await acquireYahooSession(fetchImpl) : null;
+    const url = new URL(
+      `${env.yahooBaseUrl}${PROFILE_PATH}${encodeURIComponent(symbol)}`,
+    );
+    url.searchParams.set("modules", "summaryProfile");
+    if (session) url.searchParams.set("crumb", session.crumb);
+
+    const headers: Record<string, string> = {
+      "User-Agent": env.userAgent,
+      Accept: "application/json",
+      "Accept-Language": "en-US,en;q=0.9",
+      Origin: "https://finance.yahoo.com",
+      Referer: "https://finance.yahoo.com/",
+    };
+    if (session) headers.Cookie = session.cookie;
+
+    let response: Awaited<ReturnType<FetchLike>>;
+    try {
+      response = await fetchImpl(url.toString(), {
+        headers,
+        signal: AbortSignal.timeout(env.requestTimeoutMs),
+      });
+    } catch (err) {
+      return {
+        kind: "error",
+        message: err instanceof Error ? err.message : "fetch failed",
+      };
+    }
+
+    if (response.status === 401 && useSession) {
+      console.warn(
+        `[yahoo] ${symbol} returned 401 with session, retrying without…`,
+      );
+      return fetchProfileRaw(symbol, false);
+    }
+
+    if (response.status === 429) {
+      return { kind: "error", message: "rate_limited" };
+    }
+    if (response.status === 404) {
+      return { kind: "empty" };
+    }
+    if (!response.ok) {
+      return { kind: "error", message: `http_${response.status}` };
+    }
+
+    let body: unknown;
+    try {
+      body = await response.json();
+    } catch {
+      return { kind: "error", message: "invalid_json" };
+    }
+
+    const summary = (
+      body as {
+        quoteSummary?: {
+          result?: Array<{
+            summaryProfile?: {
+              sector?: unknown;
+              country?: unknown;
+            };
+          }>;
+          error?: unknown;
+        };
+      }
+    )?.quoteSummary;
+
+    if (!summary) {
+      return { kind: "error", message: "no_quote_summary" };
+    }
+    if (summary.error) {
+      return { kind: "empty" };
+    }
+    const profile = summary.result?.[0]?.summaryProfile;
+    if (!profile) {
+      return { kind: "empty" };
+    }
+
+    const sector = normalizeProfileField(profile.sector);
+    const country = normalizeProfileField(profile.country);
+    if (!sector && !country) {
+      return { kind: "empty" };
+    }
+    return { kind: "ok", profile: { sector, country } };
+  }
+
+  async function fetchProfile(symbol: string): Promise<AssetProfile | null> {
+    const result = await fetchProfileRaw(symbol);
+    return result.kind === "ok" ? result.profile : null;
+  }
+
+  async function fetchProfileWithCandidates(
+    candidates: string[],
+  ): Promise<AssetProfileCandidateResult> {
+    let lastError = "";
+    for (const symbol of candidates) {
+      const result = await fetchProfileRaw(symbol);
+      if (result.kind === "ok") {
+        return { status: "ok", profile: result.profile, resolvedSymbol: symbol };
+      }
+      if (result.kind === "empty") continue;
+      lastError = result.message;
+    }
+    if (lastError) {
+      return { status: "error", message: lastError };
+    }
+    return { status: "not_found" };
+  }
+
   return {
     async fetchQuotes(symbols) {
       const results = await Promise.all(
@@ -194,6 +320,9 @@ export function createYahooProvider(opts: YahooProviderOptions = {}): PriceProvi
       };
       return history;
     },
+
+    fetchProfile,
+    fetchProfileWithCandidates,
   };
 }
 
