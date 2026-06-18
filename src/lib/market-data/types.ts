@@ -5,6 +5,10 @@ export type FetchLike = (
   ok: boolean;
   status: number;
   statusText: string;
+  headers: {
+    get(name: string): string | null;
+    getSetCookie?: () => string[];
+  };
   text: () => Promise<string>;
   json: () => Promise<unknown>;
 }>;
@@ -40,6 +44,23 @@ export type PriceProviderResult<T> =
 export type PriceProvider = {
   fetchQuotes(symbols: string[]): Promise<FetchedQuote[]>;
   fetchHistory(symbol: string, range: YahooRange): Promise<FetchedHistory>;
+};
+
+export type AssetProfile = {
+  sector: string | null;
+  country: string | null;
+};
+
+export type AssetProfileCandidateResult =
+  | { status: "ok"; profile: AssetProfile; resolvedSymbol: string }
+  | { status: "not_found" }
+  | { status: "error"; message: string };
+
+export type AssetProfileProvider = {
+  fetchProfile(symbol: string): Promise<AssetProfile | null>;
+  fetchProfileWithCandidates(
+    candidates: string[],
+  ): Promise<AssetProfileCandidateResult>;
 };
 
 export const SUPPORTED_FX_CURRENCIES = ["USD", "COP"] as const;

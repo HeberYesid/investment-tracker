@@ -15,9 +15,10 @@ export type MarketDataEnv = {
   staleHistoryMs: number;
 };
 
-const DEFAULT_YAHOO_BASE_URL = "https://query1.finance.yahoo.com";
+const DEFAULT_YAHOO_BASE_URL = "https://query2.finance.yahoo.com";
 const DEFAULT_FX_BASE_URL = "https://open.er-api.com/v6/latest";
-const DEFAULT_USER_AGENT = "investment-tracker/0.1 (market-data-sync)";
+const DEFAULT_USER_AGENT =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 const DEFAULT_REQUEST_TIMEOUT_MS = 8_000;
 
 export function getMarketDataEnv(
