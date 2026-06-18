@@ -1,10 +1,32 @@
+import { redirect } from "next/navigation";
+
 import { MainNavigation } from "@/components/layout/main-navigation";
-import { DashboardPageClient } from "@/features/dashboard/dashboard-page-client";
+import { loadDashboardAggregate } from "@/lib/dashboard/aggregate";
 import { getDashboardLabels } from "@/lib/i18n/dashboard";
+import { getCurrentPortfolio } from "@/lib/supabase/auth";
+import { createUserSupabaseClient } from "@/lib/supabase/server";
+import { DashboardPageClient } from "@/features/dashboard/dashboard-page-client";
 
 const labels = getDashboardLabels();
 
-export default function Home() {
+export default async function Home() {
+  const portfolio = await getCurrentPortfolio();
+  if (!portfolio) {
+    redirect("/login");
+  }
+
+  const supabase = await createUserSupabaseClient();
+  const aggregate = await loadDashboardAggregate(
+    portfolio.portfolioId,
+    supabase,
+    "full",
+    {
+      evolutionGranularity: "monthly",
+      returnsGroupBy: "month",
+      distributionDimension: "broker",
+    },
+  );
+
   return (
     <main className="min-h-screen bg-slate-100 text-slate-950">
       <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-6 bg-slate-50 px-4 py-5 sm:px-6 lg:px-8">
@@ -16,7 +38,14 @@ export default function Home() {
           </h1>
         </section>
 
-        <DashboardPageClient />
+        <DashboardPageClient
+          initialPayload={{
+            summary: aggregate.summary ?? null,
+            evolution: aggregate.evolution ?? null,
+            returns: aggregate.returns ?? null,
+            snapshot: aggregate.snapshot ?? null,
+          }}
+        />
       </div>
     </main>
   );
