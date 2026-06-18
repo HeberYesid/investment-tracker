@@ -31,6 +31,18 @@ export async function GET(request: NextRequest) {
 
     const holdings = aggregateHoldings(data.trades, data.assets, data.brokers);
 
+    const activeAssetIds = Array.from(
+      new Set(
+        holdings
+          .filter((h) => h.quantity > 0)
+          .map((h) => h.assetId),
+      ),
+    );
+    const staleness = computeAssetStaleness(
+      activeAssetIds,
+      data.latestMarketPrices,
+    );
+
     const equityByHolding = new Map<string, number>();
     const stalenessByHolding = new Map<string, "fresh" | "stale" | "estimated">();
     for (const holding of holdings) {
@@ -43,14 +55,6 @@ export async function GET(request: NextRequest) {
         equityByHolding.set(key, priceUsd * holding.quantity);
       }
       if (!stalenessByHolding.has(key)) {
-        const activeAssetIds = Array.from(
-          new Set(
-            holdings
-              .filter((h) => h.quantity > 0)
-              .map((h) => h.assetId),
-          ),
-        );
-        const staleness = computeAssetStaleness(activeAssetIds, data.latestMarketPrices);
         const holdingStaleness = staleness.get(holding.assetId) ?? "estimated";
         stalenessByHolding.set(key, holdingStaleness);
       }
