@@ -14,6 +14,10 @@ const tradesLiveIndexPath = path.join(
   migrationsDir,
   "0006_trades_live_index.sql",
 );
+const performanceIndexesPath = path.join(
+  migrationsDir,
+  "0007_performance_indexes.sql",
+);
 
 const publicTables = [
   "profiles",
@@ -100,6 +104,10 @@ async function applyMigrations() {
 
   if (await fileExists(tradesLiveIndexPath)) {
     await db.exec(readFileSync(tradesLiveIndexPath, "utf8"));
+  }
+
+  if (await fileExists(performanceIndexesPath)) {
+    await db.exec(readFileSync(performanceIndexesPath, "utf8"));
   }
 
   return db;
@@ -437,5 +445,117 @@ describe("0005 sync settings migration", () => {
     expect(result.rows[0].run_id).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
     );
+  });
+});
+
+describe("0007 performance indexes migration", () => {
+  const performanceSql = readFileSync(performanceIndexesPath, "utf8");
+
+  it("declares indexes on filtered trade columns", () => {
+    expect(performanceSql).toContain(
+      "create index if not exists trades_broker_id_idx",
+    );
+    expect(performanceSql).toContain(
+      "create index if not exists trades_trade_type_idx",
+    );
+    expect(performanceSql).toContain(
+      "create index if not exists trades_currency_original_idx",
+    );
+    expect(performanceSql).toContain(
+      "create index if not exists csv_import_rows_import_id_status_idx",
+    );
+  });
+
+  it("declares get_latest_market_prices with DISTINCT ON", () => {
+    expect(performanceSql).toMatch(
+      /create or replace function public\.get_latest_market_prices/i,
+    );
+    expect(performanceSql).toContain("distinct on");
+    expect(performanceSql).toContain("language sql");
+  });
+
+  it("applies cleanly to a PGlite database with stubbed auth", async () => {
+    const db = await applyMigrations();
+
+    const fn = await db.query<{ proname: string }>(`
+      select proname
+      from pg_proc
+      join pg_namespace on pg_namespace.oid = pg_proc.pronamespace
+      where pg_namespace.nspname = 'public'
+        and proname = 'get_latest_market_prices';
+    `);
+    expect(fn.rows).toHaveLength(1);
+  });
+
+  it("returns the latest non-delayed price per asset", async () => {
+    const db = await applyMigrations();
+
+    await db.exec(`
+      insert into public.assets (id, ticker, asset_type, currency)
+      values
+        ('11111111-1111-1111-1111-111111111111', 'AAA', 'STOCK', 'USD'),
+        ('22222222-2222-2222-2222-222222222222', 'BBB', 'STOCK', 'USD');
+
+      insert into public.market_prices (asset_id, price, currency, price_usd, source, observed_at)
+      values
+        ('11111111-1111-1111-1111-111111111111', 10, 'USD', 10, 'TEST', '2024-01-01T00:00:00Z'),
+        ('11111111-1111-1111-1111-111111111111', 12, 'USD', 12, 'TEST', '2024-02-01T00:00:00Z'),
+        ('22222222-2222-2222-2222-222222222222', 20, 'USD', 20, 'TEST', '2024-01-15T00:00:00Z');
+    `);
+
+    const result = await db.query<{
+      asset_id: string;
+      price_usd: string;
+    }>(`
+      select asset_id, price_usd
+      from public.get_latest_market_prices(
+        array['11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222']::uuid[]
+      )
+      order by asset_id;
+    `);
+
+    expect(result.rows).toHaveLength(2);
+    expect(result.rows[0].asset_id).toBe(
+      "11111111-1111-1111-1111-111111111111",
+    );
+    expect(Number(result.rows[0].price_usd)).toBe(12);
+    expect(result.rows[1].asset_id).toBe(
+      "22222222-2222-2222-2222-222222222222",
+    );
+    expect(Number(result.rows[1].price_usd)).toBe(20);
+  });
+
+  it("excludes delayed prices", async () => {
+    const db = await applyMigrations();
+
+    await db.exec(`
+      insert into public.assets (id, ticker, asset_type, currency)
+      values ('33333333-3333-3333-3333-333333333333', 'CCC', 'STOCK', 'USD');
+
+      insert into public.market_prices (asset_id, price, currency, price_usd, source, observed_at, delayed_until)
+      values
+        ('33333333-3333-3333-3333-333333333333', 30, 'USD', 30, 'TEST', '2024-03-01T00:00:00Z', now() + interval '1 hour'),
+        ('33333333-3333-3333-3333-333333333333', 28, 'USD', 28, 'TEST', '2024-02-01T00:00:00Z', null);
+    `);
+
+    const result = await db.query<{ price_usd: string }>(`
+      select price_usd
+      from public.get_latest_market_prices(
+        array['33333333-3333-3333-3333-333333333333']::uuid[]
+      );
+    `);
+
+    expect(result.rows).toHaveLength(1);
+    expect(Number(result.rows[0].price_usd)).toBe(28);
+  });
+
+  it("returns no rows for an empty asset list", async () => {
+    const db = await applyMigrations();
+
+    const result = await db.query(`
+      select * from public.get_latest_market_prices(array[]::uuid[]);
+    `);
+
+    expect(result.rows).toHaveLength(0);
   });
 });
