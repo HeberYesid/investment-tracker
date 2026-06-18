@@ -1,5 +1,10 @@
 import type { Holding } from "./holdings";
 import type { AssetStalenessValue } from "@/lib/dashboard/snapshot";
+import {
+  UNCLASSIFIED,
+  translateCountry,
+  translateSector,
+} from "@/lib/i18n/asset-metadata";
 
 export type DistributionDimension = "broker" | "sector" | "country";
 
@@ -20,7 +25,6 @@ export type DistributionResult = {
 };
 
 const UNCLASSIFIED_KEY = "__unclassified__";
-const UNCLASSIFIED_LABEL = "Sin clasificar";
 
 const STALENESS_RANK: Record<AssetStalenessValue, number> = {
   fresh: 0,
@@ -45,20 +49,28 @@ function valueForDim(holding: Holding, dim: DistributionDimension): {
   }
   if (dim === "sector") {
     if (holding.sector) {
-      return { key: holding.sector, label: holding.sector, unclassified: false };
+      return {
+        key: holding.sector,
+        label: translateSector(holding.sector),
+        unclassified: false,
+      };
     }
     return {
       key: UNCLASSIFIED_KEY,
-      label: UNCLASSIFIED_LABEL,
+      label: UNCLASSIFIED,
       unclassified: true,
     };
   }
   if (holding.country) {
-    return { key: holding.country, label: holding.country, unclassified: false };
+    return {
+      key: holding.country,
+      label: translateCountry(holding.country),
+      unclassified: false,
+    };
   }
   return {
     key: UNCLASSIFIED_KEY,
-    label: UNCLASSIFIED_LABEL,
+    label: UNCLASSIFIED,
     unclassified: true,
   };
 }

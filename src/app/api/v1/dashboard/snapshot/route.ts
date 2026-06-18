@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+// Deprecated: use GET /api/v1/dashboard/aggregate?scope=advanced for a single
+// consolidated payload. Kept for backwards compatibility.
 import { badRequest, serverError } from "@/lib/api/errors";
 import { requireApiUser } from "@/lib/api/auth";
 import { getCurrentPortfolio } from "@/lib/supabase/auth";

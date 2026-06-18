@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+// Deprecated: use GET /api/v1/dashboard/aggregate for a single consolidated
+// payload. Kept for backwards compatibility.
 import { aggregateHoldings } from "@/lib/calculations/holdings";
 import { calculateTotalEquity } from "@/lib/calculations/equity";
 import { calculatePortfolioPnl } from "@/lib/calculations/pnl";

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+// Deprecated: use GET /api/v1/dashboard/aggregate for a single consolidated
+// payload. Kept for backwards compatibility.
 import { buildPortfolioValueSeries } from "@/lib/calculations/evolution";
 import { badRequest, serverError, validationError } from "@/lib/api/errors";
 import { requireApiUser } from "@/lib/api/auth";
