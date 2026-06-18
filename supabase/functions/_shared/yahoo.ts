@@ -113,8 +113,93 @@ export async function fetchYahooQuote(symbol: string): Promise<YahooProviderResu
   let json: unknown;
   try {
     json = await response.json();
-  } catch (err) {
+  } catch {
     return { ok: false, error: { code: "PERMANENT", message: `Yahoo: invalid JSON for ${symbol}` } };
   }
   return parseChartResponse(symbol, json);
+}
+
+export type YahooHistoryPoint = {
+  observedAt: string;
+  priceUsd: number;
+};
+
+export type YahooHistoryResult =
+  | { ok: true; value: YahooHistoryPoint[] }
+  | { ok: false; error: YahooProviderError };
+
+type ChartHistoryResponse = {
+  chart?: {
+    result?: Array<{
+      meta?: { symbol?: string; currency?: string };
+      timestamp?: number[];
+      indicators?: {
+        adjclose?: Array<{ adjclose?: Array<number | null> }>;
+      };
+    }>;
+    error?: { code?: string; description?: string } | null;
+  };
+};
+
+export function parseChartHistoryResponse(symbol: string, json: unknown): YahooHistoryResult {
+  const data = json as ChartHistoryResponse | null;
+  const result = data?.chart?.result?.[0];
+  if (!result) {
+    return { ok: false, error: { code: "PERMANENT", message: "Yahoo: no result in chart history response" } };
+  }
+  const timestamps = result.timestamp ?? [];
+  const adjclose = result.indicators?.adjclose?.[0]?.adjclose ?? [];
+  if (timestamps.length === 0 || adjclose.length !== timestamps.length) {
+    return { ok: false, error: { code: "PERMANENT", message: `Yahoo: missing history series for ${symbol}` } };
+  }
+  const points: YahooHistoryPoint[] = [];
+  for (let i = 0; i < timestamps.length; i += 1) {
+    const ts = timestamps[i];
+    const value = adjclose[i];
+    if (typeof ts !== "number" || !Number.isFinite(ts)) continue;
+    if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) continue;
+    points.push({
+      observedAt: new Date(ts * 1000).toISOString(),
+      priceUsd: value,
+    });
+  }
+  if (points.length === 0) {
+    return { ok: false, error: { code: "PERMANENT", message: `Yahoo: no numeric history points for ${symbol}` } };
+  }
+  return { ok: true, value: points };
+}
+
+export async function fetchYahooHistory(
+  symbol: string,
+  range: string = "2y",
+  interval: string = "1d",
+): Promise<YahooHistoryResult> {
+  const url =
+    `${getYahooBaseUrl()}/v8/finance/chart/${encodeURIComponent(symbol)}` +
+    `?interval=${encodeURIComponent(interval)}&range=${encodeURIComponent(range)}`;
+  const response = await fetch(url, {
+    headers: {
+      "User-Agent": getUserAgent(),
+      Accept: "application/json",
+    },
+  });
+  if (response.status === 404) {
+    return { ok: false, error: { code: "NOT_FOUND", message: `Yahoo: 404 for ${symbol}` } };
+  }
+  if (response.status === 429) {
+    return { ok: false, error: { code: "RATE_LIMITED", message: `Yahoo: 429 for ${symbol}` } };
+  }
+  if (response.status >= 500) {
+    return { ok: false, error: { code: "TRANSIENT", message: `Yahoo: ${response.status} for ${symbol}` } };
+  }
+  if (!response.ok) {
+    return { ok: false, error: { code: "PERMANENT", message: `Yahoo: ${response.status} for ${symbol}` } };
+  }
+  let json: unknown;
+  try {
+    json = await response.json();
+  } catch {
+    return { ok: false, error: { code: "PERMANENT", message: `Yahoo: invalid JSON for ${symbol}` } };
+  }
+  return parseChartHistoryResponse(symbol, json);
 }
