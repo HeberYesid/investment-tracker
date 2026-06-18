@@ -16,16 +16,98 @@ import {
   recordRunStart,
   recordRunSuccess,
 } from "../_shared/record-sync-run.ts";
-import { fetchYahooQuote } from "../_shared/yahoo.ts";
+import { fetchYahooHistory, fetchYahooQuote } from "../_shared/yahoo.ts";
+import { invalidateCacheTag } from "../_shared/invalidate-cache.ts";
 
 type ActiveAssetRow = { asset_id: string; yahoo_symbol: string | null; ticker: string };
 type BenchmarkAssetRow = { id: string; yahoo_symbol: string | null; ticker: string };
 
 const BENCHMARK_TICKER = "^GSPC";
 const DELAYED_UNTIL_MINUTES = 15;
+const BENCHMARK_HISTORY_RANGE = "2y";
+const BENCHMARK_HISTORY_INTERVAL = "1d";
 
 function isUuid(value: unknown): value is string {
   return typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+}
+
+function utcDayKey(iso: string): string {
+  return iso.slice(0, 10);
+}
+
+function startOfTodayUtc(): string {
+  return new Date().toISOString().slice(0, 10) + "T00:00:00.000Z";
+}
+
+async function backfillBenchmarkHistory(
+  supabase: ReturnType<typeof getServiceClient>,
+  benchmark: BenchmarkAssetRow,
+): Promise<{ inserted: number; skipped: number; message?: string }> {
+  const startToday = startOfTodayUtc();
+  const { count: todayHistoryCount, error: gateError } = await supabase
+    .from("market_prices")
+    .select("id", { count: "exact", head: true })
+    .eq("asset_id", benchmark.id)
+    .eq("source", "BENCHMARK_HISTORY")
+    .gte("observed_at", startToday);
+  if (gateError) {
+    return { inserted: 0, skipped: 0, message: gateError.message };
+  }
+  if (todayHistoryCount && todayHistoryCount > 0) {
+    return { inserted: 0, skipped: 0 };
+  }
+
+  const history = await fetchYahooHistory(
+    benchmark.yahoo_symbol ?? benchmark.ticker,
+    BENCHMARK_HISTORY_RANGE,
+    BENCHMARK_HISTORY_INTERVAL,
+  );
+  if (!history.ok) {
+    return { inserted: 0, skipped: 0, message: history.error.message };
+  }
+
+  const { data: existing, error: existingError } = await supabase
+    .from("market_prices")
+    .select("observed_at")
+    .eq("asset_id", benchmark.id)
+    .order("observed_at", { ascending: false });
+  if (existingError) {
+    return { inserted: 0, skipped: 0, message: existingError.message };
+  }
+  const seenDays = new Set<string>();
+  for (const row of (existing ?? []) as Array<{ observed_at: string }>) {
+    seenDays.add(utcDayKey(row.observed_at));
+  }
+
+  const toInsert: Array<{ asset_id: string; price: number; price_usd: number; currency: string; source: string; observed_at: string; delayed_until: string | null }> = [];
+  let skipped = 0;
+  for (const point of history.value) {
+    const day = utcDayKey(point.observedAt);
+    if (seenDays.has(day)) {
+      skipped += 1;
+      continue;
+    }
+    seenDays.add(day);
+    toInsert.push({
+      asset_id: benchmark.id,
+      price: point.priceUsd,
+      price_usd: point.priceUsd,
+      currency: "USD",
+      source: "BENCHMARK_HISTORY",
+      observed_at: point.observedAt,
+      delayed_until: null,
+    });
+  }
+
+  if (toInsert.length === 0) {
+    return { inserted: 0, skipped };
+  }
+
+  const { error: insertError } = await supabase.from("market_prices").insert(toInsert);
+  if (insertError) {
+    return { inserted: 0, skipped, message: insertError.message };
+  }
+  return { inserted: toInsert.length, skipped };
 }
 
 async function listActiveAssets(supabase: ReturnType<typeof getServiceClient>): Promise<ActiveAssetRow[]> {
@@ -201,8 +283,25 @@ Deno.serve(async (request: Request) => {
       assetsProcessed += 1;
     }
 
+    let benchmarkBackfill: { inserted: number; skipped: number; message?: string } | null = null;
+    if (benchmark) {
+      benchmarkBackfill = await backfillBenchmarkHistory(supabase, benchmark);
+      if (benchmarkBackfill.message) {
+        errors.push({
+          symbol: benchmark.yahoo_symbol ?? benchmark.ticker,
+          message: `benchmark backfill: ${benchmarkBackfill.message}`,
+        });
+      }
+    }
+
     await recordRunSuccess(supabase, runId, { assetsProcessed });
-    return jsonResponse({ runId, assetsProcessed, errors });
+
+    await invalidateCacheTag("market-prices");
+    if (benchmark) {
+      await invalidateCacheTag("benchmark");
+    }
+
+    return jsonResponse({ runId, assetsProcessed, errors, benchmarkBackfill });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     if (runId) {
