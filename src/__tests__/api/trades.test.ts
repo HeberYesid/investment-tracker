@@ -57,6 +57,12 @@ vi.mock("@/lib/supabase/server", () => ({
   createServiceSupabaseClient: () => mockSupabase,
 }));
 
+vi.mock("next/cache", () => ({
+  revalidatePath: vi.fn(),
+  revalidateTag: vi.fn(),
+  unstable_cache: (cb: unknown) => cb,
+}));
+
 vi.mock("@/lib/supabase/auth", () => ({
   getCurrentPortfolio: () =>
     Promise.resolve({
