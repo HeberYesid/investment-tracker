@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 
+import type { DashboardAggregate } from "@/lib/dashboard/aggregate";
 import { getDashboardLabels } from "@/lib/i18n/dashboard";
 import type {
   DistributionResponse,
@@ -28,13 +29,15 @@ export type AdvancedDataState = {
   reload: () => Promise<void>;
 };
 
-const initialPayload: AdvancedPayload = {
-  summary: null,
-  distribution: null,
-  evolution: null,
-  returns: null,
-  snapshot: null,
-};
+function fromAggregate(agg: DashboardAggregate): AdvancedPayload {
+  return {
+    summary: agg.summary ?? null,
+    distribution: agg.distribution ?? null,
+    evolution: agg.evolution ?? null,
+    returns: agg.returns ?? null,
+    snapshot: agg.snapshot ?? null,
+  };
+}
 
 async function fetchJson<T>(url: string, signal: AbortSignal): Promise<T> {
   const res = await fetch(url, { signal });
@@ -47,41 +50,21 @@ async function fetchJson<T>(url: string, signal: AbortSignal): Promise<T> {
   return (await res.json()) as T;
 }
 
-export function useAdvancedData(): AdvancedDataState {
-  const [loading, setLoading] = useState(true);
+export function useAdvancedData(initial: AdvancedPayload): AdvancedDataState {
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [payload, setPayload] = useState<AdvancedPayload>(initialPayload);
+  const [payload, setPayload] = useState<AdvancedPayload>(initial);
 
-  const load = useCallback(async (signal: AbortSignal) => {
+  const reload = useCallback(async () => {
+    const controller = new AbortController();
     setLoading(true);
     setError(null);
-
     try {
-      const [summary, distribution, evolution, returnsResp, snapshot] =
-        await Promise.all([
-          fetchJson<SummaryResponse>("/api/v1/dashboard/summary", signal),
-          fetchJson<DistributionResponse>(
-            "/api/v1/dashboard/distribution?dim=broker",
-            signal,
-          ),
-          fetchJson<EvolutionResponse>(
-            "/api/v1/dashboard/evolution?granularity=monthly",
-            signal,
-          ),
-          fetchJson<ReturnsResponse>(
-            "/api/v1/dashboard/returns?groupBy=month",
-            signal,
-          ),
-          fetchJson<SnapshotResponse>("/api/v1/dashboard/snapshot", signal),
-        ]);
-
-      setPayload({
-        summary,
-        distribution,
-        evolution,
-        returns: returnsResp,
-        snapshot,
-      });
+      const aggregate = await fetchJson<DashboardAggregate>(
+        "/api/v1/dashboard/aggregate?granularity=monthly&groupBy=month&dim=broker",
+        controller.signal,
+      );
+      setPayload(fromAggregate(aggregate));
     } catch (err) {
       if ((err as { name?: string })?.name === "AbortError") return;
       setError(err instanceof Error ? err.message : labels.errorLoading);
@@ -90,19 +73,10 @@ export function useAdvancedData(): AdvancedDataState {
     }
   }, []);
 
-  useEffect(() => {
-    const controller = new AbortController();
-    void load(controller.signal);
-    return () => controller.abort();
-  }, [load]);
-
   return {
     loading,
     error,
     payload,
-    reload: async () => {
-      const controller = new AbortController();
-      await load(controller.signal);
-    },
+    reload,
   };
 }

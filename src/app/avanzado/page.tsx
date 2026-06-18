@@ -1,10 +1,32 @@
-import { AvanzadoPageClient } from "@/features/avanzado/avanzado-page-client";
+import { redirect } from "next/navigation";
+
 import { MainNavigation } from "@/components/layout/main-navigation";
+import { loadDashboardAggregate } from "@/lib/dashboard/aggregate";
 import { getDashboardLabels } from "@/lib/i18n/dashboard";
+import { getCurrentPortfolio } from "@/lib/supabase/auth";
+import { createUserSupabaseClient } from "@/lib/supabase/server";
+import { AvanzadoPageClient } from "@/features/avanzado/avanzado-page-client";
 
 const labels = getDashboardLabels();
 
-export default function AvanzadoPage() {
+export default async function AvanzadoPage() {
+  const portfolio = await getCurrentPortfolio();
+  if (!portfolio) {
+    redirect("/login");
+  }
+
+  const supabase = await createUserSupabaseClient();
+  const aggregate = await loadDashboardAggregate(
+    portfolio.portfolioId,
+    supabase,
+    "full",
+    {
+      evolutionGranularity: "monthly",
+      returnsGroupBy: "month",
+      distributionDimension: "broker",
+    },
+  );
+
   return (
     <main className="min-h-screen bg-slate-100 text-slate-950">
       <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-6 bg-slate-50 px-4 py-5 sm:px-6 lg:px-8">
@@ -16,7 +38,15 @@ export default function AvanzadoPage() {
           </h1>
         </section>
 
-        <AvanzadoPageClient />
+        <AvanzadoPageClient
+          initialPayload={{
+            summary: aggregate.summary ?? null,
+            distribution: aggregate.distribution ?? null,
+            evolution: aggregate.evolution ?? null,
+            returns: aggregate.returns ?? null,
+            snapshot: aggregate.snapshot ?? null,
+          }}
+        />
       </div>
     </main>
   );

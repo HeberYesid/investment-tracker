@@ -1,13 +1,16 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 
 import { ReturnsTable } from "@/components/charts/returns-table";
+import { BenchmarkReturnsTable } from "@/components/charts/benchmark-returns-table";
 import { SummaryCards } from "@/components/charts/summary-cards";
 import { Button } from "@/components/ui/button";
 import { getDashboardLabels } from "@/lib/i18n/dashboard";
 
+import type { AdvancedPayload } from "./use-advanced-data";
 import { useAdvancedData } from "./use-advanced-data";
 
 const BenchmarkChart = dynamic(
@@ -30,19 +33,45 @@ function ChartSkeleton({ testId }: { testId: string }) {
 
 const labels = getDashboardLabels();
 
-export function AvanzadoPageClient() {
-  const { loading, error, payload, reload } = useAdvancedData();
+export function AvanzadoPageClient({
+  initialPayload,
+}: {
+  initialPayload: AdvancedPayload;
+}) {
+  const { loading, error, payload, reload } = useAdvancedData(initialPayload);
+  const [backfillState, setBackfillState] = useState<{
+    status: "idle" | "running" | "success" | "error";
+    message?: string;
+  }>({ status: "idle" });
 
-  if (loading) {
-    return (
-      <section
-        className="rounded-2xl bg-white p-8 text-center text-sm text-slate-500 shadow-sm ring-1 ring-slate-200"
-        data-testid="avanzado-loading"
-        aria-live="polite"
-      >
-        {labels.loadingDashboard}
-      </section>
-    );
+  async function handleBackfill() {
+    setBackfillState({ status: "running" });
+    try {
+      const res = await fetch("/api/v1/admin/sync/benchmark-backfill", {
+        method: "POST",
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        const message =
+          typeof body?.error === "string"
+            ? body.error
+            : labels.benchmarkBackfillError;
+        setBackfillState({ status: "error", message });
+        return;
+      }
+      const data = (await res.json()) as { inserted: number; skipped: number };
+      const message =
+        data.inserted > 0
+          ? labels.benchmarkBackfillSuccess.replace("{inserted}", String(data.inserted))
+          : labels.benchmarkBackfillNoNew;
+      setBackfillState({ status: "success", message });
+      await reload();
+    } catch {
+      setBackfillState({
+        status: "error",
+        message: labels.benchmarkBackfillError,
+      });
+    }
   }
 
   if (error) {
@@ -87,17 +116,94 @@ export function AvanzadoPageClient() {
     );
   }
 
+  const hasBenchmark = Boolean(payload.snapshot?.benchmark);
+  const showBackfillButton = !hasBenchmark || backfillState.status !== "idle";
+
   return (
-    <div className="space-y-4" data-testid="avanzado-ready">
-      {payload.summary && <SummaryCards summary={payload.summary} />}
-      {payload.evolution && payload.snapshot?.benchmark && (
-        <BenchmarkChart
-          evolution={payload.evolution}
-          benchmark={payload.snapshot.benchmark}
-        />
+    <>
+      {loading && (
+        <section
+          className="rounded-2xl bg-white p-4 text-center text-sm text-slate-500 shadow-sm ring-1 ring-slate-200"
+          data-testid="avanzado-reloading"
+          aria-live="polite"
+        >
+          {labels.loadingDashboard}
+        </section>
       )}
-      {payload.distribution && <DistributionChart initial={payload.distribution} />}
-      {payload.returns && <ReturnsTable initial={payload.returns} />}
-    </div>
+      <div className="space-y-4" data-testid="avanzado-ready">
+        {payload.summary && <SummaryCards summary={payload.summary} />}
+
+        {!hasBenchmark && (
+          <section
+            className="rounded-2xl bg-white p-6 text-center shadow-sm ring-1 ring-slate-200"
+            data-testid="benchmark-backfill-prompt"
+          >
+            <p className="text-sm text-slate-600">
+              {labels.benchmarkNoBenchmark}
+            </p>
+            <Button
+              size="sm"
+              className="mt-4"
+              onClick={() => void handleBackfill()}
+              disabled={backfillState.status === "running"}
+              data-testid="benchmark-backfill-button"
+            >
+              {backfillState.status === "running"
+                ? labels.benchmarkBackfillRunning
+                : labels.benchmarkBackfillButton}
+            </Button>
+            {backfillState.status === "success" && (
+              <p
+                className="mt-3 text-sm font-medium text-emerald-600"
+                data-testid="benchmark-backfill-success"
+              >
+                {backfillState.message}
+              </p>
+            )}
+            {backfillState.status === "error" && (
+              <p
+                className="mt-3 text-sm font-medium text-red-600"
+                data-testid="benchmark-backfill-error"
+              >
+                {backfillState.message}
+              </p>
+            )}
+          </section>
+        )}
+
+        {hasBenchmark && showBackfillButton && backfillState.status !== "idle" && (
+          <section
+            className="rounded-2xl bg-white p-4 text-center shadow-sm ring-1 ring-slate-200"
+            data-testid="benchmark-backfill-status"
+          >
+            {backfillState.status === "success" && (
+              <p className="text-sm font-medium text-emerald-600">
+                {backfillState.message}
+              </p>
+            )}
+            {backfillState.status === "error" && (
+              <p className="text-sm font-medium text-red-600">
+                {backfillState.message}
+              </p>
+            )}
+          </section>
+        )}
+
+        {payload.evolution && payload.snapshot?.benchmark && (
+          <BenchmarkChart
+            evolution={payload.evolution}
+            benchmark={payload.snapshot.benchmark}
+          />
+        )}
+        {payload.evolution && payload.snapshot?.benchmark && (
+          <BenchmarkReturnsTable
+            evolution={payload.evolution}
+            benchmark={payload.snapshot.benchmark}
+          />
+        )}
+        {payload.distribution && <DistributionChart initial={payload.distribution} />}
+        {payload.returns && <ReturnsTable initial={payload.returns} />}
+      </div>
+    </>
   );
 }
