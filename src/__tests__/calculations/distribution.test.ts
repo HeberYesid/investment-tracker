@@ -151,4 +151,89 @@ describe("groupByDimension", () => {
     );
     expect(result.slices[0].staleness).toBe("estimated");
   });
+
+  it("translates sector labels from English to Spanish", () => {
+    const equity = new Map([
+      ["a1::b1", 600],
+      ["a2::b1", 400],
+    ]);
+    const result = groupByDimension(
+      [
+        holding({ sector: "Technology" }),
+        holding({
+          assetId: "a2",
+          ticker: "NVDA",
+          sector: "Healthcare",
+        }),
+      ],
+      equity,
+      "sector",
+    );
+    expect(result.slices).toHaveLength(2);
+    const labels = result.slices.map((s) => s.label).sort();
+    expect(labels).toEqual(["Salud", "Tecnología"]);
+    expect(result.unclassified).toBe(false);
+  });
+
+  it("translates country labels from English to Spanish", () => {
+    const equity = new Map([
+      ["a1::b1", 700],
+      ["a2::b1", 300],
+    ]);
+    const result = groupByDimension(
+      [
+        holding({ country: "United States" }),
+        holding({
+          assetId: "a2",
+          ticker: "NVDA",
+          country: "Colombia",
+        }),
+      ],
+      equity,
+      "country",
+    );
+    expect(result.slices).toHaveLength(2);
+    const labels = result.slices.map((s) => s.label).sort();
+    expect(labels).toEqual(["Colombia", "Estados Unidos"]);
+    expect(result.unclassified).toBe(false);
+  });
+
+  it("keeps the raw country/sector value when no translation exists", () => {
+    const equity = new Map([
+      ["a1::b1", 600],
+      ["a2::b1", 400],
+    ]);
+    const result = groupByDimension(
+      [
+        holding({ country: "Bermuda" }),
+        holding({
+          assetId: "a2",
+          ticker: "NVDA",
+          sector: "Aerospace & Defense",
+        }),
+      ],
+      equity,
+      "country",
+    );
+    const resultSector = groupByDimension(
+      [
+        holding({ sector: "Aerospace & Defense" }),
+      ],
+      equity,
+      "sector",
+    );
+    expect(result.slices[0].label).toBe("Bermuda");
+    expect(resultSector.slices[0].label).toBe("Aerospace & Defense");
+  });
+
+  it("keeps the key in English while translating the label", () => {
+    const equity = new Map([["a1::b1", 1000]]);
+    const result = groupByDimension(
+      [holding({ sector: "Technology" })],
+      equity,
+      "sector",
+    );
+    expect(result.slices[0].key).toBe("Technology");
+    expect(result.slices[0].label).toBe("Tecnología");
+  });
 });
