@@ -1,14 +1,17 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { unstable_cache } from "next/cache";
 
 import { aggregateHoldings } from "@/lib/calculations/holdings";
 import { isHistoryStale, isQuoteStale } from "@/lib/market-data/config";
 import { STALE_HISTORY_MS } from "@/lib/market-data/types";
 import type { MarketPriceRow } from "@/lib/calculations/pricing";
 import type { DashboardData } from "@/lib/dashboard/loader";
+import { createServiceSupabaseClient } from "@/lib/supabase/server";
 
 export const BENCHMARK_TICKER = "^GSPC";
 export const BENCHMARK_LABEL = "S&P 500";
-export const BENCHMARK_HISTORY_LIMIT = 252;
+export const BENCHMARK_HISTORY_LIMIT = 520;
+export const BENCHMARK_INTRADAY_LIMIT = 1500;
 
 export type AssetStalenessValue = "fresh" | "stale" | "estimated";
 
@@ -134,38 +137,84 @@ type BenchmarkRow = {
   price_usd: number;
 };
 
+export function dedupBenchmarkRowsPerUtcDay(rows: BenchmarkRow[]): BenchmarkRow[] {
+  const seen = new Map<string, BenchmarkRow>();
+  const sortedDesc = [...rows].sort((a, b) =>
+    a.observed_at < b.observed_at ? 1 : -1,
+  );
+  for (const row of sortedDesc) {
+    const day = row.observed_at.slice(0, 10);
+    if (!seen.has(day)) {
+      seen.set(day, row);
+    }
+  }
+  return [...seen.values()].sort((a, b) =>
+    a.observed_at < b.observed_at ? -1 : 1,
+  );
+}
+
+type BenchmarkRawData = {
+  rows: BenchmarkRow[];
+};
+
+const fetchBenchmarkRawData = unstable_cache(
+  async (): Promise<BenchmarkRawData> => {
+    const supabase = createServiceSupabaseClient();
+    const { data: benchmarkAsset, error: assetError } = await supabase
+      .from("assets")
+      .select("id, ticker, yahoo_symbol")
+      .or(`ticker.eq.${BENCHMARK_TICKER},yahoo_symbol.eq.${BENCHMARK_TICKER}`)
+      .limit(1)
+      .maybeSingle();
+
+    if (assetError) {
+      throw new Error(assetError.message);
+    }
+    if (!benchmarkAsset) return { rows: [] };
+
+    const assetId = (benchmarkAsset as { id: string }).id;
+
+    const [historyResult, intradayResult] = await Promise.all([
+      supabase
+        .from("market_prices")
+        .select("observed_at, price_usd")
+        .eq("asset_id", assetId)
+        .eq("source", "BENCHMARK_HISTORY")
+        .order("observed_at", { ascending: false })
+        .limit(BENCHMARK_HISTORY_LIMIT),
+      supabase
+        .from("market_prices")
+        .select("observed_at, price_usd")
+        .eq("asset_id", assetId)
+        .eq("source", "BENCHMARK")
+        .order("observed_at", { ascending: false })
+        .limit(BENCHMARK_INTRADAY_LIMIT),
+    ]);
+
+    if (historyResult.error) {
+      throw new Error(historyResult.error.message);
+    }
+    if (intradayResult.error) {
+      throw new Error(intradayResult.error.message);
+    }
+
+    const merged = dedupBenchmarkRowsPerUtcDay([
+      ...((historyResult.data ?? []) as BenchmarkRow[]),
+      ...((intradayResult.data ?? []) as BenchmarkRow[]),
+    ]);
+
+    return { rows: merged };
+  },
+  ["benchmark"],
+  { revalidate: 60, tags: ["benchmark"] },
+);
+
 export async function loadBenchmarkSeries(
-  supabase: SupabaseClient,
+  _supabase: SupabaseClient,
   now: Date = new Date(),
 ): Promise<BenchmarkSeries | null> {
-  const { data: benchmarkAsset, error: assetError } = await supabase
-    .from("assets")
-    .select("id, ticker, yahoo_symbol")
-    .or(`ticker.eq.${BENCHMARK_TICKER},yahoo_symbol.eq.${BENCHMARK_TICKER}`)
-    .limit(1)
-    .maybeSingle();
-
-  if (assetError) {
-    throw new Error(assetError.message);
-  }
-  if (!benchmarkAsset) return null;
-
-  const { data: priceData, error: priceError } = await supabase
-    .from("market_prices")
-    .select("observed_at, price_usd")
-    .eq("asset_id", (benchmarkAsset as { id: string }).id)
-    .order("observed_at", { ascending: true })
-    .limit(BENCHMARK_HISTORY_LIMIT);
-
-  if (priceError) {
-    throw new Error(priceError.message);
-  }
-
-  return buildBenchmarkSeries(
-    (priceData ?? []) as BenchmarkRow[],
-    now,
-    STALE_HISTORY_MS,
-  );
+  const { rows } = await fetchBenchmarkRawData();
+  return buildBenchmarkSeries(rows, now, STALE_HISTORY_MS);
 }
 
 export async function loadSnapshot(
