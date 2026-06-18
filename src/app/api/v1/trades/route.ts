@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { requireApiUser } from "@/lib/api/auth";
 import { getCurrentPortfolio } from "@/lib/supabase/auth";
 import {
@@ -8,6 +9,8 @@ import {
 } from "@/lib/validations/trades";
 import type { CreateTradeInput } from "@/lib/validations/trades";
 import { badRequest, validationError, serverError } from "@/lib/api/errors";
+import { createYahooProvider } from "@/lib/market-data/yahoo";
+import { candidateYahooSymbols } from "@/lib/market-data/symbols";
 
 export async function GET(request: NextRequest) {
   const auth = await requireApiUser();
@@ -162,6 +165,7 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
 
     let asset_id: string;
+    let newlyCreatedAsset = false;
     if (existingAsset) {
       asset_id = existingAsset.id;
     } else {
@@ -180,6 +184,34 @@ export async function POST(request: NextRequest) {
         return badRequest("No se pudo crear el activo: " + input.ticker);
       }
       asset_id = newAsset.id;
+      newlyCreatedAsset = true;
+    }
+
+    if (newlyCreatedAsset) {
+      const profileProvider = createYahooProvider();
+      try {
+        const candidates = candidateYahooSymbols({
+          ticker: input.ticker,
+          yahooSymbol: null,
+          currency: input.currency_original,
+        });
+        const result = await profileProvider.fetchProfileWithCandidates(
+          candidates,
+        );
+        if (result.status === "ok") {
+          const updates: Record<string, string> = {};
+          if (result.profile.sector) updates.sector = result.profile.sector;
+          if (result.profile.country) updates.country = result.profile.country;
+          if (Object.keys(updates).length > 0) {
+            await supabase.from("assets").update(updates).eq("id", asset_id);
+          }
+        }
+      } catch (err) {
+        console.warn(
+          `[trades] Failed to enrich asset metadata for ${input.ticker}:`,
+          err,
+        );
+      }
     }
 
     const tradeInput: CreateTradeInput = {
@@ -221,6 +253,9 @@ export async function POST(request: NextRequest) {
       action: "CREATE",
       after_json: trade,
     });
+
+    revalidatePath("/");
+    revalidatePath("/avanzado");
 
     return NextResponse.json(trade, { status: 201 });
   } catch {
