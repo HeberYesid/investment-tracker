@@ -37,6 +37,14 @@ export const dashboardLabels = {
       "Cotización desactualizada (>2h). El valor puede no reflejar el precio actual.",
     distributionEstimatedTooltip:
       "Valor estimado a partir de tus operaciones. No hay precio de mercado disponible.",
+    distributionEnrichButton: "Enriquecer sectores y países",
+    distributionEnrichRunning: "Enriqueciendo...",
+    distributionEnrichDone: "Se enriquecieron {succeeded} activos.",
+    distributionEnrichPartial: "Se enriquecieron {succeeded} activos. {failed} no se pudieron clasificar.",
+    distributionEnrichAllNotFound:
+      "No se encontró perfil en Yahoo para ninguno de los {total} activos. Probá actualizar manualmente el campo yahoo_symbol en la tabla assets.",
+    distributionEnrichForbidden:
+      "Solo los propietarios pueden ejecutar el enriquecimiento.",
 
     returnsTitle: "Rentabilidad",
     returnsEmpty: "Sin datos de rentabilidad.",
@@ -50,22 +58,43 @@ export const dashboardLabels = {
     returnsTotal: "Total",
     returnsPct: "Rentabilidad %",
 
-    benchmarkTitle: "Comparación con benchmark",
-    benchmarkSubtitle: "Tu portafolio vs. {benchmark} (índice base 100)",
-    benchmarkAvailable: "Comparación con benchmark",
+    benchmarkTitle: "Comparación contra S&P 500",
+    benchmarkSubtitle: "Tu portafolio vs. S&P 500 (índice base 100)",
+    benchmarkAvailable: "Comparación contra S&P 500",
     benchmarkDescription:
-      "Compara la rentabilidad de tu portafolio contra índices como el S&P 500.",
+      "Compara la rentabilidad de tu portafolio contra el S&P 500.",
     benchmarkEmpty:
       "Aún no hay datos de benchmark. Se actualizarán diariamente tras el primer sincronizado.",
+    benchmarkNoOverlap:
+      "El S&P 500 se sincronizó hace poco. La comparación con tu portafolio aparecerá en los próximos días, a medida que se acumulen datos históricos del índice.",
     benchmarkStaleBadge: "Benchmark desactualizado",
     benchmarkStaleTooltip:
       "La última cotización del benchmark tiene más de 7 días. La comparación puede no reflejar el valor actual.",
     benchmarkPortfolioLegend: "Mi portafolio",
     benchmarkPortfolioReturn: "Rentabilidad del portafolio",
+    benchmarkIndexValue: "Índice",
+    benchmarkDeltaVsBenchmark: "Diferencia vs. S&P 500",
     benchmarkSyncNow: "Sincronizar ahora",
     benchmarkSyncRunning: "Sincronizando...",
     benchmarkSyncSuccess: "Sincronización en cola",
     benchmarkSyncError: "Error al sincronizar",
+
+    benchmarkBackfillButton: "Cargar historial del S&P 500",
+    benchmarkBackfillRunning: "Cargando historial...",
+    benchmarkBackfillSuccess: "Historial cargado: {inserted} días añadidos.",
+    benchmarkBackfillNoNew: "El historial ya estaba cargado.",
+    benchmarkBackfillError: "Error al cargar el historial",
+    benchmarkNoBenchmark:
+      "Aún no hay datos históricos del S&P 500. Cargá el historial para ver la comparación con tu portafolio.",
+
+    benchmarkReturnsTitle: "Rendimiento anual vs. S&P 500",
+    benchmarkReturnsYear: "Año",
+    benchmarkReturnsPortfolio: "Mi portafolio",
+    benchmarkReturnsSp500: "S&P 500",
+    benchmarkReturnsDelta: "Diferencia",
+    benchmarkReturnsYtd: (year: number | string) => `YTD ${year}`,
+    benchmarkReturnsEmpty: "Sin datos suficientes para calcular el rendimiento anual.",
+    benchmarkReturnsNa: "—",
 
     emptyHeading: "Tu portafolio está vacío",
     emptyDescription:
