@@ -4,6 +4,7 @@ import {
   buildBenchmarkSeries,
   buildSnapshotAssets,
   computeAssetStaleness,
+  dedupBenchmarkRowsPerUtcDay,
   type SnapshotAsset,
 } from "@/lib/dashboard/snapshot";
 import type { DashboardData } from "@/lib/dashboard/loader";
@@ -190,5 +191,58 @@ describe("buildBenchmarkSeries", () => {
         NOW,
       ),
     ).toBeNull();
+  });
+});
+
+describe("dedupBenchmarkRowsPerUtcDay", () => {
+  it("keeps the most recent row per UTC day and returns ascending order", () => {
+    const rows = [
+      { observed_at: "2025-06-15T10:00:00Z", price_usd: 100 },
+      { observed_at: "2025-06-15T14:30:00Z", price_usd: 101 },
+      { observed_at: "2025-06-15T09:00:00Z", price_usd: 99 },
+      { observed_at: "2025-06-14T16:00:00Z", price_usd: 95 },
+      { observed_at: "2025-06-14T10:00:00Z", price_usd: 94 },
+    ];
+    const result = dedupBenchmarkRowsPerUtcDay(rows);
+    expect(result).toHaveLength(2);
+    expect(result[0].observed_at).toBe("2025-06-14T16:00:00Z");
+    expect(result[0].price_usd).toBe(95);
+    expect(result[1].observed_at).toBe("2025-06-15T14:30:00Z");
+    expect(result[1].price_usd).toBe(101);
+  });
+
+  it("returns empty array for empty input", () => {
+    expect(dedupBenchmarkRowsPerUtcDay([])).toEqual([]);
+  });
+
+  it("handles a single row", () => {
+    const rows = [{ observed_at: "2025-06-15T10:00:00Z", price_usd: 100 }];
+    expect(dedupBenchmarkRowsPerUtcDay(rows)).toEqual(rows);
+  });
+
+  it("preserves distinct days when each has a single row", () => {
+    const rows = [
+      { observed_at: "2025-06-13T10:00:00Z", price_usd: 90 },
+      { observed_at: "2025-06-14T10:00:00Z", price_usd: 95 },
+      { observed_at: "2025-06-15T10:00:00Z", price_usd: 100 },
+    ];
+    const result = dedupBenchmarkRowsPerUtcDay(rows);
+    expect(result).toHaveLength(3);
+    expect(result.map((r) => r.observed_at)).toEqual([
+      "2025-06-13T10:00:00Z",
+      "2025-06-14T10:00:00Z",
+      "2025-06-15T10:00:00Z",
+    ]);
+  });
+
+  it("keeps the latest intraday row when multiple sources exist for same day", () => {
+    const rows = [
+      { observed_at: "2025-06-15T00:00:00Z", price_usd: 100 },
+      { observed_at: "2025-06-15T14:30:00Z", price_usd: 101 },
+      { observed_at: "2025-06-15T16:00:00Z", price_usd: 102 },
+    ];
+    const result = dedupBenchmarkRowsPerUtcDay(rows);
+    expect(result).toHaveLength(1);
+    expect(result[0].price_usd).toBe(102);
   });
 });
