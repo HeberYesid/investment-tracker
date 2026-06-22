@@ -1,4 +1,5 @@
 import type { FetchLike } from "./types";
+import { logger } from "@/lib/logger";
 
 export type YahooSession = {
   cookie: string;
@@ -54,7 +55,7 @@ export async function acquireYahooSession(
         return result;
       }
     }
-    console.warn("[yahoo-session] all crumb endpoints failed");
+    logger.warn("yahoo-session", "all crumb endpoints failed");
     return null;
   })().finally(() => {
     sessionPromise = null;
@@ -67,7 +68,7 @@ async function tryCrumbEndpoint(
   url: string,
 ): Promise<YahooSession | null> {
   try {
-    console.log(`[yahoo-session] trying ${url}…`);
+    logger.debug("yahoo-session", `trying ${url}…`);
     const response = await fetchImpl(url, {
       headers: {
         "User-Agent": SESSION_USER_AGENT,
@@ -79,14 +80,15 @@ async function tryCrumbEndpoint(
     });
     const cookieHeader = readSetCookieHeader(response);
     const crumb = (await response.text()).trim();
-    console.log(
-      `[yahoo-session] ${url}: status=${response.status} crumb=${crumb.length > 0 ? `"${crumb.slice(0, 30)}"` : "(empty)"} cookies=${cookieHeader ? cookieHeader.length + " chars" : "(none)"}`,
+    logger.debug(
+      "yahoo-session",
+      `${url}: status=${response.status} crumb=${crumb.length > 0 ? `"${crumb.slice(0, 30)}"` : "(empty)"} cookies=${cookieHeader ? cookieHeader.length + " chars" : "(none)"}`,
     );
     if (!response.ok) return null;
     if (!crumb || !cookieHeader) return null;
     return { cookie: cookieHeader, crumb };
   } catch (err) {
-    console.warn(`[yahoo-session] ${url} threw:`, err);
+    logger.warn("yahoo-session", `${url} threw:`, err);
     return null;
   }
 }

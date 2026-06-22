@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Loader2, FileText, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
 
 import { getImportLabels } from "@/lib/i18n/imports";
+import { errors } from "@/lib/i18n/errors";
 
 type ImportRecord = {
   id: string;
@@ -34,7 +35,7 @@ export function ImportHistory() {
       const data = await res.json();
       setImports(data.data ?? []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error desconocido");
+      setError(err instanceof Error ? err.message : errors.unknown);
     } finally {
       setLoading(false);
     }

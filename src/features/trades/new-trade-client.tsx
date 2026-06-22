@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { TradeForm, type TradeFormValues } from "./trade-form";
+import { errors } from "@/lib/i18n/errors";
 
 export function NewTradeClient() {
   const router = useRouter();
@@ -36,7 +37,7 @@ export function NewTradeClient() {
 
       router.push("/trades");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error desconocido");
+      setError(err instanceof Error ? err.message : errors.unknown);
     }
   };
 

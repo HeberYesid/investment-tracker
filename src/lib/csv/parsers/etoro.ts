@@ -1,17 +1,8 @@
 import { readFile } from "../file-reader";
 import { parseEtoroDate, parseEnglishNumber, todayString } from "../date-parsers";
 import type { CsvBrokerParser, ParsedCsvTrade } from "../types";
+import { createTrade, calculatePriceFromTotal, validateTradeData } from "../parser-helpers";
 
-/**
- * eToro account statement XLSX parser.
- *
- * Reads the "Actividad de la cuenta" (Account Activity) sheet which contains:
- * - "Posición abierta" → BUY (Importe / Unidades = price)
- * - "Dividendo" → DIVIDEND
- * - "Depósito" → ignored (not a trade)
- *
- * The "Posiciones cerradas" sheet is read if it has data (for closed positions).
- */
 export class EtoroParser implements CsvBrokerParser {
   readonly brokerCode = "ETORO" as const;
   readonly supportedFormats = ["xlsx", "xls"] as const;
@@ -20,7 +11,6 @@ export class EtoroParser implements CsvBrokerParser {
     const { sheets } = readFile(fileName, buffer);
     const trades: ParsedCsvTrade[] = [];
 
-    // Process "Posiciones cerradas" (Closed Positions) first if present
     const closedSheet = sheets.find((s) =>
       s.name.toLowerCase().includes("posiciones cerradas"),
     );
@@ -28,7 +18,6 @@ export class EtoroParser implements CsvBrokerParser {
       trades.push(...this.parseClosedPositions(closedSheet.rows));
     }
 
-    // Process "Actividad de la cuenta" (Account Activity)
     const activitySheet = sheets.find(
       (s) =>
         s.name.toLowerCase().includes("actividad") ||
@@ -56,26 +45,26 @@ export class EtoroParser implements CsvBrokerParser {
       );
       const tipo = (row["Tipo"] ?? "").trim();
 
-      if (!action || !importe || !unidades) continue;
-      if (unidades <= 0) continue;
+      if (!validateTradeData({ ticker: tipo, quantity: unidades, total: importe })) continue;
 
       const tradeType = mapEtoroAction(action);
       if (!tradeType) continue;
 
-      const price = importe / unidades;
+      const price = calculatePriceFromTotal(importe, unidades);
       const date = parseEtoroDate(fechaApertura) ?? todayString();
 
-      trades.push({
-        trade_date: date,
-        trade_type: tradeType,
-        ticker: tipo.toUpperCase(),
-        quantity: unidades,
-        price_original: Math.round(price * 1000000) / 1000000,
-        currency_original: "USD",
-        commission_original:
-          Math.round((comisionSpread + comisionNocturna) * 100) / 100,
-        fx_rate_to_usd: 1,
-      });
+      trades.push(
+        createTrade({
+          date,
+          type: tradeType,
+          ticker: tipo,
+          quantity: unidades,
+          price,
+          currency: "USD",
+          commission: comisionSpread + comisionNocturna,
+          fxRate: 1,
+        })
+      );
     }
     return trades;
   }
@@ -91,37 +80,40 @@ export class EtoroParser implements CsvBrokerParser {
       const unidades = unidadesStr === "-" ? 0 : parseEnglishNumber(unidadesStr);
 
       const date = parseEtoroDate(fecha) ?? todayString();
+      const ticker = detalles.split("/")[0]?.toUpperCase() ?? "UNKNOWN";
 
       if (tipo === "Posición abierta" || tipo === "Posicion abierta") {
-        if (importe <= 0 || unidades <= 0) continue;
-        const price = importe / unidades;
-        // Detalles is like "SPYG/USD" — extract ticker
-        const ticker = detalles.split("/")[0]?.toUpperCase() ?? "UNKNOWN";
-        trades.push({
-          trade_date: date,
-          trade_type: "BUY",
-          ticker,
-          quantity: unidades,
-          price_original: Math.round(price * 1000000) / 1000000,
-          currency_original: "USD",
-          commission_original: 0,
-          fx_rate_to_usd: 1,
-        });
+        if (!validateTradeData({ ticker, quantity: unidades, total: importe })) continue;
+        const price = calculatePriceFromTotal(importe, unidades);
+
+        trades.push(
+          createTrade({
+            date,
+            type: "BUY",
+            ticker,
+            quantity: unidades,
+            price,
+            currency: "USD",
+            commission: 0,
+            fxRate: 1,
+          })
+        );
       } else if (tipo === "Dividendo") {
-        if (importe <= 0) continue;
-        const ticker = detalles.split("/")[0]?.toUpperCase() ?? "UNKNOWN";
-        trades.push({
-          trade_date: date,
-          trade_type: "DIVIDEND",
-          ticker,
-          quantity: 1, // Dividends are per-share, use 1 for total
-          price_original: Math.round(importe * 100) / 100,
-          currency_original: "USD",
-          commission_original: 0,
-          fx_rate_to_usd: 1,
-        });
+        if (!validateTradeData({ ticker, total: importe })) continue;
+
+        trades.push(
+          createTrade({
+            date,
+            type: "DIVIDEND",
+            ticker,
+            quantity: 1,
+            price: importe,
+            currency: "USD",
+            commission: 0,
+            fxRate: 1,
+          })
+        );
       }
-      // Skip: "Depósito", "Reembolso", etc.
     }
     return trades;
   }
@@ -135,6 +127,12 @@ function mapEtoroAction(action: string): ParsedCsvTrade["trade_type"] | null {
     case "SELL":
     case "VENTA":
       return "SELL";
+    case "TRANSFER_IN":
+    case "TRANSFERENCIA_ENTRADA":
+      return "TRANSFER_IN";
+    case "TRANSFER_OUT":
+    case "TRANSFERENCIA_SALIDA":
+      return "TRANSFER_OUT";
     default:
       return null;
   }

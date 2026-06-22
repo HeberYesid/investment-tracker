@@ -6,6 +6,7 @@ import { requireApiUser } from "@/lib/api/auth";
 import { getCurrentPortfolio } from "@/lib/supabase/auth";
 import { createYahooProvider } from "@/lib/market-data/yahoo";
 import { candidateYahooSymbols } from "@/lib/market-data/symbols";
+import { logger } from "@/lib/logger";
 
 const BackfillInput = z.object({
   limit: z.number().int().min(1).max(50).optional(),
@@ -163,21 +164,25 @@ export async function POST(request: NextRequest) {
   const nextOffset = nextOffsetCandidate < total ? nextOffsetCandidate : null;
   const totalRemaining = Math.max(0, total - nextOffsetCandidate);
 
-  console.log(
-    `[backfill-asset-metadata] offset=${offset} limit=${limit} processed=${processed} succeeded=${succeeded} notFound=${notFound} failed=${failed} total=${total}`,
+  logger.info(
+    "backfill-asset-metadata",
+    `offset=${offset} limit=${limit} processed=${processed} succeeded=${succeeded} notFound=${notFound} failed=${failed} total=${total}`,
   );
   for (const t of tickers) {
     if (t.status === "succeeded") {
-      console.log(
-        `[backfill-asset-metadata]   ${t.ticker} -> ok via ${t.resolvedSymbol}`,
+      logger.info(
+        "backfill-asset-metadata",
+        `${t.ticker} -> ok via ${t.resolvedSymbol}`,
       );
     } else if (t.status === "not_found") {
-      console.log(
-        `[backfill-asset-metadata]   ${t.ticker} -> not_found (tried: ${t.tried.join(", ") || "none"})`,
+      logger.info(
+        "backfill-asset-metadata",
+        `${t.ticker} -> not_found (tried: ${t.tried.join(", ") || "none"})`,
       );
     } else {
-      console.log(
-        `[backfill-asset-metadata]   ${t.ticker} -> error: ${t.message} (tried: ${t.tried.join(", ") || "none"})`,
+      logger.warn(
+        "backfill-asset-metadata",
+        `${t.ticker} -> error: ${t.message} (tried: ${t.tried.join(", ") || "none"})`,
       );
     }
   }

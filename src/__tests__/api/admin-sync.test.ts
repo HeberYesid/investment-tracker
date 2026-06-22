@@ -95,6 +95,6 @@ describe("POST /api/v1/admin/sync/run", () => {
     );
     expect(response.status).toBe(400);
     const body = await response.json();
-    expect(body.error).toBe("boom");
+    expect(body.error.message).toBe("boom");
   });
 });

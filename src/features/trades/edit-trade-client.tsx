@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import type { TradeDTO } from "@/lib/validations/trades";
+import { errors } from "@/lib/i18n/errors";
 
 import { TradeForm, type TradeFormValues } from "./trade-form";
 
@@ -50,7 +51,7 @@ export function EditTradeClient({ trade }: EditTradeClientProps) {
 
       router.push("/trades");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error desconocido");
+      setError(err instanceof Error ? err.message : errors.unknown);
     }
   };
 

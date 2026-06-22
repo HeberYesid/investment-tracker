@@ -6,6 +6,7 @@ import { Loader2, Upload, FileText, CheckCircle, XCircle, AlertTriangle } from "
 import { Button } from "@/components/ui/button";
 import { getImportLabels } from "@/lib/i18n/imports";
 import { BROKER_SEEDS, type BrokerCode } from "@/lib/reference/brokers";
+import { errors } from "@/lib/i18n/errors";
 import { ImportHistory } from "./import-history";
 
 type RowPreview = {
@@ -138,7 +139,7 @@ export function ImportPageClient({ portfolioId: _portfolioId }: { portfolioId: s
         preview,
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error desconocido");
+      setError(err instanceof Error ? err.message : errors.unknown);
     } finally {
       setLoading(false);
     }
@@ -181,7 +182,7 @@ export function ImportPageClient({ portfolioId: _portfolioId }: { portfolioId: s
         result,
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error desconocido");
+      setError(err instanceof Error ? err.message : errors.unknown);
     } finally {
       setLoading(false);
     }

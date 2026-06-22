@@ -9,6 +9,7 @@ import { createYahooProvider } from "@/lib/market-data/yahoo";
 import { candidateYahooSymbols } from "@/lib/market-data/symbols";
 import type { AssetProfile } from "@/lib/market-data/types";
 import { z } from "zod";
+import { errors as errorMessages } from "@/lib/i18n/errors";
 
 const CommitBody = z.object({
   import_id: z.string().uuid(),
@@ -213,7 +214,7 @@ export async function POST(request: NextRequest) {
         });
       } catch (err) {
         errors.push(
-          `Fila ${row.row_number}: ${err instanceof Error ? err.message : "Error desconocido"}`,
+          `Fila ${row.row_number}: ${err instanceof Error ? err.message : errorMessages.unknown}`,
         );
       }
     }

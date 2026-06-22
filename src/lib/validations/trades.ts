@@ -124,7 +124,13 @@ export const TradeListQuery = z.object({
 
 export type TradeListQuery = z.infer<typeof TradeListQuery>;
 
-export function normalizeTradeUsdValues(input: CreateTradeInput) {
+export type NormalizedTradeValues = {
+  price_usd: number;
+  commission_usd: number;
+  total_invested_usd: number;
+};
+
+export function normalizeTradeUsdValues(input: CreateTradeInput): NormalizedTradeValues {
   const price_usd = input.price_original * input.fx_rate_to_usd;
   const commission_usd = input.commission_original * input.fx_rate_to_usd;
 

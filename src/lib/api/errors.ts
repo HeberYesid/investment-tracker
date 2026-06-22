@@ -1,31 +1,51 @@
 import { NextResponse } from "next/server";
 
-export function badRequest(message: string) {
-  return NextResponse.json({ error: message }, { status: 400 });
+export type ErrorResponse = {
+  error: {
+    code: string;
+    message: string;
+    details?: unknown;
+  };
+};
+
+export function badRequest(message: string, details?: unknown) {
+  return NextResponse.json<ErrorResponse>(
+    { error: { code: "BAD_REQUEST", message, details } },
+    { status: 400 }
+  );
 }
 
-export function notFound(message: string) {
-  return NextResponse.json({ error: message }, { status: 404 });
+export function notFound(message: string, details?: unknown) {
+  return NextResponse.json<ErrorResponse>(
+    { error: { code: "NOT_FOUND", message, details } },
+    { status: 404 }
+  );
 }
 
 export function validationError(errors: unknown) {
-  return NextResponse.json({ error: "Error de validación", details: errors }, { status: 422 });
+  return NextResponse.json<ErrorResponse>(
+    { error: { code: "VALIDATION_ERROR", message: "Error de validación", details: errors } },
+    { status: 422 }
+  );
 }
 
 export function serverError(message: string = "Error interno del servidor") {
-  return NextResponse.json({ error: message }, { status: 500 });
+  return NextResponse.json<ErrorResponse>(
+    { error: { code: "INTERNAL_ERROR", message } },
+    { status: 500 }
+  );
 }
 
 export function unauthorized(message: string = "No autenticado.") {
-  return NextResponse.json(
+  return NextResponse.json<ErrorResponse>(
     { error: { code: "UNAUTHORIZED", message } },
-    { status: 401 },
+    { status: 401 }
   );
 }
 
 export function forbidden(message: string = "No tienes permiso para esta acción.") {
-  return NextResponse.json(
+  return NextResponse.json<ErrorResponse>(
     { error: { code: "FORBIDDEN", message } },
-    { status: 403 },
+    { status: 403 }
   );
 }

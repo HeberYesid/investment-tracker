@@ -6,6 +6,7 @@ import { validateParsedRows } from "@/lib/csv/validation";
 import type { BrokerCode } from "@/lib/reference/brokers";
 import type { CsvImportStatus } from "@/lib/csv/types";
 import { badRequest, serverError } from "@/lib/api/errors";
+import { errors } from "@/lib/i18n/errors";
 
 const validBrokers: BrokerCode[] = [
   "ETORO",
@@ -73,7 +74,7 @@ export async function POST(request: NextRequest) {
       });
     } catch (err) {
       return badRequest(
-        `Error al parsear el archivo: ${err instanceof Error ? err.message : "Error desconocido"}`,
+        `Error al parsear el archivo: ${err instanceof Error ? err.message : errors.unknown}`,
       );
     }
 
@@ -131,7 +132,7 @@ export async function POST(request: NextRequest) {
 
     if (importError || !importRecord) {
       return serverError(
-        `Error al guardar la importación: ${importError?.message ?? "Error desconocido"}`,
+        `Error al guardar la importación: ${importError?.message ?? errors.unknown}`,
       );
     }
 

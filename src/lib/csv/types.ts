@@ -2,7 +2,7 @@ import type { BrokerCode } from "@/lib/reference/brokers";
 
 export type ParsedCsvTrade = {
   trade_date: string;
-  trade_type: "BUY" | "SELL" | "DIVIDEND" | "FEE";
+  trade_type: "BUY" | "SELL" | "DIVIDEND" | "FEE" | "TRANSFER_IN" | "TRANSFER_OUT";
   ticker: string;
   quantity: number;
   price_original: number;

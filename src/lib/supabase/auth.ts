@@ -1,10 +1,12 @@
 import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createUserSupabaseClient } from "./server";
+import { isValidRole, type PortfolioRole } from "@/lib/csv/constants";
+import { logger } from "@/lib/logger";
 
 export type CurrentPortfolio = {
   portfolioId: string;
-  role: "OWNER" | "EDITOR" | "VIEWER";
+  role: PortfolioRole;
   portfolio: {
     id: string;
     name: string;
@@ -42,6 +44,12 @@ export const getCurrentPortfolio = cache(
       .maybeSingle();
 
     if (!member) return null;
+
+    if (!isValidRole(member.role)) {
+      logger.error("auth", `Invalid role for user ${user.id}: ${member.role}`);
+      return null;
+    }
+
     const portfolio = Array.isArray(member.portfolios)
       ? member.portfolios[0]
       : member.portfolios;
