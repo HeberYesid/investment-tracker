@@ -1,32 +1,34 @@
-import { redirect } from "next/navigation";
+import { Suspense } from "react";
 
 import { MainNavigation } from "@/components/layout/main-navigation";
-import { loadDashboardAggregate } from "@/lib/dashboard/aggregate";
 import { getDashboardLabels } from "@/lib/i18n/dashboard";
-import { getCurrentPortfolio } from "@/lib/supabase/auth";
-import { createUserSupabaseClient } from "@/lib/supabase/server";
-import { DashboardPageClient } from "@/features/dashboard/dashboard-page-client";
+
+import { DashboardDataLoader } from "@/features/dashboard/dashboard-data-loader";
 
 const labels = getDashboardLabels();
 
-export default async function Home() {
-  const portfolio = await getCurrentPortfolio();
-  if (!portfolio) {
-    redirect("/login");
-  }
-
-  const supabase = await createUserSupabaseClient();
-  const aggregate = await loadDashboardAggregate(
-    portfolio.portfolioId,
-    supabase,
-    "full",
-    {
-      evolutionGranularity: "monthly",
-      returnsGroupBy: "month",
-      distributionDimension: "broker",
-    },
+function DashboardSkeleton() {
+  return (
+    <div
+      className="space-y-4"
+      aria-busy="true"
+      aria-live="polite"
+      data-testid="dashboard-skeleton"
+    >
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div
+            key={i}
+            className="h-24 animate-pulse rounded-2xl bg-slate-100 ring-1 ring-slate-200"
+          />
+        ))}
+      </div>
+      <div className="h-64 animate-pulse rounded-2xl bg-slate-100 ring-1 ring-slate-200" />
+    </div>
   );
+}
 
+export default function Home() {
   return (
     <main className="min-h-screen bg-slate-100 text-slate-950">
       <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-6 bg-slate-50 px-4 py-5 sm:px-6 lg:px-8">
@@ -38,14 +40,9 @@ export default async function Home() {
           </h1>
         </section>
 
-        <DashboardPageClient
-          initialPayload={{
-            summary: aggregate.summary ?? null,
-            evolution: aggregate.evolution ?? null,
-            returns: aggregate.returns ?? null,
-            snapshot: aggregate.snapshot ?? null,
-          }}
-        />
+        <Suspense fallback={<DashboardSkeleton />}>
+          <DashboardDataLoader />
+        </Suspense>
       </div>
     </main>
   );

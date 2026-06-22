@@ -1,9 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { getTradeLabels } from "@/lib/i18n/trades";
+import type { TradeListResult } from "@/lib/trades/queries";
 import type { TradeDTO, TradeListQuery } from "@/lib/validations/trades";
 
 import { TradeFilters } from "./trade-filters";
@@ -13,18 +14,19 @@ const labels = getTradeLabels();
 
 const SMALL_TRADE_THRESHOLD_USD = 1;
 
-export function TradesPageClient() {
+export function TradesPageClient({ initialData }: { initialData: TradeListResult }) {
   const router = useRouter();
-  const [trades, setTrades] = useState<TradeDTO[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [trades, setTrades] = useState<TradeDTO[]>(initialData.data);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<Partial<TradeListQuery>>({
-    page: 1,
-    limit: 50,
+    page: initialData.meta.page,
+    limit: initialData.meta.limit,
   });
   const [hideSmallTrades, setHideSmallTrades] = useState(true);
-  const [total, setTotal] = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(initialData.meta.total);
+  const [totalPages, setTotalPages] = useState(initialData.meta.totalPages);
+  const isMounted = useRef(false);
 
   const fetchTrades = useCallback(async () => {
     setLoading(true);
@@ -44,7 +46,7 @@ export function TradesPageClient() {
       const res = await fetch(`/api/v1/trades?${params.toString()}`);
       if (!res.ok) throw new Error(labels.errorLoading);
 
-      const json = await res.json();
+      const json = (await res.json()) as TradeListResult;
       setTrades(json.data ?? []);
       setTotal(json.meta?.total ?? 0);
       setTotalPages(json.meta?.totalPages ?? 1);
@@ -56,22 +58,32 @@ export function TradesPageClient() {
   }, [filters, hideSmallTrades]);
 
   useEffect(() => {
+    if (!isMounted.current) {
+      isMounted.current = true;
+      return;
+    }
     fetchTrades();
   }, [fetchTrades]);
 
-  const handleFilterChange = (updated: Partial<TradeListQuery>) => {
-    setFilters((prev) => ({ ...prev, ...updated, page: 1 }));
-  };
+  const handleFilterChange = useCallback(
+    (updated: Partial<TradeListQuery>) => {
+      setFilters((prev) => ({ ...prev, ...updated, page: 1 }));
+    },
+    [],
+  );
 
-  const handlePageChange = (newPage: number) => {
+  const handlePageChange = useCallback((newPage: number) => {
     setFilters((prev) => ({ ...prev, page: newPage }));
-  };
+  }, []);
 
-  const handleEdit = (id: string) => {
-    router.push(`/trades/${id}/edit`);
-  };
+  const handleEdit = useCallback(
+    (id: string) => {
+      router.push(`/trades/${id}/edit`);
+    },
+    [router],
+  );
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = useCallback(async (id: string) => {
     if (!confirm("¿Estás seguro de eliminar esta operación?")) return;
 
     try {
@@ -82,7 +94,7 @@ export function TradesPageClient() {
     } catch {
       alert("Error al eliminar la operación");
     }
-  };
+  }, []);
 
   return (
     <div className="space-y-4">

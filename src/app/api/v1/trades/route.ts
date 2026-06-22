@@ -9,6 +9,7 @@ import {
 } from "@/lib/validations/trades";
 import type { CreateTradeInput } from "@/lib/validations/trades";
 import { badRequest, validationError, serverError } from "@/lib/api/errors";
+import { fetchTradesPage } from "@/lib/trades/queries";
 import { createYahooProvider } from "@/lib/market-data/yahoo";
 import { candidateYahooSymbols } from "@/lib/market-data/symbols";
 
@@ -25,105 +26,13 @@ export async function GET(request: NextRequest) {
       return validationError(parsed.error.issues);
     }
 
-    const {
-      page,
-      limit,
-      ticker,
-      broker_id,
-      broker_code,
-      trade_type,
-      currency_original,
-      source,
-      date_from,
-      date_to,
-      min_total_usd,
-    } = parsed.data;
+    const result = await fetchTradesPage(supabase, parsed.data);
 
-    let resolvedBrokerId = broker_id;
-    if (broker_code && !broker_id) {
-      const { data: broker } = await supabase
-        .from("brokers")
-        .select("id")
-        .eq("code", broker_code)
-        .single();
-      if (broker) {
-        resolvedBrokerId = broker.id;
-      }
+    return NextResponse.json(result);
+  } catch (err) {
+    if (err instanceof Error) {
+      return badRequest(err.message);
     }
-
-    let query = supabase
-      .from("trades")
-      .select("*, assets(ticker, name), brokers(name, code)", { count: "exact" })
-      .is("deleted_at", null)
-      .order("trade_date", { ascending: false })
-      .order("created_at", { ascending: false });
-
-    if (ticker) {
-      query = query.eq("assets.ticker", ticker);
-    }
-    if (resolvedBrokerId) {
-      query = query.eq("broker_id", resolvedBrokerId);
-    }
-    if (trade_type) {
-      query = query.eq("trade_type", trade_type);
-    }
-    if (currency_original) {
-      query = query.eq("currency_original", currency_original);
-    }
-    if (source) {
-      query = query.eq("source", source);
-    }
-    if (date_from) {
-      query = query.gte("trade_date", date_from);
-    }
-    if (date_to) {
-      query = query.lte("trade_date", date_to);
-    }
-    if (min_total_usd !== undefined && min_total_usd > 0) {
-      query = query.or(
-        `total_invested_usd.gte.${min_total_usd},total_invested_usd.lte.${-min_total_usd}`,
-      );
-    }
-
-    const from = (page - 1) * limit;
-    const to = page * limit - 1;
-    query = query.range(from, to);
-
-    const { data, error, count } = await query;
-
-    if (error) {
-      return badRequest(error.message);
-    }
-
-    const flattened = (data ?? []).map((row) => {
-      const assets = (row as { assets?: { ticker?: string; name?: string } })
-        .assets;
-      const brokers = (row as { brokers?: { name?: string; code?: string } })
-        .brokers;
-      const { assets: _assets, brokers: _brokers, ...rest } = row as Record<
-        string,
-        unknown
-      > & {
-        assets?: { ticker?: string; name?: string };
-        brokers?: { name?: string; code?: string };
-      };
-      return {
-        ...rest,
-        ticker: assets?.ticker ?? null,
-        asset_name: assets?.name ?? null,
-        broker_name: brokers?.name ?? null,
-        broker_code: brokers?.code ?? null,
-      };
-    });
-
-    const total = count ?? 0;
-    const totalPages = Math.ceil(total / limit);
-
-    return NextResponse.json({
-      data: flattened,
-      meta: { page, limit, total, totalPages },
-    });
-  } catch {
     return serverError();
   }
 }
