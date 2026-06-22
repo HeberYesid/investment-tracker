@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { requireApiUser } from "@/lib/api/auth";
 import {
   UpdateTradeInput,
@@ -80,6 +80,7 @@ export async function PATCH(
 
     revalidatePath("/");
     revalidatePath("/avanzado");
+    revalidateTag("market-prices");
 
     return NextResponse.json(trade);
   } catch {
@@ -124,6 +125,7 @@ export async function DELETE(
 
     revalidatePath("/");
     revalidatePath("/avanzado");
+    revalidateTag("market-prices");
 
     return new NextResponse(null, { status: 204 });
   } catch {

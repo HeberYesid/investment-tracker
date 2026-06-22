@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { requireApiUser } from "@/lib/api/auth";
 import { getCurrentPortfolio } from "@/lib/supabase/auth";
 import {
@@ -165,6 +165,7 @@ export async function POST(request: NextRequest) {
 
     revalidatePath("/");
     revalidatePath("/avanzado");
+    revalidateTag("market-prices");
 
     return NextResponse.json(trade, { status: 201 });
   } catch {

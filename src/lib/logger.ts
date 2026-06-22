@@ -11,7 +11,7 @@ const levels: Record<LogLevel, number> = {
 };
 
 function shouldLog(level: LogLevel): boolean {
-  return levels[level] >= levels[logLevel as LogLevel] ?? levels.error;
+  return levels[level] >= levels[logLevel as LogLevel];
 }
 
 export const logger = {

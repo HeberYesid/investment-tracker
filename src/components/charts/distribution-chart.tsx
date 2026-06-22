@@ -169,7 +169,7 @@ export function DistributionChart({ initial }: DistributionChartProps) {
         setData(json);
       }
     } catch (err) {
-      setEnrichMessage(err instanceof Error ? err.message : errorMessages.unknown);
+      setEnrichMessage(err instanceof Error ? err.message : labels.errorLoading);
     } finally {
       setEnriching(false);
     }

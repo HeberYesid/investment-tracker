@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { createYahooProvider } from "@/lib/market-data/yahoo";
+import type { YahooRange } from "@/lib/market-data/types";
 import { BENCHMARK_TICKER } from "@/lib/dashboard/snapshot";
 
 export type BenchmarkBackfillResult = {
@@ -15,7 +16,7 @@ function utcDayKey(iso: string): string {
 
 export async function backfillBenchmarkHistory(
   supabase: SupabaseClient,
-  range: string = "2y",
+  range: YahooRange = "2y",
 ): Promise<BenchmarkBackfillResult> {
   const { data: benchmarkAsset, error: assetError } = await supabase
     .from("assets")
