@@ -8,7 +8,6 @@ Vercel Hobby + Supabase Free únicamente.
 
 ## Convenciones globales
 
-- **Sin comentarios** en código salvo que se pidan explícitamente.
 - **i18n**: strings en español en `src/lib/i18n/*.ts`. Sin copy hardcodeado en componentes.
 - **Errores** en Route Handlers → `badRequest` / `validationError` / `serverError` desde `src/lib/api/errors.ts`.
 - **Dinero**: decimales como string en el wire; el contrato es el schema Zod en `src/lib/validations/trades.ts`.
