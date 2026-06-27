@@ -2,12 +2,29 @@ schema: spec-driven
 
 # Project context (optional)
 # This is shown to AI when creating artifacts.
-# Add your tech stack, conventions, style guides, domain knowledge, etc.
-# Example:
-#   context: |
-#     Tech stack: TypeScript, React, Node.js
-#     We use conventional commits
-#     Domain: e-commerce platform
+context: |
+  Stack: Next.js 15 App Router, React 19, Supabase (Postgres + Edge Functions Deno).
+  Package manager: pnpm exclusivo.
+  Constraint absoluto: USD 0/mes (Vercel Hobby + Supabase Free únicamente).
+  Locale: español (lang="es"); sin copy hardcodeado en componentes. Strings en src/lib/i18n/*.ts.
+  Moneda base: USD. Brokers en USD (eToro, XTB) o COP (Trii, eTrading Bancolombia).
+  Dinero: decimales como string en el wire. Contrato = Zod en src/lib/validations/trades.ts.
+  Errores en Route Handlers: badRequest / validationError / serverError desde src/lib/api/errors.ts.
+  Tailwind v4: config via @theme en globals.css. NO existe tailwind.config.*.
+  Mutaciones Supabase desde Server Components → Route Handlers en src/app/api/v1/...
+  Testing: Vitest (unit) + Playwright (e2e).
+  Workflow: OpenSpec spec-driven. Skills: openspec-propose|apply|archive|sync|explore. CLI `openspec` requerido.
+  Phase docs en docs/investment-tracker/phases/*.md (8 fases, 00..07) son la fuente humana del "qué".
+  Los openspec/changes/*/proposal.md son el contrato de trabajo; los tasks.md son el checklist ejecutable.
+
+  Execution model — dos capas:
+  OpenSpec produce los planos (proposal/design/specs/tasks) y vive en el repo.
+  Los subagentes especializados (architect, planner, tdd-guide, code-reviewer, security-reviewer,
+  database-reviewer, seo-specialist, doc-updater, code-explorer) ejecutan esos planos.
+  Routing: trivial (typo, 1 línea) o bug aislado → subagente directo.
+  Harness/config change → harness-optimizer directo.
+  Feature no trivial (>1 sesión) o con criterios abiertos → OpenSpec primero.
+  Phase docs = qué humano; proposal.md = contrato de trabajo.
 
 # Per-artifact rules (optional)
 # Add custom rules for specific artifacts.

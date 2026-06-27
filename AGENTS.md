@@ -16,6 +16,7 @@ Vercel Hobby + Supabase Free únicamente.
 
 ## OpenSpec (proposal-driven changes)
 
+Use OpenSpec 
 Config: `openspec/config.yaml` (schema: `spec-driven`). Skills: `openspec-propose|apply|archive|sync|explore`. CLI `openspec` es prerrequisito. Para trabajo no trivial, carga la skill con la tool `skill`.
 
 ## Arquitectura (índice)
