@@ -102,6 +102,10 @@ export const dashboardLabels = {
     emptyPrimaryCta: "Registrar operación",
     emptySecondaryCta: "Importar CSV",
 
+    lastUpdated: "Última actualización: {date}",
+    noTradesYet: "Aún no hay operaciones registradas",
+    relativeTimeFallback: "recién",
+
     loadingDashboard: "Cargando dashboard...",
     errorLoading: "Error al cargar el dashboard",
     retry: "Reintentar",
