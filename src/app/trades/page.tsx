@@ -18,7 +18,8 @@ const INITIAL_LIMIT = 50;
 const SMALL_TRADE_THRESHOLD_USD = 1;
 
 export default async function TradesPage() {
-  await requireCurrentPortfolio();
+  const portfolio = await requireCurrentPortfolio();
+  const canWrite = portfolio.role !== "VIEWER";
   const supabase = await createUserSupabaseClient();
 
   const initialQuery = TradeListQuery.parse({
@@ -39,16 +40,18 @@ export default async function TradesPage() {
             <h1 className="text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">
               {labels.tradesTitle}
             </h1>
-            <Button asChild size="sm">
-              <Link href="/trades/new">
-                <Plus className="mr-1.5 h-4 w-4" />
-                {labels.newTrade}
-              </Link>
-            </Button>
+            {canWrite && (
+              <Button asChild size="sm">
+                <Link href="/trades/new">
+                  <Plus className="mr-1.5 h-4 w-4" />
+                  {labels.newTrade}
+                </Link>
+              </Button>
+            )}
           </div>
         </section>
 
-        <TradesPageClient initialData={initialData} />
+        <TradesPageClient initialData={initialData} canWrite={canWrite} />
       </div>
     </main>
   );

@@ -48,6 +48,9 @@ export const importLabels = {
     noHistory: "No hay importaciones realizadas",
     noHistoryDescription:
       "Importa tu primer archivo para comenzar a ver el historial.",
+    readOnlyTitle: "Solo lectura",
+    readOnlyDescription:
+      "Tu rol es de solo lectura — no puedes importar nuevas operaciones. Aquí puedes ver el historial de las importaciones previas.",
     fileName: "Archivo",
     importDate: "Fecha",
     importedCount: "Importadas",

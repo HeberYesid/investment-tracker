@@ -1,15 +1,22 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 import { ArrowLeft } from "lucide-react";
 
 import { MainNavigation } from "@/components/layout/main-navigation";
 import { getTradeLabels } from "@/lib/i18n/trades";
+import { requireCurrentPortfolio } from "@/lib/supabase/auth";
 
 import { NewTradeClient } from "@/features/trades/new-trade-client";
 
 const labels = getTradeLabels();
 
-export default function NewTradePage() {
+export default async function NewTradePage() {
+  const portfolio = await requireCurrentPortfolio();
+  if (portfolio.role === "VIEWER") {
+    redirect("/trades?denied=write");
+  }
+
   return (
     <main className="min-h-screen bg-slate-100 text-slate-950">
       <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-6 bg-slate-50 px-4 py-5 sm:px-6 lg:px-8">

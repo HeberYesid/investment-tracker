@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath, revalidateTag } from "next/cache";
-import { requireApiUser } from "@/lib/api/auth";
+import { requireApiUserWithPortfolio } from "@/lib/api/auth";
 import {
   UpdateTradeInput,
   normalizeTradeUsdValues,
@@ -19,7 +19,7 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requireApiUser();
+  const auth = await requireApiUserWithPortfolio(undefined, { writeAccess: true });
   if (auth.response) return auth.response;
   const { supabase } = auth;
 
@@ -92,7 +92,7 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requireApiUser();
+  const auth = await requireApiUserWithPortfolio(undefined, { writeAccess: true });
   if (auth.response) return auth.response;
   const { supabase } = auth;
 

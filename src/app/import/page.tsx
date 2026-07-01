@@ -7,6 +7,7 @@ const labels = getImportLabels();
 
 export default async function ImportPage() {
   const portfolio = await requireCurrentPortfolio();
+  const readOnly = portfolio.role === "VIEWER";
 
   return (
     <main className="min-h-screen bg-slate-100 text-slate-950">
@@ -22,7 +23,10 @@ export default async function ImportPage() {
           </p>
         </section>
 
-        <ImportPageClient portfolioId={portfolio.portfolioId} />
+        <ImportPageClient
+          portfolioId={portfolio.portfolioId}
+          readOnly={readOnly}
+        />
       </div>
     </main>
   );

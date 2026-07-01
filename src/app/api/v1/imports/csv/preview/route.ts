@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireApiUser } from "@/lib/api/auth";
+import { requireApiUserWithPortfolio } from "@/lib/api/auth";
 import { getCurrentPortfolio } from "@/lib/supabase/auth";
 import { getCsvParser } from "@/lib/csv/registry";
 import { validateParsedRows } from "@/lib/csv/validation";
@@ -19,7 +19,7 @@ const uuidRegex =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function POST(request: NextRequest) {
-  const auth = await requireApiUser();
+  const auth = await requireApiUserWithPortfolio(undefined, { writeAccess: true });
   if (auth.response) return auth.response;
   const { supabase } = auth;
 

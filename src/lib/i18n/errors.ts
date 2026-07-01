@@ -22,4 +22,11 @@ export const errors = {
   parseError: "Error al parsear el archivo",
   noValidTrades: "El archivo no contiene operaciones válidas para este bróker.",
   formDataError: "Error al leer el formulario.",
+  writeAccessDenied: "Tu rol es de solo lectura — no puedes crear ni editar operaciones.",
+  userEmailNotFound:
+    "No encontramos un usuario con ese correo — pídele que inicie sesión primero.",
+  memberNotFound: "Miembro no encontrado en este portafolio.",
+  memberAlreadyExists: "Ese usuario ya es miembro del portafolio.",
+  lastOwnerGuard: "No puedes dejar el portafolio sin propietarios.",
+  ownerRoleNotAssignable: "El rol OWNER no se asigna por la API; solo el trigger inicial lo crea.",
 } as const;

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath, revalidateTag } from "next/cache";
-import { requireApiUser } from "@/lib/api/auth";
+import { requireApiUserWithPortfolio } from "@/lib/api/auth";
 import { getCurrentPortfolio } from "@/lib/supabase/auth";
 import { normalizeTradeUsdValues, type CreateTradeInput } from "@/lib/validations/trades";
 import type { ParsedCsvTrade } from "@/lib/csv/types";
@@ -16,7 +16,7 @@ const CommitBody = z.object({
 });
 
 export async function POST(request: NextRequest) {
-  const auth = await requireApiUser();
+  const auth = await requireApiUserWithPortfolio(undefined, { writeAccess: true });
   if (auth.response) return auth.response;
   const { supabase } = auth;
 

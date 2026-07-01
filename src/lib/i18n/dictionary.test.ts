@@ -9,7 +9,7 @@ describe("Spanish dictionary", () => {
       { href: "/avanzado", label: "Avanzado" },
       { href: "/trades", label: "Operaciones" },
       { href: "/import", label: "Importar" },
-      { href: "/settings", label: "Ajustes" },
+      { href: "/settings/members", label: "Ajustes" },
     ]);
   });
 });

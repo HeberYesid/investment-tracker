@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath, revalidateTag } from "next/cache";
-import { requireApiUser } from "@/lib/api/auth";
+import { requireApiUser, requireApiUserWithPortfolio } from "@/lib/api/auth";
 import { getCurrentPortfolio } from "@/lib/supabase/auth";
 import {
   TradeFormInput,
@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const auth = await requireApiUser();
+  const auth = await requireApiUserWithPortfolio(undefined, { writeAccess: true });
   if (auth.response) return auth.response;
   const { supabase } = auth;
 
