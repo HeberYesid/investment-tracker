@@ -35,16 +35,16 @@ README.md
 
 ## Tasks
 
-- [ ] Create Next.js App Router project with TypeScript.
-- [ ] Install Tailwind CSS, shadcn/ui, Zod, TanStack Query, React Hook Form, Recharts, PapaParse, Vitest, Testing Library, and Playwright.
-- [ ] Add `.env.example` with public Supabase URL/key and private service role placeholder.
-- [ ] Create Supabase migration for `brokers`, `assets`, `portfolios`, `portfolio_members`, `trades`, `csv_imports`, `csv_import_rows`, `market_prices`, `fx_rates`, `portfolio_snapshots`, `alerts`, `alert_events`, and `audit_events`.
-- [ ] Enable RLS on all public tables.
-- [ ] Add conservative RLS policies that support anonymous local MVP only if auth is not enabled yet; otherwise require authenticated ownership.
-- [ ] Seed brokers: `ETORO`, `XTB`, `TRII`, `ETRADING_BANCOLOMBIA`.
-- [ ] Create shared layout with mobile-first navigation.
-- [ ] Create Spanish i18n dictionary with initial route labels.
-- [ ] Add `Cost Guardrails` section to `README.md`.
+- [x] Create Next.js App Router project with TypeScript.
+- [x] Install Tailwind CSS, shadcn/ui, Zod, TanStack Query, React Hook Form, Recharts, Vitest, Testing Library, and Playwright. (PapaParse not installed — CSV parsing is hand-rolled in `src/lib/csv/parsers/`; `xlsx` is used for the broker-provided Excel files in `tests/fixtures/files/`.)
+- [x] Add `.env.example` with public Supabase URL/key and private service role placeholder.
+- [x] Create Supabase migration for `brokers`, `assets`, `portfolios`, `portfolio_members`, `trades`, `csv_imports`, `csv_import_rows`, `market_prices`, `fx_rates`, `portfolio_snapshots`, `alerts`, `alert_events`, and `audit_events`. (`supabase/migrations/0001_foundation.sql`; `portfolio_snapshots`/`alerts`/`alert_events` tables exist but their UI/CRUD ships in later phases.)
+- [x] Enable RLS on all public tables.
+- [x] Add RLS policies that require authenticated ownership via `portfolio_members` (Supabase Auth is enabled; the original "anonymous local MVP" fallback is no longer needed because the auth flow is wired in Phase 4).
+- [x] Seed brokers: `ETORO`, `XTB`, `TRII`, `ETRADING_BANCOLOMBIA`. (`src/lib/reference/brokers.ts` is the runtime seed; see `supabase/migrations/0001_foundation.sql` for the SQL seed.)
+- [x] Create shared layout with mobile-first navigation. (`src/app/layout.tsx`, `src/components/layout/main-navigation.tsx`, `src/components/ui/button.tsx`.)
+- [x] Create Spanish i18n dictionary with initial route labels. (`src/lib/i18n/dictionary.ts` + `auth.ts`, `dashboard.ts`, `trades.ts`, `imports.ts`, `errors.ts`, `asset-metadata.ts`.)
+- [x] Add `Cost Guardrails` section to `README.md`. (`README.md:122`.)
 
 ## Technical Decisions
 

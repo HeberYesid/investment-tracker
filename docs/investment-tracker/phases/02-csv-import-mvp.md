@@ -38,17 +38,17 @@ export interface CsvBrokerParser {
 
 ## Tasks
 
-- [ ] Create parser interface and shared parsed trade type.
-- [ ] Add CSV fixtures for all four brokers.
-- [ ] Implement eToro parser.
-- [ ] Implement XTB parser.
-- [ ] Implement Trii parser.
-- [ ] Implement eTrading Bancolombia parser.
-- [ ] Build preview API that parses rows, validates them, and stores preview metadata.
-- [ ] Build commit API that inserts only valid rows.
-- [ ] Prevent duplicate commits for the same import.
-- [ ] Build import page with broker selector, file upload, preview table, validation errors, and commit action.
-- [ ] Add import history view.
+- [x] Create parser interface and shared parsed trade type. (`src/lib/csv/types.ts`, `src/lib/csv/registry.ts`.)
+- [x] Add CSV fixtures for all four brokers. (`tests/fixtures/csv/`: `etoro-valid.csv`, `etoro-commission.csv`, `xtb-valid.csv`, `trii-valid.csv`, `etrading-bancolombia-valid.csv`; broker-provided XLSX/XLS in `tests/fixtures/files/`.)
+- [x] Implement eToro parser. (`src/lib/csv/parsers/etoro.ts`.)
+- [x] Implement XTB parser. (`src/lib/csv/parsers/xtb.ts` + `xtb-comment-parser.ts` for cash-operation comments.)
+- [x] Implement Trii parser. (`src/lib/csv/parsers/trii.ts`.)
+- [x] Implement eTrading Bancolombia parser. (`src/lib/csv/parsers/etrading-bancolombia.ts`.)
+- [x] Build preview API that parses rows, validates them, and stores preview metadata. (`src/app/api/v1/imports/csv/preview/route.ts`; broker validation in `src/lib/csv/validation.ts`, date parsing in `src/lib/csv/date-parsers.ts`.)
+- [x] Build commit API that inserts only valid rows. (`src/app/api/v1/imports/csv/commit/route.ts`; tested in `src/__tests__/api/csv-commit-asset-profile.test.ts` and `src/__tests__/api/imports-csv.test.ts`.)
+- [x] Prevent duplicate commits for the same import. (Commit route checks for an already-committed `csv_imports` row and returns `409` on replay; covered by integration tests in `src/__tests__/api/imports-csv.test.ts`.)
+- [x] Build import page with broker selector, file upload, preview table, validation errors, and commit action. (`src/app/import/page.tsx` + `src/features/imports/import-page-client.tsx`; broker copy in `src/lib/i18n/imports.ts`.)
+- [x] Add import history view. (`src/features/imports/import-history.tsx` consumed by `src/app/import/page.tsx`; backed by `src/app/api/v1/imports/history/route.ts` and `src/app/api/v1/imports/[id]/route.ts`.)
 
 ## Validation Rules
 

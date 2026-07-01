@@ -30,16 +30,16 @@ tests/integration/
 
 ## Tasks
 
-- [ ] Define `CreateTradeInput`, `UpdateTradeInput`, and `TradeDTO` Zod schemas.
-- [ ] Build trade creation API with validation and normalized USD totals.
-- [ ] Build paginated trade list API with filters: ticker, broker, type, date range, currency, source.
-- [ ] Build trade update API with partial updates.
-- [ ] Build soft delete API with `deleted_at`.
-- [ ] Insert `audit_events` on create, update, and delete.
-- [ ] Build manual trade form in Spanish.
-- [ ] Build trade table/list optimized for mobile.
-- [ ] Add empty, loading, validation, and error states.
-- [ ] Add calculation utilities for total invested, average cost, realized P/L, unrealized P/L, and return percentage.
+- [x] Define `CreateTradeInput`, `UpdateTradeInput`, and `TradeDTO` Zod schemas. (`src/lib/validations/trades.ts`.)
+- [x] Build trade creation API with validation and normalized USD totals. (`src/app/api/v1/trades/route.ts`; `normalizeTradeUsdValues` in `src/lib/validations/trades.ts`.)
+- [x] Build paginated trade list API with filters: ticker, broker, type, date range, currency, source. (`src/lib/trades/queries.ts` consumed by `src/app/trades/page.tsx`; `src/features/trades/trade-filters.tsx`.)
+- [x] Build trade update API with partial updates. (`src/app/api/v1/trades/[id]/route.ts` PATCH handler.)
+- [x] Build soft delete API with `deleted_at`. (DELETE handler in `src/app/api/v1/trades/[id]/route.ts`; `deleted_at` column in `src/lib/validations/trades.ts:102`.)
+- [x] Insert `audit_events` on create, update, and delete. (Confirmed in `src/app/api/v1/trades/route.ts:158` and `src/app/api/v1/trades/[id]/route.ts:72,118`.)
+- [x] Build manual trade form in Spanish. (`src/features/trades/trade-form.tsx`; new/edit clients in `src/features/trades/`.)
+- [x] Build trade table/list optimized for mobile. (`src/features/trades/trade-list.tsx` + `trades-page-client.tsx`.)
+- [x] Add empty, loading, validation, and error states. (Loading/error handled in client components; `src/lib/i18n/errors.ts` + `src/lib/i18n/trades.ts` provide Spanish copy.)
+- [x] Add calculation utilities for total invested, average cost, realized P/L, unrealized P/L, and return percentage. (`src/lib/calculations/`: `holdings.ts`, `positions.ts`, `pnl.ts`, `equity.ts`, `pricing.ts`, `returns-aggregation.ts`; covered by `src/__tests__/calculations/calculations.test.ts` + per-module tests.)
 
 ## Validation Rules
 

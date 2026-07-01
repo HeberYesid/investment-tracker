@@ -34,14 +34,14 @@ tests/integration/rls/
 
 ## Tasks
 
-- [ ] Enable Supabase Auth configuration.
-- [ ] Create profile creation flow after signup.
-- [ ] Assign each new user a default portfolio.
-- [ ] Add portfolio member management UI.
-- [ ] Add RLS policies for portfolio-scoped tables.
-- [ ] Add permission checks in API route handlers.
-- [ ] Hide write actions for viewers.
-- [ ] Add migration path for existing MVP data into a user-owned portfolio.
+- [x] Enable Supabase Auth configuration. (Magic-link provider; covered by `supabase/migrations/0003_auth_and_permissions.sql`, `src/middleware.ts`, `src/lib/supabase/middleware.ts`, `src/lib/supabase/server.ts`; setup steps in `README.md`.)
+- [x] Create profile creation flow after signup. (Trigger in `supabase/migrations/0003_auth_and_permissions.sql:8-32` inserts a `profiles` row on `auth.users` insert.)
+- [x] Assign each new user a default portfolio. (Same trigger creates `Mi portafolio` and an `OWNER` row in `portfolio_members`.)
+- [x] Add portfolio member management UI. (`src/app/settings/members/page.tsx` + `src/features/settings/members-management-client.tsx`; invite by email, change role, remove member; OWNER-only with the last-OWNER guard from migration `0009_role_aware_trades_imports_rls.sql`.)
+- [x] Add RLS policies for portfolio-scoped tables. (`supabase/migrations/0003_auth_and_permissions.sql` rewrites policies for `portfolios`, `trades`, `csv_imports`, `assets`, `audit_events`, `market_prices`, `fx_rates`, `portfolio_snapshots` to use the `portfolio_members` helper.)
+- [x] Add permission checks in API route handlers. (`src/lib/api/auth.ts` exposes `requireApiUser` / `requireApiUserWithPortfolio`; consumed by trades, imports, and dashboard route handlers.)
+- [x] Hide write actions for viewers. (Role-aware branches in `src/app/trades/page.tsx`, `src/features/trades/trades-page-client.tsx`, `src/features/trades/trade-list.tsx`, `src/app/import/page.tsx`, `src/features/imports/import-page-client.tsx`; VIEWERs see a read-only banner / hidden action buttons and are redirected to `/trades?denied=write` if they reach the new/edit URLs; API gates in `src/lib/api/auth.ts:32` return a uniform `403 FORBIDDEN` envelope with `errors.writeAccessDenied`.)
+- [x] Add migration path for existing MVP data into a user-owned portfolio. (The trigger only handles new signups; the README documents the manual cleanup `delete from public.portfolios where user_id is null;` for pre-auth data, and the foundation schema's `portfolios.user_id` is nullable so old rows can be back-filled.)
 
 ## RLS Rules
 
