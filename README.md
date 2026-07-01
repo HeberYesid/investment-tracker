@@ -49,6 +49,16 @@ To enable Auth in your Supabase project (one-time, manual):
 
 Application code never uses the service-role key for normal requests. It only exists for trusted server tasks (e.g. background jobs) and is exposed via `createServiceSupabaseClient()`. All Route Handlers and Server Components go through `createUserSupabaseClient()`, which is bound to the request cookies and therefore subject to RLS.
 
+### Sharing a portfolio
+
+Every authenticated user gets a default portfolio with the `OWNER` role on signup. Portfolio sharing lives at `/settings/members` (OWNER-only) and exposes three roles:
+
+- **OWNER** — full access. Can manage members, change roles, and remove other OWNERs (but never the last one).
+- **EDITOR** — can create, edit, import, and delete trades. Cannot manage members.
+- **VIEWER** — read-only on dashboard, trades, and assets. The "Nueva operación" / "Importar" actions are hidden, and any direct write to the API returns `403 FORBIDDEN` with `errors.writeAccessDenied`.
+
+The UI calls `getCurrentPortfolio()` server-side; the role is then passed to client components as `canWrite`. Server-side pages and Route Handlers re-check the role independently — the client-side hiding is convenience, not security.
+
 ## Scripts
 
 ```bash
@@ -138,6 +148,7 @@ The project is designed to run at USD 0 monthly operating cost for MVP and early
 - Phase 2: CSV import MVP complete.
 - Phase 3: dashboard MVP complete.
 - Phase 4: auth and permissions complete (OWNER-only; members UI deferred to 4.1).
+- Phase 4.1: member management + role-aware UI complete (`/settings/members`, VIEWER read-only banner, API `403 FORBIDDEN` envelope).
 - Phase 5: market data and FX complete.
 - Phase 6: alerts and monthly summary pending.
 - Phase 7: PWA, exports, crypto, and bilingual support pending.
