@@ -10,10 +10,17 @@ export async function MainNavigation() {
   const links = getNavigationLabels("es");
   const user = await getCurrentUser();
   const signedIn = user !== null;
+  const itemCount = links.length + (signedIn ? 1 : 0);
+  const smGridColsClass = {
+    5: "sm:grid-cols-5",
+    6: "sm:grid-cols-6",
+  }[itemCount] ?? "sm:grid-cols-5";
 
   return (
     <nav aria-label="Navegación principal" className="flex w-full flex-col gap-3">
-      <ul className="grid grid-cols-2 gap-2 rounded-3xl bg-surface/80 p-2 shadow-sm ring-1 ring-border-subtle backdrop-blur sm:grid-cols-5">
+      <ul
+        className={`grid grid-cols-2 gap-2 rounded-3xl bg-surface/80 p-2 shadow-sm ring-1 ring-border-subtle backdrop-blur ${smGridColsClass}`}
+      >
         {links.map((link) => (
           <li key={link.href}>
             <Link
