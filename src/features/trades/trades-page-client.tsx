@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { getTradeLabels } from "@/lib/i18n/trades";
@@ -14,8 +14,15 @@ const labels = getTradeLabels();
 
 const SMALL_TRADE_THRESHOLD_USD = 1;
 
-export function TradesPageClient({ initialData }: { initialData: TradeListResult }) {
+export function TradesPageClient({
+  initialData,
+  canWrite,
+}: {
+  initialData: TradeListResult;
+  canWrite: boolean;
+}) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [trades, setTrades] = useState<TradeDTO[]>(initialData.data);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,7 +33,17 @@ export function TradesPageClient({ initialData }: { initialData: TradeListResult
   const [hideSmallTrades, setHideSmallTrades] = useState(true);
   const [total, setTotal] = useState(initialData.meta.total);
   const [totalPages, setTotalPages] = useState(initialData.meta.totalPages);
+  const [showDeniedToast, setShowDeniedToast] = useState(false);
   const isMounted = useRef(false);
+
+  useEffect(() => {
+    if (searchParams.get("denied") === "write") {
+      setShowDeniedToast(true);
+      const t = setTimeout(() => setShowDeniedToast(false), 3000);
+      return () => clearTimeout(t);
+    }
+    return undefined;
+  }, [searchParams]);
 
   const fetchTrades = useCallback(async () => {
     setLoading(true);
@@ -127,10 +144,19 @@ export function TradesPageClient({ initialData }: { initialData: TradeListResult
               ? ` (filtrando |total| < ${SMALL_TRADE_THRESHOLD_USD} USD)`
               : ""}
           </p>
+          {showDeniedToast && (
+            <div
+              role="status"
+              className="rounded-2xl bg-amber-50 p-3 text-sm text-amber-800 ring-1 ring-amber-200"
+            >
+              {labels.readOnlyBanner}
+            </div>
+          )}
           <TradeList
             trades={trades}
             onEdit={handleEdit}
             onDelete={handleDelete}
+            canWrite={canWrite}
           />
           {totalPages > 1 && (
             <div className="flex items-center justify-between rounded-2xl bg-white p-3 shadow-sm ring-1 ring-slate-200">

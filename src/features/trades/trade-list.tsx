@@ -33,9 +33,10 @@ interface TradeRowProps {
   trade: TradeDTO;
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
+  canWrite: boolean;
 }
 
-function TradeRowImpl({ trade, onEdit, onDelete }: TradeRowProps) {
+function TradeRowImpl({ trade, onEdit, onDelete, canWrite }: TradeRowProps) {
   const dateFormatted = dateFormatter.format(new Date(trade.trade_date));
   const totalUsd = trade.total_invested_usd;
   const totalClass = totalUsd >= 0 ? "text-slate-950" : "text-red-600";
@@ -95,22 +96,26 @@ function TradeRowImpl({ trade, onEdit, onDelete }: TradeRowProps) {
       </div>
 
       <div className="mt-3 flex justify-end gap-2 border-t border-slate-100 pt-3">
-        <button
-          type="button"
-          onClick={() => onEdit(trade.id)}
-          className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-950"
-        >
-          <Pencil className="h-3.5 w-3.5" />
-          {labels.edit}
-        </button>
-        <button
-          type="button"
-          onClick={() => onDelete(trade.id)}
-          className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-          {labels.delete}
-        </button>
+        {canWrite && (
+          <>
+            <button
+              type="button"
+              onClick={() => onEdit(trade.id)}
+              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-950"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+              {labels.edit}
+            </button>
+            <button
+              type="button"
+              onClick={() => onDelete(trade.id)}
+              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              {labels.delete}
+            </button>
+          </>
+        )}
       </div>
     </article>
   );
@@ -119,7 +124,8 @@ function TradeRowImpl({ trade, onEdit, onDelete }: TradeRowProps) {
 const areTradeRowsEqual = (prev: TradeRowProps, next: TradeRowProps) =>
   prev.trade === next.trade &&
   prev.onEdit === next.onEdit &&
-  prev.onDelete === next.onDelete;
+  prev.onDelete === next.onDelete &&
+  prev.canWrite === next.canWrite;
 
 export const TradeRow = memo(TradeRowImpl, areTradeRowsEqual);
 
@@ -127,9 +133,10 @@ interface TradeListProps {
   trades: TradeDTO[];
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
+  canWrite: boolean;
 }
 
-export function TradeList({ trades, onEdit, onDelete }: TradeListProps) {
+export function TradeList({ trades, onEdit, onDelete, canWrite }: TradeListProps) {
   if (trades.length === 0) {
     return (
       <div className="rounded-3xl bg-white p-8 text-center shadow-sm ring-1 ring-slate-200">
@@ -151,6 +158,7 @@ export function TradeList({ trades, onEdit, onDelete }: TradeListProps) {
           trade={trade}
           onEdit={onEdit}
           onDelete={onDelete}
+          canWrite={canWrite}
         />
       ))}
     </div>

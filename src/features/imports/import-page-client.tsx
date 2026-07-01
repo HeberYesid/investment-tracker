@@ -68,7 +68,39 @@ const ACCEPTED_EXTENSIONS: Record<BrokerCode, string> = {
   ETRADING_BANCOLOMBIA: ".xls",
 };
 
-export function ImportPageClient({ portfolioId: _portfolioId }: { portfolioId: string }) {
+export function ImportPageClient({
+  portfolioId: _portfolioId,
+  readOnly,
+}: {
+  portfolioId: string;
+  readOnly: boolean;
+}) {
+  if (readOnly) {
+    return <ReadOnlyImportView />;
+  }
+  return <ImportWizard />;
+}
+
+function ReadOnlyImportView() {
+  return (
+    <div className="space-y-6">
+      <section
+        role="status"
+        className="rounded-[2rem] bg-white p-6 shadow-sm ring-1 ring-slate-200 sm:p-8"
+      >
+        <h2 className="text-lg font-semibold text-slate-950">
+          {labels.readOnlyTitle}
+        </h2>
+        <p className="mt-2 text-sm leading-6 text-slate-600">
+          {labels.readOnlyDescription}
+        </p>
+      </section>
+      <ImportHistory />
+    </div>
+  );
+}
+
+function ImportWizard() {
   const [state, setState] = useState<ImportState>({ step: "select" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
