@@ -18,11 +18,11 @@ export function DashboardPageClient({
   if (error) {
     return (
       <section
-        className="space-y-3 rounded-2xl bg-white p-6 text-center shadow-sm ring-1 ring-red-200"
+        className="space-y-3 rounded-2xl bg-surface p-6 text-center shadow-sm ring-1 ring-red-200 dark:ring-red-800"
         data-testid="dashboard-error"
         role="alert"
       >
-        <p className="text-sm font-semibold text-red-700">{error}</p>
+        <p className="text-sm font-semibold text-red-700 dark:text-red-400">{error}</p>
         <Button variant="secondary" size="sm" onClick={() => void reload()}>
           {labels.retry}
         </Button>
@@ -34,7 +34,7 @@ export function DashboardPageClient({
     <>
       {loading && (
         <section
-          className="rounded-2xl bg-white p-4 text-center text-sm text-slate-500 shadow-sm ring-1 ring-slate-200"
+          className="rounded-2xl bg-surface p-4 text-center text-sm text-text-muted shadow-sm ring-1 ring-border-subtle"
           data-testid="dashboard-reloading"
           aria-live="polite"
         >

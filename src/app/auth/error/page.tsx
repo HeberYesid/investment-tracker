@@ -20,14 +20,14 @@ export default async function AuthErrorPage({
 
   return (
     <main className="mx-auto flex min-h-full w-full max-w-md flex-col justify-center gap-6 px-4 py-10">
-      <div className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-        <h1 className="text-xl font-bold text-slate-950">
+      <div className="rounded-3xl bg-surface p-6 shadow-sm ring-1 ring-border-subtle">
+        <h1 className="text-xl font-bold text-text-primary">
           {authStrings.error.title}
         </h1>
-        <p className="mt-3 text-sm text-slate-600">{message}</p>
+        <p className="mt-3 text-sm text-text-secondary">{message}</p>
         <Link
           href="/login"
-          className="mt-4 inline-block text-sm font-semibold text-slate-950 underline"
+          className="mt-4 inline-block text-sm font-semibold text-text-primary underline"
         >
           {authStrings.error.backToLogin}
         </Link>

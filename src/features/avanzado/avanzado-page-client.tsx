@@ -25,7 +25,7 @@ const DistributionChart = dynamic(
 function ChartSkeleton({ testId }: { testId: string }) {
   return (
     <div
-      className="h-64 w-full animate-pulse rounded-2xl bg-slate-100"
+      className="h-64 w-full animate-pulse rounded-2xl bg-surface-muted"
       data-testid={testId}
     />
   );
@@ -77,11 +77,11 @@ export function AvanzadoPageClient({
   if (error) {
     return (
       <section
-        className="space-y-3 rounded-2xl bg-white p-6 text-center shadow-sm ring-1 ring-red-200"
+        className="space-y-3 rounded-2xl bg-surface p-6 text-center shadow-sm ring-1 ring-red-200 dark:ring-red-800"
         data-testid="avanzado-error"
         role="alert"
       >
-        <p className="text-sm font-semibold text-red-700">{error}</p>
+        <p className="text-sm font-semibold text-red-700 dark:text-red-400">{error}</p>
         <Button variant="secondary" size="sm" onClick={() => void reload()}>
           {labels.retry}
         </Button>
@@ -95,13 +95,13 @@ export function AvanzadoPageClient({
   if (isEmpty) {
     return (
       <section
-        className="rounded-[2rem] bg-white p-8 text-center shadow-sm ring-1 ring-slate-200 sm:p-10"
+        className="rounded-[2rem] bg-surface p-8 text-center shadow-sm ring-1 ring-border-subtle sm:p-10"
         data-testid="avanzado-empty"
       >
-        <h2 className="text-2xl font-bold tracking-tight text-slate-950">
+        <h2 className="text-2xl font-bold tracking-tight text-text-primary">
           {labels.emptyHeading}
         </h2>
-        <p className="mx-auto mt-3 max-w-md text-sm text-slate-600">
+        <p className="mx-auto mt-3 max-w-md text-sm text-text-secondary">
           {labels.emptyDescription}
         </p>
         <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
@@ -123,7 +123,7 @@ export function AvanzadoPageClient({
     <>
       {loading && (
         <section
-          className="rounded-2xl bg-white p-4 text-center text-sm text-slate-500 shadow-sm ring-1 ring-slate-200"
+          className="rounded-2xl bg-surface p-4 text-center text-sm text-text-muted shadow-sm ring-1 ring-border-subtle"
           data-testid="avanzado-reloading"
           aria-live="polite"
         >
@@ -135,10 +135,10 @@ export function AvanzadoPageClient({
 
         {!hasBenchmark && (
           <section
-            className="rounded-2xl bg-white p-6 text-center shadow-sm ring-1 ring-slate-200"
+            className="rounded-2xl bg-surface p-6 text-center shadow-sm ring-1 ring-border-subtle"
             data-testid="benchmark-backfill-prompt"
           >
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-text-secondary">
               {labels.benchmarkNoBenchmark}
             </p>
             <Button
@@ -154,7 +154,7 @@ export function AvanzadoPageClient({
             </Button>
             {backfillState.status === "success" && (
               <p
-                className="mt-3 text-sm font-medium text-emerald-600"
+                className="mt-3 text-sm font-medium text-emerald-600 dark:text-emerald-400"
                 data-testid="benchmark-backfill-success"
               >
                 {backfillState.message}
@@ -162,7 +162,7 @@ export function AvanzadoPageClient({
             )}
             {backfillState.status === "error" && (
               <p
-                className="mt-3 text-sm font-medium text-red-600"
+                className="mt-3 text-sm font-medium text-red-600 dark:text-red-400"
                 data-testid="benchmark-backfill-error"
               >
                 {backfillState.message}
@@ -173,16 +173,16 @@ export function AvanzadoPageClient({
 
         {hasBenchmark && showBackfillButton && backfillState.status !== "idle" && (
           <section
-            className="rounded-2xl bg-white p-4 text-center shadow-sm ring-1 ring-slate-200"
+            className="rounded-2xl bg-surface p-4 text-center shadow-sm ring-1 ring-border-subtle"
             data-testid="benchmark-backfill-status"
           >
             {backfillState.status === "success" && (
-              <p className="text-sm font-medium text-emerald-600">
+              <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400">
                 {backfillState.message}
               </p>
             )}
             {backfillState.status === "error" && (
-              <p className="text-sm font-medium text-red-600">
+              <p className="text-sm font-medium text-red-600 dark:text-red-400">
                 {backfillState.message}
               </p>
             )}

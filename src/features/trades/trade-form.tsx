@@ -65,6 +65,10 @@ function formatDate(value: string | null): string {
   return longDateFormatter.format(d);
 }
 
+const inputClass =
+  "h-11 w-full rounded-xl border border-border-subtle bg-surface px-3 text-sm text-text-primary placeholder:text-text-subtle focus:border-border-default focus:outline-none focus:ring-2 focus:ring-focus-ring";
+const labelClass = "block text-sm font-medium text-text-secondary";
+
 export function TradeForm({ initialData, onSubmit }: TradeFormProps) {
   const {
     register,
@@ -91,19 +95,16 @@ export function TradeForm({ initialData, onSubmit }: TradeFormProps) {
   return (
     <form
       onSubmit={handleSubmit(onSubmit)}
-      className="space-y-5 rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200 sm:p-6"
+      className="space-y-5 rounded-3xl bg-surface p-5 shadow-sm ring-1 ring-border-subtle sm:p-6"
     >
       <div className="space-y-1.5">
-        <label
-          htmlFor="trade_type"
-          className="block text-sm font-medium text-slate-700"
-        >
+        <label htmlFor="trade_type" className={labelClass}>
           {labels.tradeType}
         </label>
         <select
           id="trade_type"
           {...register("trade_type")}
-          className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-950 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
+          className={inputClass}
         >
           {TRADE_TYPES.map((type) => (
             <option key={type} value={type}>
@@ -112,39 +113,37 @@ export function TradeForm({ initialData, onSubmit }: TradeFormProps) {
           ))}
         </select>
         {errors.trade_type && (
-          <p className="text-xs text-red-600">{errors.trade_type.message}</p>
+          <p className="text-xs text-red-600 dark:text-red-400">
+            {errors.trade_type.message}
+          </p>
         )}
       </div>
 
       <div className="space-y-1.5">
-        <label
-          htmlFor="trade_date"
-          className="block text-sm font-medium text-slate-700"
-        >
+        <label htmlFor="trade_date" className={labelClass}>
           {labels.tradeDate}
         </label>
         <input
           id="trade_date"
           type="date"
           {...register("trade_date")}
-          className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-950 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
+          className={inputClass}
         />
         {errors.trade_date && (
-          <p className="text-xs text-red-600">{errors.trade_date.message}</p>
+          <p className="text-xs text-red-600 dark:text-red-400">
+            {errors.trade_date.message}
+          </p>
         )}
       </div>
 
       <div className="space-y-1.5">
-        <label
-          htmlFor="broker_code"
-          className="block text-sm font-medium text-slate-700"
-        >
+        <label htmlFor="broker_code" className={labelClass}>
           {labels.broker}
         </label>
         <select
           id="broker_code"
           {...register("broker_code")}
-          className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-950 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
+          className={inputClass}
         >
           <option value="">Seleccionar bróker</option>
           {BROKER_SEEDS.map((broker) => (
@@ -154,15 +153,14 @@ export function TradeForm({ initialData, onSubmit }: TradeFormProps) {
           ))}
         </select>
         {errors.broker_code && (
-          <p className="text-xs text-red-600">{errors.broker_code.message}</p>
+          <p className="text-xs text-red-600 dark:text-red-400">
+            {errors.broker_code.message}
+          </p>
         )}
       </div>
 
       <div className="space-y-1.5">
-        <label
-          htmlFor="ticker"
-          className="block text-sm font-medium text-slate-700"
-        >
+        <label htmlFor="ticker" className={labelClass}>
           {labels.ticker}
         </label>
         <input
@@ -170,19 +168,18 @@ export function TradeForm({ initialData, onSubmit }: TradeFormProps) {
           type="text"
           placeholder="AAPL, MSFT, PFBC..."
           {...register("ticker")}
-          className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-950 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
+          className={inputClass}
         />
         {errors.ticker && (
-          <p className="text-xs text-red-600">{errors.ticker.message}</p>
+          <p className="text-xs text-red-600 dark:text-red-400">
+            {errors.ticker.message}
+          </p>
         )}
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
-          <label
-            htmlFor="quantity"
-            className="block text-sm font-medium text-slate-700"
-          >
+          <label htmlFor="quantity" className={labelClass}>
             {labels.quantity}
           </label>
           <input
@@ -190,18 +187,17 @@ export function TradeForm({ initialData, onSubmit }: TradeFormProps) {
             type="number"
             step="any"
             {...register("quantity")}
-            className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-950 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
+            className={inputClass}
           />
           {errors.quantity && (
-            <p className="text-xs text-red-600">{errors.quantity.message}</p>
+            <p className="text-xs text-red-600 dark:text-red-400">
+              {errors.quantity.message}
+            </p>
           )}
         </div>
 
         <div className="space-y-1.5">
-          <label
-            htmlFor="price_original"
-            className="block text-sm font-medium text-slate-700"
-          >
+          <label htmlFor="price_original" className={labelClass}>
             {labels.price}
           </label>
           <input
@@ -209,10 +205,10 @@ export function TradeForm({ initialData, onSubmit }: TradeFormProps) {
             type="number"
             step="any"
             {...register("price_original")}
-            className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-950 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
+            className={inputClass}
           />
           {errors.price_original && (
-            <p className="text-xs text-red-600">
+            <p className="text-xs text-red-600 dark:text-red-400">
               {errors.price_original.message}
             </p>
           )}
@@ -227,10 +223,7 @@ export function TradeForm({ initialData, onSubmit }: TradeFormProps) {
       />
 
       <div className="space-y-1.5">
-        <label
-          htmlFor="commission_original"
-          className="block text-sm font-medium text-slate-700"
-        >
+        <label htmlFor="commission_original" className={labelClass}>
           {labels.commission}
         </label>
         <input
@@ -238,10 +231,10 @@ export function TradeForm({ initialData, onSubmit }: TradeFormProps) {
           type="number"
           step="any"
           {...register("commission_original")}
-          className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-950 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
+          className={inputClass}
         />
         {errors.commission_original && (
-          <p className="text-xs text-red-600">
+          <p className="text-xs text-red-600 dark:text-red-400">
             {errors.commission_original.message}
           </p>
         )}
@@ -329,16 +322,13 @@ function FxCurrencyField({
   return (
     <>
       <div className="space-y-1.5">
-        <label
-          htmlFor="currency_original"
-          className="block text-sm font-medium text-slate-700"
-        >
+        <label htmlFor="currency_original" className={labelClass}>
           {labels.currency}
         </label>
         <select
           id="currency_original"
           {...register("currency_original")}
-          className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-950 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
+          className={inputClass}
         >
           {SUPPORTED_CURRENCIES.map((c) => (
             <option key={c} value={c}>
@@ -350,10 +340,7 @@ function FxCurrencyField({
 
       {currency === "COP" && (
         <div className="space-y-1.5">
-          <label
-            htmlFor="fx_rate_to_usd"
-            className="block text-sm font-medium text-slate-700"
-          >
+          <label htmlFor="fx_rate_to_usd" className={labelClass}>
             {labels.fxRate}
           </label>
           <input
@@ -361,7 +348,7 @@ function FxCurrencyField({
             type="number"
             step="any"
             {...register("fx_rate_to_usd")}
-            className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-950 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
+            className={inputClass}
           />
           <FxRateIndicator
             status={fxFreshness}
@@ -369,7 +356,7 @@ function FxCurrencyField({
             source={fxRate?.source ?? null}
           />
           {errors.fx_rate_to_usd && (
-            <p className="text-xs text-red-600">
+            <p className="text-xs text-red-600 dark:text-red-400">
               {errors.fx_rate_to_usd.message}
             </p>
           )}
@@ -388,7 +375,7 @@ interface FxRateIndicatorProps {
 function FxRateIndicator({ status, observedAt, source }: FxRateIndicatorProps) {
   if (status === "loading") {
     return (
-      <p className="text-xs text-slate-500" data-testid="fx-rate-loading">
+      <p className="text-xs text-text-muted" data-testid="fx-rate-loading">
         {labels.loading}
       </p>
     );
@@ -396,7 +383,7 @@ function FxRateIndicator({ status, observedAt, source }: FxRateIndicatorProps) {
   if (status === "missing") {
     return (
       <p
-        className="text-xs text-amber-600"
+        className="text-xs text-amber-600 dark:text-amber-400"
         data-testid="fx-rate-missing"
         role="status"
       >
@@ -406,8 +393,8 @@ function FxRateIndicator({ status, observedAt, source }: FxRateIndicatorProps) {
   }
   const tone =
     status === "fresh"
-      ? "text-emerald-600"
-      : "text-orange-600";
+      ? "text-emerald-600 dark:text-emerald-400"
+      : "text-orange-600 dark:text-orange-400";
   const label = status === "fresh" ? labels.fxRateFresh : labels.fxRateStale;
   const formattedDate = formatDate(observedAt);
   const formattedSource = source

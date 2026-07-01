@@ -20,6 +20,9 @@ interface TradeFiltersProps {
   onHideSmallTradesChange: (value: boolean) => void;
 }
 
+const selectClass =
+  "h-10 w-full rounded-xl border border-border-subtle bg-surface px-3 text-sm text-text-primary focus:border-border-default focus:outline-none focus:ring-2 focus:ring-focus-ring";
+
 export function TradeFilters({
   filters,
   onFilterChange,
@@ -29,26 +32,26 @@ export function TradeFilters({
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
+    <div className="rounded-2xl bg-surface shadow-sm ring-1 ring-border-subtle">
       <button
         type="button"
         onClick={() => setExpanded((prev) => !prev)}
-        className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-slate-700"
+        className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-text-secondary"
       >
         <span>{labels.filters}</span>
         {expanded ? (
-          <ChevronUp className="h-4 w-4 text-slate-500" />
+          <ChevronUp className="h-4 w-4 text-text-muted" />
         ) : (
-          <ChevronDown className="h-4 w-4 text-slate-500" />
+          <ChevronDown className="h-4 w-4 text-text-muted" />
         )}
       </button>
 
       {expanded && (
-        <div className="space-y-3 border-t border-slate-100 px-4 py-4">
+        <div className="space-y-3 border-t border-border-subtle px-4 py-4">
           <div className="space-y-1.5">
             <label
               htmlFor="filter-type"
-              className="block text-xs font-medium text-slate-500"
+              className="block text-xs font-medium text-text-muted"
             >
               {labels.tradeType}
             </label>
@@ -62,7 +65,7 @@ export function TradeFilters({
                     : undefined,
                 })
               }
-              className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-950 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
+              className={selectClass}
             >
               <option value="">{labels.allTypes}</option>
               {TRADE_TYPES.map((type) => (
@@ -76,7 +79,7 @@ export function TradeFilters({
           <div className="space-y-1.5">
             <label
               htmlFor="filter-broker"
-              className="block text-xs font-medium text-slate-500"
+              className="block text-xs font-medium text-text-muted"
             >
               {labels.broker}
             </label>
@@ -90,7 +93,7 @@ export function TradeFilters({
                     | undefined,
                 })
               }
-              className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-950 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
+              className={selectClass}
             >
               <option value="">{labels.allBrokers}</option>
               {BROKER_SEEDS.map((b) => (
@@ -104,7 +107,7 @@ export function TradeFilters({
           <div className="space-y-1.5">
             <label
               htmlFor="filter-currency"
-              className="block text-xs font-medium text-slate-500"
+              className="block text-xs font-medium text-text-muted"
             >
               {labels.currency}
             </label>
@@ -118,7 +121,7 @@ export function TradeFilters({
                     : undefined,
                 })
               }
-              className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-950 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
+              className={selectClass}
             >
               <option value="">{labels.allCurrencies}</option>
               {SUPPORTED_CURRENCIES.map((c) => (
@@ -133,7 +136,7 @@ export function TradeFilters({
             <div className="space-y-1.5">
               <label
                 htmlFor="filter-date-from"
-                className="block text-xs font-medium text-slate-500"
+                className="block text-xs font-medium text-text-muted"
               >
                 Desde
               </label>
@@ -146,13 +149,13 @@ export function TradeFilters({
                     date_from: e.target.value || undefined,
                   })
                 }
-                className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-950 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                className={selectClass}
               />
             </div>
             <div className="space-y-1.5">
               <label
                 htmlFor="filter-date-to"
-                className="block text-xs font-medium text-slate-500"
+                className="block text-xs font-medium text-text-muted"
               >
                 Hasta
               </label>
@@ -165,7 +168,7 @@ export function TradeFilters({
                     date_to: e.target.value || undefined,
                   })
                 }
-                className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-950 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                className={selectClass}
               />
             </div>
           </div>
@@ -175,9 +178,9 @@ export function TradeFilters({
               type="checkbox"
               checked={hideSmallTrades}
               onChange={(e) => onHideSmallTradesChange(e.target.checked)}
-              className="h-4 w-4 rounded border-slate-300 text-slate-950 focus:ring-2 focus:ring-slate-200"
+              className="h-4 w-4 rounded border-border-default bg-surface text-action-primary focus:ring-2 focus:ring-focus-ring"
             />
-            <span className="text-sm text-slate-700">
+            <span className="text-sm text-text-secondary">
               Ocultar operaciones menores a USD 1
             </span>
           </label>

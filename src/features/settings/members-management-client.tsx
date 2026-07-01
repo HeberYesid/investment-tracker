@@ -24,6 +24,10 @@ type ActionState =
   | { kind: "error"; message: string }
   | { kind: "success"; message: string };
 
+const inputClass =
+  "mt-1 h-10 w-full rounded-xl border border-border-subtle bg-surface px-3 text-sm text-text-primary focus:border-border-default focus:outline-none focus:ring-2 focus:ring-focus-ring";
+const labelClass = "block text-xs font-medium text-text-muted";
+
 export function MembersManagementClient({
   initialMembers,
   currentUserId,
@@ -166,22 +170,19 @@ export function MembersManagementClient({
     <div className="space-y-6">
       <form
         onSubmit={handleAdd}
-        className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200 sm:p-6"
+        className="rounded-3xl bg-surface p-5 shadow-sm ring-1 ring-border-subtle sm:p-6"
         noValidate
       >
-        <h2 className="text-base font-semibold text-slate-950">
+        <h2 className="text-base font-semibold text-text-primary">
           {labels.addMemberTitle}
         </h2>
-        <p className="mt-1 text-sm text-slate-600">
+        <p className="mt-1 text-sm text-text-secondary">
           {labels.addMemberDescription}
         </p>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-[1fr,180px,auto]">
           <div>
-            <label
-              htmlFor="member-email"
-              className="block text-xs font-medium text-slate-500"
-            >
+            <label htmlFor="member-email" className={labelClass}>
               {labels.emailLabel}
             </label>
             <input
@@ -192,14 +193,11 @@ export function MembersManagementClient({
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={adding}
-              className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-950 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
+              className={inputClass}
             />
           </div>
           <div>
-            <label
-              htmlFor="member-role"
-              className="block text-xs font-medium text-slate-500"
-            >
+            <label htmlFor="member-role" className={labelClass}>
               {labels.roleLabel}
             </label>
             <select
@@ -209,7 +207,7 @@ export function MembersManagementClient({
                 setRole(e.target.value as "EDITOR" | "VIEWER")
               }
               disabled={adding}
-              className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-950 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
+              className={inputClass}
             >
               <option value="EDITOR">{labels.roleEditor}</option>
               <option value="VIEWER">{labels.roleViewer}</option>
@@ -236,16 +234,16 @@ export function MembersManagementClient({
       {action.kind === "error" && (
         <div
           role="alert"
-          className="rounded-2xl bg-red-50 p-3 text-sm text-red-700 ring-1 ring-red-200"
+          className="rounded-2xl bg-red-50 p-3 text-sm text-red-700 ring-1 ring-red-200 dark:bg-red-950/40 dark:text-red-300 dark:ring-red-800"
         >
           {action.message}
         </div>
       )}
 
-      <section className="rounded-3xl bg-white shadow-sm ring-1 ring-slate-200">
+      <section className="rounded-3xl bg-surface shadow-sm ring-1 ring-border-subtle">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-slate-200 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+            <tr className="border-b border-border-subtle text-left text-xs font-semibold uppercase tracking-wider text-text-muted">
               <th className="px-5 py-3">{labels.tableHeaderMember}</th>
               <th className="px-5 py-3">{labels.tableHeaderRole}</th>
               <th className="px-5 py-3 text-right">
@@ -257,19 +255,19 @@ export function MembersManagementClient({
             {decoratedMembers.map((member) => (
               <tr
                 key={member.user_id}
-                className="border-b border-slate-100 last:border-0"
+                className="border-b border-border-subtle last:border-0"
               >
                 <td className="px-5 py-3">
                   <div className="flex items-center gap-2">
-                    <span className="font-medium text-slate-950">
+                    <span className="font-medium text-text-primary">
                       {member.email ?? member.user_id}
                     </span>
                     {member.is_self && (
                       <span
                         data-testid="you-badge"
                         className={cn(
-                          "inline-flex items-center rounded-full bg-slate-950 px-2 py-0.5",
-                          "text-[10px] font-semibold uppercase tracking-wide text-white",
+                          "inline-flex items-center rounded-full bg-action-primary px-2 py-0.5",
+                          "text-[10px] font-semibold uppercase tracking-wide text-action-primary-fg",
                         )}
                       >
                         {labels.tableYouBadge}
@@ -279,7 +277,7 @@ export function MembersManagementClient({
                 </td>
                 <td className="px-5 py-3">
                   {member.is_self ? (
-                    <span className="text-sm text-slate-700">
+                    <span className="text-sm text-text-secondary">
                       {getRoleLabel(member.role)}
                     </span>
                   ) : (
@@ -293,7 +291,7 @@ export function MembersManagementClient({
                           e.target.value as PortfolioRole,
                         )
                       }
-                      className="h-9 rounded-xl border border-slate-200 bg-white px-2 text-sm text-slate-950 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                      className="h-9 rounded-xl border border-border-subtle bg-surface px-2 text-sm text-text-primary focus:border-border-default focus:outline-none focus:ring-2 focus:ring-focus-ring"
                     >
                       <option value="OWNER">{getRoleLabel("OWNER")}</option>
                       <option value="EDITOR">{getRoleLabel("EDITOR")}</option>
@@ -304,7 +302,7 @@ export function MembersManagementClient({
                 <td className="px-5 py-3 text-right">
                   {member.is_self ? (
                     <span
-                      className="text-xs text-slate-400"
+                      className="text-xs text-text-subtle"
                       title={labels.youCannotRemoveYourself}
                     >
                       —

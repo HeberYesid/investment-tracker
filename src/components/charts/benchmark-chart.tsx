@@ -13,6 +13,8 @@ import {
 } from "recharts";
 
 import { getDashboardLabels } from "@/lib/i18n/dashboard";
+import { getChartPalette } from "@/lib/theme/chart-palette";
+import { useTheme } from "@/lib/theme/theme-provider";
 import type {
   BenchmarkPoint,
   BenchmarkSeries,
@@ -142,13 +144,21 @@ interface CustomTooltipProps {
   active?: boolean;
   label?: string | number;
   payload?: CustomTooltipPayload[];
+  palette: ReturnType<typeof getChartPalette>;
 }
 
-function CustomTooltip({ active, label, payload }: CustomTooltipProps) {
+function CustomTooltip({ active, label, payload, palette }: CustomTooltipProps) {
   if (!active || !payload || payload.length === 0) return null;
   return (
-    <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs shadow-sm">
-      <p className="font-semibold text-slate-700">
+    <div
+      className="rounded-lg px-3 py-2 text-xs shadow-sm"
+      style={{
+        backgroundColor: palette.tooltipBg,
+        border: `1px solid ${palette.tooltipBorder}`,
+        color: palette.text,
+      }}
+    >
+      <p className="font-semibold" style={{ color: palette.text }}>
         {safeFormatLongDate(label)}
       </p>
       <ul className="mt-1 space-y-0.5">
@@ -158,15 +168,16 @@ function CustomTooltip({ active, label, payload }: CustomTooltipProps) {
           return (
             <li
               key={idx}
-              className="flex items-center gap-2 font-mono text-slate-700"
+              className="flex items-center gap-2 font-mono"
+              style={{ color: palette.text }}
             >
               <span
                 aria-hidden
                 className="inline-block h-2 w-2 rounded-sm"
-                style={{ backgroundColor: entry.color ?? "#0f172a" }}
+                style={{ backgroundColor: entry.color ?? palette.fallbackSwatch }}
               />
-              <span className="text-slate-600">{entry.name}</span>
-              <span className="ml-auto font-semibold text-slate-950">
+              <span style={{ color: palette.axis }}>{entry.name}</span>
+              <span className="ml-auto font-semibold" style={{ color: palette.text }}>
                 {indexFormatter.format(value)}
               </span>
             </li>
@@ -178,10 +189,10 @@ function CustomTooltip({ active, label, payload }: CustomTooltipProps) {
 }
 
 function pctToneClass(value: number | null): string {
-  if (value === null) return "text-slate-500";
-  if (value > 0) return "text-emerald-600";
-  if (value < 0) return "text-red-600";
-  return "text-slate-700";
+  if (value === null) return "text-text-muted";
+  if (value > 0) return "text-emerald-600 dark:text-emerald-400";
+  if (value < 0) return "text-red-600 dark:text-red-400";
+  return "text-text-secondary";
 }
 
 function formatIndex(value: number | null): string {
@@ -196,19 +207,22 @@ function formatSignedDelta(value: number | null): string {
 }
 
 export function BenchmarkChart({ evolution, benchmark }: BenchmarkChartProps) {
+  const { resolvedTheme } = useTheme();
+  const palette = getChartPalette(resolvedTheme);
+  const sectionClass =
+    "rounded-2xl bg-surface p-5 shadow-sm ring-1 ring-border-subtle";
+  const titleClass = "text-lg font-semibold text-text-primary";
   const rows = buildChartRows(evolution, benchmark);
   if (rows.length < 2) {
     return (
       <section
-        className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200"
+        className={sectionClass}
         data-testid="benchmark-chart"
       >
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold text-slate-950">
-              {labels.benchmarkTitle}
-            </h2>
-            <p className="mt-3 text-sm text-slate-500">{labels.benchmarkEmpty}</p>
+            <h2 className={titleClass}>{labels.benchmarkTitle}</h2>
+            <p className="mt-3 text-sm text-text-muted">{labels.benchmarkEmpty}</p>
           </div>
           {!IS_PRODUCTION && <SyncNowButton />}
         </div>
@@ -220,15 +234,13 @@ export function BenchmarkChart({ evolution, benchmark }: BenchmarkChartProps) {
   if (!hasAnyBenchmarkData) {
     return (
       <section
-        className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200"
+        className={sectionClass}
         data-testid="benchmark-chart"
       >
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold text-slate-950">
-              {labels.benchmarkTitle}
-            </h2>
-            <p className="mt-1 text-xs text-slate-500">
+            <h2 className={titleClass}>{labels.benchmarkTitle}</h2>
+            <p className="mt-1 text-xs text-text-muted">
               {labels.benchmarkSubtitle.replace("{benchmark}", benchmark.label)}
             </p>
           </div>
@@ -241,33 +253,33 @@ export function BenchmarkChart({ evolution, benchmark }: BenchmarkChartProps) {
               margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
             >
               <CartesianGrid
-                stroke="#e2e8f0"
+                stroke={palette.grid}
                 strokeDasharray="3 3"
                 vertical={false}
               />
               <XAxis
                 dataKey="date"
-                tick={{ fontSize: 11, fill: "#64748b" }}
+                tick={{ fontSize: 11, fill: palette.axis }}
                 tickFormatter={safeFormatShortDate}
-                stroke="#cbd5e1"
+                stroke={palette.grid}
               />
               <YAxis
-                tick={{ fontSize: 11, fill: "#64748b" }}
+                tick={{ fontSize: 11, fill: palette.axis }}
                 tickFormatter={(value: number) => indexFormatter.format(value)}
-                stroke="#cbd5e1"
+                stroke={palette.grid}
                 width={50}
                 domain={["auto", "auto"]}
               />
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip content={<CustomTooltip palette={palette} />} />
               <Legend
-                wrapperStyle={{ fontSize: 12, paddingTop: 8 }}
+                wrapperStyle={{ fontSize: 12, paddingTop: 8, color: palette.text }}
                 iconType="plainline"
               />
               <Line
                 type="monotone"
                 dataKey="portfolio"
                 name={labels.benchmarkPortfolioLegend}
-                stroke="#0f172a"
+                stroke={palette.primary}
                 strokeWidth={2}
                 dot={false}
                 connectNulls
@@ -277,7 +289,7 @@ export function BenchmarkChart({ evolution, benchmark }: BenchmarkChartProps) {
           </ResponsiveContainer>
         </div>
         <p
-          className="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600 ring-1 ring-slate-200"
+          className="mt-3 rounded-lg bg-surface-soft px-3 py-2 text-xs text-text-secondary ring-1 ring-border-subtle"
           data-testid="benchmark-no-overlap"
         >
           {labels.benchmarkNoOverlap}
@@ -303,22 +315,20 @@ export function BenchmarkChart({ evolution, benchmark }: BenchmarkChartProps) {
 
   return (
     <section
-      className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200"
+      className={sectionClass}
       data-testid="benchmark-chart"
     >
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-slate-950">
-            {labels.benchmarkTitle}
-          </h2>
-          <p className="mt-1 text-xs text-slate-500">
+          <h2 className={titleClass}>{labels.benchmarkTitle}</h2>
+          <p className="mt-1 text-xs text-text-muted">
             {labels.benchmarkSubtitle.replace("{benchmark}", benchmark.label)}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {benchmark.isStale && (
             <span
-              className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 ring-1 ring-amber-200"
+              className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 ring-1 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:ring-amber-800"
               title={labels.benchmarkStaleTooltip}
             >
               {labels.benchmarkStaleBadge}
@@ -334,30 +344,30 @@ export function BenchmarkChart({ evolution, benchmark }: BenchmarkChartProps) {
             data={rows}
             margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
           >
-            <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" vertical={false} />
+            <CartesianGrid stroke={palette.grid} strokeDasharray="3 3" vertical={false} />
             <XAxis
               dataKey="date"
-              tick={{ fontSize: 11, fill: "#64748b" }}
+              tick={{ fontSize: 11, fill: palette.axis }}
               tickFormatter={safeFormatShortDate}
-              stroke="#cbd5e1"
+              stroke={palette.grid}
             />
             <YAxis
-              tick={{ fontSize: 11, fill: "#64748b" }}
+              tick={{ fontSize: 11, fill: palette.axis }}
               tickFormatter={(value: number) => indexFormatter.format(value)}
-              stroke="#cbd5e1"
+              stroke={palette.grid}
               width={50}
               domain={["auto", "auto"]}
             />
-            <Tooltip content={<CustomTooltip />} />
+            <Tooltip content={<CustomTooltip palette={palette} />} />
             <Legend
-              wrapperStyle={{ fontSize: 12, paddingTop: 8 }}
+              wrapperStyle={{ fontSize: 12, paddingTop: 8, color: palette.text }}
               iconType="plainline"
             />
             <Line
               type="monotone"
               dataKey="portfolio"
               name={labels.benchmarkPortfolioLegend}
-              stroke="#0f172a"
+              stroke={palette.primary}
               strokeWidth={2}
               dot={false}
               connectNulls
@@ -367,9 +377,9 @@ export function BenchmarkChart({ evolution, benchmark }: BenchmarkChartProps) {
               type="monotone"
               dataKey="benchmark"
               name={benchmark.label}
-              stroke="#10b981"
+              stroke={palette.benchmark}
               strokeWidth={2}
-              strokeDasharray="4 2"
+              strokeDasharray={palette.benchmarkDash}
               dot={false}
               connectNulls={false}
               isAnimationActive={false}
@@ -378,12 +388,12 @@ export function BenchmarkChart({ evolution, benchmark }: BenchmarkChartProps) {
         </ResponsiveContainer>
       </div>
 
-      <dl className="mt-3 grid grid-cols-3 gap-3 text-xs text-slate-600">
+      <dl className="mt-3 grid grid-cols-3 gap-3 text-xs text-text-secondary">
         <div>
-          <dt className="font-semibold uppercase tracking-wide text-slate-500">
+          <dt className="font-semibold uppercase tracking-wide text-text-muted">
             {labels.benchmarkPortfolioLegend}
           </dt>
-          <dd className="mt-1 font-mono text-sm text-slate-950">
+          <dd className="mt-1 font-mono text-sm text-text-primary">
             {formatIndex(lastRow.portfolio)}
           </dd>
           <dd className={`mt-0.5 font-mono text-xs ${pctToneClass(portfolioDeltaPct)}`}>
@@ -393,10 +403,10 @@ export function BenchmarkChart({ evolution, benchmark }: BenchmarkChartProps) {
           </dd>
         </div>
         <div>
-          <dt className="font-semibold uppercase tracking-wide text-slate-500">
+          <dt className="font-semibold uppercase tracking-wide text-text-muted">
             {benchmark.label}
           </dt>
-          <dd className="mt-1 font-mono text-sm text-slate-950">
+          <dd className="mt-1 font-mono text-sm text-text-primary">
             {formatIndex(lastRow.benchmark)}
           </dd>
           <dd className={`mt-0.5 font-mono text-xs ${pctToneClass(benchmarkDeltaPct)}`}>
@@ -406,7 +416,7 @@ export function BenchmarkChart({ evolution, benchmark }: BenchmarkChartProps) {
           </dd>
         </div>
         <div>
-          <dt className="font-semibold uppercase tracking-wide text-slate-500">
+          <dt className="font-semibold uppercase tracking-wide text-text-muted">
             {labels.benchmarkDeltaVsBenchmark}
           </dt>
           <dd
@@ -425,6 +435,8 @@ type SyncStatus = "idle" | "loading" | "success" | "error";
 function SyncNowButton() {
   const [status, setStatus] = useState<SyncStatus>("idle");
   const [message, setMessage] = useState<string | null>(null);
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
 
   async function handleClick() {
     setStatus("loading");
@@ -453,17 +465,21 @@ function SyncNowButton() {
 
   const tone =
     status === "success"
-      ? "text-emerald-600"
+      ? "text-emerald-600 dark:text-emerald-400"
       : status === "error"
-        ? "text-red-600"
-        : "text-slate-500";
+        ? "text-red-600 dark:text-red-400"
+        : "text-text-muted";
   return (
     <div className="flex flex-col items-end gap-1">
       <button
         type="button"
         onClick={() => void handleClick()}
         disabled={status === "loading"}
-        className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500"
+        className={`rounded-full px-3 py-1 text-xs font-semibold shadow-sm transition-colors disabled:cursor-not-allowed ${
+          isDark
+            ? "bg-surface-soft text-text-primary hover:bg-surface-muted disabled:bg-surface-muted"
+            : "bg-action-primary text-action-primary-fg hover:opacity-90 disabled:bg-action-primary/60"
+        }`}
         data-testid="benchmark-sync-now"
       >
         {status === "loading" ? labels.benchmarkSyncRunning : labels.benchmarkSyncNow}

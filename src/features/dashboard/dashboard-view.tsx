@@ -28,13 +28,13 @@ export function DashboardView({ payload }: { payload: DashboardViewPayload }) {
   if (isEmpty) {
     return (
       <section
-        className="rounded-[2rem] bg-white p-8 text-center shadow-sm ring-1 ring-slate-200 sm:p-10"
+        className="rounded-[2rem] bg-surface p-8 text-center shadow-sm ring-1 ring-border-subtle sm:p-10"
         data-testid="dashboard-empty"
       >
-        <h2 className="text-2xl font-bold tracking-tight text-slate-950">
+        <h2 className="text-2xl font-bold tracking-tight text-text-primary">
           {labels.emptyHeading}
         </h2>
-        <p className="mx-auto mt-3 max-w-md text-sm text-slate-600">
+        <p className="mx-auto mt-3 max-w-md text-sm text-text-secondary">
           {labels.emptyDescription}
         </p>
         <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">

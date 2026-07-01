@@ -10,7 +10,7 @@ const EvolutionChart = dynamic(
     ssr: false,
     loading: () => (
       <div
-        className="h-64 w-full animate-pulse rounded-2xl bg-slate-100"
+        className="h-64 w-full animate-pulse rounded-2xl bg-surface-muted"
         data-testid="evolution-chart-skeleton"
       />
     ),

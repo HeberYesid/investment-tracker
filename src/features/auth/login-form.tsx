@@ -57,18 +57,18 @@ export function LoginForm() {
   if (status.kind === "success") {
     return (
       <div
-        className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200"
+        className="rounded-3xl bg-surface p-6 shadow-sm ring-1 ring-border-subtle"
         role="status"
       >
-        <h2 className="text-lg font-semibold text-slate-950">
+        <h2 className="text-lg font-semibold text-text-primary">
           {authStrings.login.successTitle}
         </h2>
-        <p className="mt-2 text-sm text-slate-600">
+        <p className="mt-2 text-sm text-text-secondary">
           {authStrings.login.successBody}
         </p>
         <button
           type="button"
-          className="mt-4 text-sm font-semibold text-slate-950 underline"
+          className="mt-4 text-sm font-semibold text-text-primary underline"
           onClick={() => {
             setStatus({ kind: "idle" });
             setEmail("");
@@ -83,12 +83,12 @@ export function LoginForm() {
   return (
     <form
       onSubmit={handleSubmit}
-      className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200"
+      className="rounded-3xl bg-surface p-6 shadow-sm ring-1 ring-border-subtle"
       noValidate
     >
       <label
         htmlFor="email"
-        className="block text-sm font-semibold text-slate-700"
+        className="block text-sm font-semibold text-text-secondary"
       >
         {authStrings.login.emailLabel}
       </label>
@@ -103,12 +103,12 @@ export function LoginForm() {
         value={email}
         onChange={(event) => setEmail(event.target.value)}
         disabled={isSubmitting}
-        className="mt-2 block w-full rounded-2xl border-0 bg-slate-50 px-4 py-3 text-base text-slate-950 ring-1 ring-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-950 disabled:opacity-60"
+        className="mt-2 block w-full rounded-2xl border-0 bg-surface-soft px-4 py-3 text-base text-text-primary ring-1 ring-border-subtle placeholder:text-text-subtle focus:outline-none focus:ring-2 focus:ring-focus-ring disabled:opacity-60"
       />
       {status.kind === "error" ? (
         <p
           role="alert"
-          className="mt-3 text-sm font-medium text-rose-600"
+          className="mt-3 text-sm font-medium text-rose-600 dark:text-rose-400"
         >
           {status.message}
         </p>

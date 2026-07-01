@@ -65,17 +65,17 @@ function formatPct(value: number | null): string {
 }
 
 function deltaToneClass(value: number | null): string {
-  if (value === null) return "text-slate-500";
-  if (value > 0) return "text-emerald-600";
-  if (value < 0) return "text-red-600";
-  return "text-slate-700";
+  if (value === null) return "text-text-muted";
+  if (value > 0) return "text-emerald-600 dark:text-emerald-400";
+  if (value < 0) return "text-red-600 dark:text-red-400";
+  return "text-text-secondary";
 }
 
 function returnToneClass(value: number | null): string {
-  if (value === null) return "text-slate-500";
-  if (value > 0) return "text-emerald-600";
-  if (value < 0) return "text-red-600";
-  return "text-slate-700";
+  if (value === null) return "text-text-muted";
+  if (value > 0) return "text-emerald-600 dark:text-emerald-400";
+  if (value < 0) return "text-red-600 dark:text-red-400";
+  return "text-text-secondary";
 }
 
 export function computeAnnualReturns(
@@ -177,22 +177,22 @@ export function BenchmarkReturnsTable({
 
   return (
     <section
-      className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200"
+      className="rounded-2xl bg-surface p-5 shadow-sm ring-1 ring-border-subtle"
       data-testid="benchmark-returns-table"
     >
-      <h2 className="text-lg font-semibold text-slate-950">
+      <h2 className="text-lg font-semibold text-text-primary">
         {labels.benchmarkReturnsTitle}
       </h2>
 
       <div className="mt-4 overflow-x-auto">
         {rows.length === 0 ? (
-          <p className="py-6 text-center text-sm text-slate-500">
+          <p className="py-6 text-center text-sm text-text-muted">
             {labels.benchmarkReturnsEmpty}
           </p>
         ) : (
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-200 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+              <tr className="border-b border-border-subtle text-left text-xs font-semibold uppercase tracking-wider text-text-muted">
                 <th className="pb-2">{labels.benchmarkReturnsYear}</th>
                 <th className="pb-2 text-right">
                   {labels.benchmarkReturnsPortfolio}
@@ -217,9 +217,9 @@ export function BenchmarkReturnsTable({
                 return (
                   <tr
                     key={`${row.year}-${row.isYtd ? "ytd" : "full"}`}
-                    className="border-b border-slate-100 last:border-0"
+                    className="border-b border-border-subtle last:border-0"
                   >
-                    <td className="py-2 font-medium text-slate-950">
+                    <td className="py-2 font-medium text-text-primary">
                       {yearLabel}
                     </td>
                     <td

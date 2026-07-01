@@ -5,6 +5,8 @@ import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 
 import { Button } from "@/components/ui/button";
 import { getDashboardLabels } from "@/lib/i18n/dashboard";
+import { getChartPalette } from "@/lib/theme/chart-palette";
+import { useTheme } from "@/lib/theme/theme-provider";
 import type {
   AssetStaleness,
   DistributionDimension,
@@ -18,21 +20,6 @@ const usdFormatter = new Intl.NumberFormat("es-CO", {
   currency: "USD",
   maximumFractionDigits: 0,
 });
-
-const PIE_COLORS = [
-  "#0f172a",
-  "#1e293b",
-  "#334155",
-  "#475569",
-  "#64748b",
-  "#94a3b8",
-  "#cbd5e1",
-  "#10b981",
-  "#f59e0b",
-  "#ef4444",
-];
-
-const UNCLASSIFIED_COLOR = "#cbd5e1";
 
 interface DistributionChartProps {
   initial: DistributionResponse;
@@ -51,9 +38,9 @@ function stalenessGlyph(staleness: AssetStaleness): string {
 }
 
 function stalenessColor(staleness: AssetStaleness): string {
-  if (staleness === "estimated") return "text-amber-600";
-  if (staleness === "stale") return "text-orange-600";
-  return "text-slate-500";
+  if (staleness === "estimated") return "text-amber-600 dark:text-amber-400";
+  if (staleness === "stale") return "text-orange-600 dark:text-orange-400";
+  return "text-text-muted";
 }
 
 function stalenessTooltip(staleness: AssetStaleness): string {
@@ -63,6 +50,8 @@ function stalenessTooltip(staleness: AssetStaleness): string {
 }
 
 export function DistributionChart({ initial }: DistributionChartProps) {
+  const { resolvedTheme } = useTheme();
+  const palette = getChartPalette(resolvedTheme);
   const [dim, setDim] = useState<DistributionDimension>(initial.dim);
   const [data, setData] = useState<DistributionResponse>(initial);
   const [loading, setLoading] = useState(false);
@@ -177,14 +166,14 @@ export function DistributionChart({ initial }: DistributionChartProps) {
 
   return (
     <section
-      className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200"
+      className="rounded-2xl bg-surface p-5 shadow-sm ring-1 ring-border-subtle"
       data-testid="distribution-chart"
     >
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold text-slate-950">
+        <h2 className="text-lg font-semibold text-text-primary">
           {labels.distributionTitle}
         </h2>
-        <div className="flex gap-1 rounded-full bg-slate-100 p-1 text-xs">
+        <div className="flex gap-1 rounded-full bg-surface-muted p-1 text-xs">
           {(["broker", "sector", "country"] as const).map((option) => (
             <button
               key={option}
@@ -192,8 +181,8 @@ export function DistributionChart({ initial }: DistributionChartProps) {
               onClick={() => handleDimChange(option)}
               className={`rounded-full px-3 py-1 font-semibold transition-colors ${
                 dim === option
-                  ? "bg-white text-slate-950 shadow-sm"
-                  : "text-slate-600 hover:text-slate-950"
+                  ? "bg-surface text-text-primary shadow-sm"
+                  : "text-text-secondary hover:text-text-primary"
               }`}
             >
               {dimLabel(option)}
@@ -205,7 +194,7 @@ export function DistributionChart({ initial }: DistributionChartProps) {
       {data.unclassified && (
         <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <p
-            className="text-xs text-slate-500"
+            className="text-xs text-text-muted"
             title={labels.distributionUnclassifiedTooltip}
           >
             ⓘ {labels.distributionUnclassifiedTooltip}
@@ -226,7 +215,7 @@ export function DistributionChart({ initial }: DistributionChartProps) {
 
       {enrichMessage && (
         <p
-          className="mt-2 text-xs text-slate-600"
+          className="mt-2 text-xs text-text-secondary"
           data-testid="distribution-enrich-message"
         >
           {enrichMessage}
@@ -243,10 +232,11 @@ export function DistributionChart({ initial }: DistributionChartProps) {
                   String(name),
                 ]}
                 contentStyle={{
-                  backgroundColor: "white",
-                  border: "1px solid #e2e8f0",
+                  backgroundColor: palette.tooltipBg,
+                  border: `1px solid ${palette.tooltipBorder}`,
                   borderRadius: 8,
                   fontSize: 12,
+                  color: palette.text,
                 }}
               />
               <Pie
@@ -263,8 +253,8 @@ export function DistributionChart({ initial }: DistributionChartProps) {
                     key={slice.key}
                     fill={
                       slice.key === "__unclassified__"
-                        ? UNCLASSIFIED_COLOR
-                        : PIE_COLORS[index % PIE_COLORS.length]
+                        ? palette.pieUnclassified
+                        : palette.pieSlices[index % palette.pieSlices.length]
                     }
                     strokeDasharray={
                       slice.staleness === "estimated"
@@ -280,12 +270,12 @@ export function DistributionChart({ initial }: DistributionChartProps) {
 
         <ul className={`space-y-2 ${loading ? "opacity-50" : ""}`}>
           {data.slices.length === 0 && (
-            <li className="text-sm text-slate-500">{labels.distributionEmpty}</li>
+            <li className="text-sm text-text-muted">{labels.distributionEmpty}</li>
           )}
           {data.slices.map((slice, index) => (
             <li
               key={slice.key}
-              className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2 text-sm"
+              className="flex items-center justify-between gap-3 rounded-xl bg-surface-soft px-3 py-2 text-sm"
             >
               <div className="flex min-w-0 items-center gap-2">
                 <span
@@ -294,14 +284,14 @@ export function DistributionChart({ initial }: DistributionChartProps) {
                   style={{
                     backgroundColor:
                       slice.key === "__unclassified__"
-                        ? UNCLASSIFIED_COLOR
-                        : PIE_COLORS[index % PIE_COLORS.length],
+                        ? palette.pieUnclassified
+                        : palette.pieSlices[index % palette.pieSlices.length],
                   }}
                 />
-                <span className="truncate font-medium text-slate-950">
+                <span className="truncate font-medium text-text-primary">
                   {slice.label}
                 </span>
-                <span className="text-xs text-slate-500">
+                <span className="text-xs text-text-muted">
                   ({slice.holdingsCount})
                 </span>
                 {slice.staleness !== "fresh" && (
@@ -315,10 +305,10 @@ export function DistributionChart({ initial }: DistributionChartProps) {
                 )}
               </div>
               <div className="flex shrink-0 items-center gap-3 text-right">
-                <span className="font-mono text-xs text-slate-700">
+                <span className="font-mono text-xs text-text-secondary">
                   {slice.percent.toFixed(2)}%
                 </span>
-                <span className="font-mono text-xs text-slate-500">
+                <span className="font-mono text-xs text-text-muted">
                   {usdFormatter.format(slice.valueUsd)}
                 </span>
               </div>

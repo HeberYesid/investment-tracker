@@ -13,11 +13,11 @@ export async function MainNavigation() {
 
   return (
     <nav aria-label="Navegación principal" className="flex w-full flex-col gap-3">
-      <ul className="grid grid-cols-2 gap-2 rounded-3xl bg-white/80 p-2 shadow-sm ring-1 ring-slate-200 backdrop-blur sm:grid-cols-5">
+      <ul className="grid grid-cols-2 gap-2 rounded-3xl bg-surface/80 p-2 shadow-sm ring-1 ring-border-subtle backdrop-blur sm:grid-cols-5">
         {links.map((link) => (
           <li key={link.href}>
             <Link
-              className="flex min-h-11 items-center justify-center rounded-2xl px-2 text-center text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-950 sm:text-sm"
+              className="flex min-h-11 items-center justify-center rounded-2xl px-2 text-center text-xs font-semibold text-text-secondary hover:bg-surface-muted hover:text-text-primary sm:text-sm"
               href={link.href}
             >
               {link.label}
@@ -33,7 +33,7 @@ export async function MainNavigation() {
       {!signedIn && (
         <Link
           href="/login"
-          className="rounded-3xl bg-white px-4 py-3 text-center text-sm font-semibold text-slate-950 shadow-sm ring-1 ring-slate-200 hover:bg-slate-50"
+          className="rounded-3xl bg-surface px-4 py-3 text-center text-sm font-semibold text-text-primary shadow-sm ring-1 ring-border-subtle hover:bg-surface-soft"
         >
           {authStrings.nav.signIn}
         </Link>

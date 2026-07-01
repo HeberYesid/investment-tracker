@@ -10,9 +10,9 @@ const buttonVariants = cva(
     variants: {
       variant: {
         primary:
-          "bg-slate-950 text-white hover:bg-slate-800 focus-visible:outline-slate-950",
+          "bg-action-primary text-action-primary-fg hover:opacity-90 focus-visible:outline-action-primary",
         secondary:
-          "bg-white text-slate-950 ring-1 ring-slate-200 hover:bg-slate-50 focus-visible:outline-slate-400",
+          "bg-action-secondary text-action-secondary-fg ring-1 ring-border-subtle hover:bg-surface-soft focus-visible:outline-action-primary",
       },
       size: {
         default: "h-11 px-5",

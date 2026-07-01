@@ -25,7 +25,7 @@ export function SignOutButton() {
       type="button"
       onClick={handleSignOut}
       disabled={isSigningOut}
-      className="flex w-full min-h-11 items-center justify-center rounded-2xl px-2 text-center text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-950 disabled:pointer-events-none disabled:opacity-50 sm:text-sm"
+      className="flex w-full min-h-11 items-center justify-center rounded-2xl px-2 text-center text-xs font-semibold text-text-secondary hover:bg-surface-muted hover:text-text-primary disabled:pointer-events-none disabled:opacity-50 sm:text-sm"
     >
       {authStrings.nav.signOut}
     </button>

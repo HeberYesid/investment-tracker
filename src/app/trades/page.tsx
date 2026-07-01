@@ -31,13 +31,13 @@ export default async function TradesPage() {
   const initialData = await fetchTradesPage(supabase, initialQuery);
 
   return (
-    <main className="min-h-screen bg-slate-100 text-slate-950">
-      <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-6 bg-slate-50 px-4 py-5 sm:px-6 lg:px-8">
+    <main className="min-h-screen bg-background text-text-primary">
+      <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-6 bg-surface px-4 py-5 sm:px-6 lg:px-8">
         <MainNavigation />
 
-        <section className="rounded-[2rem] bg-white p-5 shadow-sm ring-1 ring-slate-200 sm:p-8">
+        <section className="rounded-[2rem] bg-surface p-5 shadow-sm ring-1 ring-border-subtle sm:p-8">
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">
+            <h1 className="text-2xl font-bold tracking-tight text-text-primary sm:text-3xl">
               {labels.tradesTitle}
             </h1>
             {canWrite && (

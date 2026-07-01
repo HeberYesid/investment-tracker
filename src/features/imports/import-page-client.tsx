@@ -52,8 +52,6 @@ type ImportState =
     }
   | { step: "done"; brokerCode: BrokerCode; result: CommitResult };
 
-// UUID v4 válido: versión 4, variante 8
-
 const labels = getImportLabels();
 
 function todayIso(): string {
@@ -67,6 +65,9 @@ const ACCEPTED_EXTENSIONS: Record<BrokerCode, string> = {
   XTB: ".xlsx,.xls",
   ETRADING_BANCOLOMBIA: ".xls",
 };
+
+const inputClass =
+  "h-11 w-full rounded-xl border border-border-subtle bg-surface px-3 text-sm text-text-primary placeholder:text-text-subtle focus:border-border-default focus:outline-none focus:ring-2 focus:ring-focus-ring";
 
 export function ImportPageClient({
   portfolioId: _portfolioId,
@@ -86,12 +87,12 @@ function ReadOnlyImportView() {
     <div className="space-y-6">
       <section
         role="status"
-        className="rounded-[2rem] bg-white p-6 shadow-sm ring-1 ring-slate-200 sm:p-8"
+        className="rounded-[2rem] bg-surface p-6 shadow-sm ring-1 ring-border-subtle sm:p-8"
       >
-        <h2 className="text-lg font-semibold text-slate-950">
+        <h2 className="text-lg font-semibold text-text-primary">
           {labels.readOnlyTitle}
         </h2>
-        <p className="mt-2 text-sm leading-6 text-slate-600">
+        <p className="mt-2 text-sm leading-6 text-text-secondary">
           {labels.readOnlyDescription}
         </p>
       </section>
@@ -237,31 +238,31 @@ function ImportWizard() {
   return (
     <div className="space-y-6">
       {/* Step indicator */}
-      <div className="flex items-center gap-2 text-sm text-slate-500">
+      <div className="flex items-center gap-2 text-sm text-text-muted">
         <span
-          className={state.step === "select" ? "font-semibold text-slate-950" : ""}
+          className={state.step === "select" ? "font-semibold text-text-primary" : ""}
         >
           1. Bróker
         </span>
-        <span className="text-slate-300">→</span>
+        <span className="text-text-subtle">→</span>
         <span
-          className={state.step === "upload" ? "font-semibold text-slate-950" : ""}
+          className={state.step === "upload" ? "font-semibold text-text-primary" : ""}
         >
           2. Archivo
         </span>
-        <span className="text-slate-300">→</span>
+        <span className="text-text-subtle">→</span>
         <span
           className={
             state.step === "preview" || state.step === "done"
-              ? "font-semibold text-slate-950"
+              ? "font-semibold text-text-primary"
               : ""
           }
         >
           3. Revisar
         </span>
-        <span className="text-slate-300">→</span>
+        <span className="text-text-subtle">→</span>
         <span
-          className={state.step === "done" ? "font-semibold text-slate-950" : ""}
+          className={state.step === "done" ? "font-semibold text-text-primary" : ""}
         >
           4. Confirmar
         </span>
@@ -269,7 +270,7 @@ function ImportWizard() {
 
       {/* Error banner */}
       {error && (
-        <div className="flex items-start gap-2 rounded-2xl bg-red-50 p-4 text-sm text-red-700 ring-1 ring-red-200">
+        <div className="flex items-start gap-2 rounded-2xl bg-red-50 p-4 text-sm text-red-700 ring-1 ring-red-200 dark:bg-red-950/40 dark:text-red-300 dark:ring-red-800">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
           <p>{error}</p>
         </div>
@@ -277,11 +278,11 @@ function ImportWizard() {
 
       {/* Step 1: Select broker */}
       {state.step === "select" && (
-        <section className="rounded-[2rem] bg-white p-6 shadow-sm ring-1 ring-slate-200 sm:p-8">
-          <h2 className="text-lg font-semibold text-slate-950">
+        <section className="rounded-[2rem] bg-surface p-6 shadow-sm ring-1 ring-border-subtle sm:p-8">
+          <h2 className="text-lg font-semibold text-text-primary">
             {labels.selectBroker}
           </h2>
-          <p className="mt-2 text-sm text-slate-600">
+          <p className="mt-2 text-sm text-text-secondary">
             Selecciona el bróker del cual quieres importar operaciones.
           </p>
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
@@ -289,14 +290,14 @@ function ImportWizard() {
               <button
                 key={b.code}
                 onClick={() => handleBrokerSelect(b.code)}
-                className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-left transition-colors hover:border-slate-400 hover:bg-slate-50"
+                className="flex items-center gap-3 rounded-2xl border border-border-subtle bg-surface p-4 text-left transition-colors hover:border-border-default hover:bg-surface-soft"
               >
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-950 text-sm font-bold text-white">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-action-primary text-sm font-bold text-action-primary-fg">
                   {b.name.charAt(0)}
                 </div>
                 <div>
-                  <p className="font-semibold text-slate-950">{b.name}</p>
-                  <p className="text-xs text-slate-500">
+                  <p className="font-semibold text-text-primary">{b.name}</p>
+                  <p className="text-xs text-text-muted">
                     Moneda: {b.defaultCurrency} · Formato:{" "}
                     {ACCEPTED_EXTENSIONS[b.code]}
                   </p>
@@ -309,16 +310,16 @@ function ImportWizard() {
 
       {/* Step 2: Upload */}
       {state.step === "upload" && broker && (
-        <section className="rounded-[2rem] bg-white p-6 shadow-sm ring-1 ring-slate-200 sm:p-8">
+        <section className="rounded-[2rem] bg-surface p-6 shadow-sm ring-1 ring-border-subtle sm:p-8">
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1">
-              <h2 className="text-lg font-semibold text-slate-950">
+              <h2 className="text-lg font-semibold text-text-primary">
                 {labels.uploadFile} — {broker.name}
               </h2>
-              <p className="mt-1 text-sm text-slate-600">
+              <p className="mt-1 text-sm text-text-secondary">
                 {labels.brokerInstructions[broker.code]}
               </p>
-              <p className="mt-1 text-xs text-slate-500">
+              <p className="mt-1 text-xs text-text-muted">
                 {labels.fileFormat}: {ACCEPTED_EXTENSIONS[broker.code]}
               </p>
             </div>
@@ -328,14 +329,14 @@ function ImportWizard() {
           </div>
 
           <div className="mt-5">
-            <label className="flex cursor-pointer flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 p-8 transition-colors hover:border-slate-400 hover:bg-slate-100">
-              <Upload className="h-8 w-8 text-slate-400" />
+            <label className="flex cursor-pointer flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-border-default bg-surface-soft p-8 transition-colors hover:border-text-muted hover:bg-surface-muted">
+              <Upload className="h-8 w-8 text-text-muted" />
               <div className="text-center">
-                <p className="text-sm font-medium text-slate-700">
+                <p className="text-sm font-medium text-text-secondary">
                   {state.file ? state.file.name : labels.dragDrop}
                 </p>
                 {state.file && (
-                  <p className="mt-1 text-xs text-slate-500">
+                  <p className="mt-1 text-xs text-text-muted">
                     {(state.file.size / 1024).toFixed(1)} KB
                   </p>
                 )}
@@ -353,7 +354,7 @@ function ImportWizard() {
             <div className="mt-5 space-y-1.5">
               <label
                 htmlFor="fx_rate"
-                className="block text-sm font-medium text-slate-700"
+                className="block text-sm font-medium text-text-secondary"
               >
                 {labels.fxRate}
               </label>
@@ -366,9 +367,9 @@ function ImportWizard() {
                 onChange={(e) =>
                   setState({ ...state, fxRate: e.target.value })
                 }
-                className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-950 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                className={inputClass}
               />
-              <p className="text-xs text-slate-500">{labels.fxRateHelp}</p>
+              <p className="text-xs text-text-muted">{labels.fxRateHelp}</p>
             </div>
           )}
 
@@ -376,7 +377,7 @@ function ImportWizard() {
             <div className="mt-5 space-y-1.5">
               <label
                 htmlFor="purchase_date"
-                className="block text-sm font-medium text-slate-700"
+                className="block text-sm font-medium text-text-secondary"
               >
                 {labels.purchaseDate}
               </label>
@@ -387,9 +388,9 @@ function ImportWizard() {
                 onChange={(e) =>
                   setState({ ...state, purchaseDate: e.target.value })
                 }
-                className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-950 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                className={inputClass}
               />
-              <p className="text-xs text-slate-500">{labels.purchaseDateHelp}</p>
+              <p className="text-xs text-text-muted">{labels.purchaseDateHelp}</p>
             </div>
           )}
 
@@ -417,13 +418,13 @@ function ImportWizard() {
 
       {/* Step 3: Preview */}
       {state.step === "preview" && (
-        <section className="rounded-[2rem] bg-white p-6 shadow-sm ring-1 ring-slate-200 sm:p-8">
+        <section className="rounded-[2rem] bg-surface p-6 shadow-sm ring-1 ring-border-subtle sm:p-8">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-lg font-semibold text-slate-950">
+              <h2 className="text-lg font-semibold text-text-primary">
                 {labels.preview}
               </h2>
-              <p className="mt-1 text-sm text-slate-600">
+              <p className="mt-1 text-sm text-text-secondary">
                 {labels.previewDescription}
               </p>
             </div>
@@ -433,24 +434,24 @@ function ImportWizard() {
           </div>
 
           {/* Summary */}
-          <div className="mt-4 flex gap-4 rounded-2xl bg-slate-50 p-4">
+          <div className="mt-4 flex gap-4 rounded-2xl bg-surface-soft p-4">
             <div className="text-center">
-              <p className="text-2xl font-bold text-slate-950">
+              <p className="text-2xl font-bold text-text-primary">
                 {state.preview.summary.total}
               </p>
-              <p className="text-xs text-slate-500">{labels.totalRows}</p>
+              <p className="text-xs text-text-muted">{labels.totalRows}</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-bold text-emerald-600">
+              <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
                 {state.preview.summary.valid}
               </p>
-              <p className="text-xs text-slate-500">{labels.validRows}</p>
+              <p className="text-xs text-text-muted">{labels.validRows}</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-bold text-red-600">
+              <p className="text-2xl font-bold text-red-600 dark:text-red-400">
                 {state.preview.summary.invalid}
               </p>
-              <p className="text-xs text-slate-500">{labels.invalidRows}</p>
+              <p className="text-xs text-text-muted">{labels.invalidRows}</p>
             </div>
           </div>
 
@@ -458,7 +459,7 @@ function ImportWizard() {
           <div className="mt-4 overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-200 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                <tr className="border-b border-border-subtle text-left text-xs font-semibold uppercase tracking-wider text-text-muted">
                   <th className="pb-2 pr-2">{labels.row}</th>
                   <th className="pb-2 pr-2">{labels.status}</th>
                   <th className="pb-2 pr-2">{labels.ticker}</th>
@@ -474,8 +475,8 @@ function ImportWizard() {
                 {state.preview.rows.map((row) => (
                   <tr
                     key={row.row_number}
-                    className={`border-b border-slate-100 ${
-                      row.valid ? "" : "bg-red-50/50"
+                    className={`border-b border-border-subtle ${
+                      row.valid ? "" : "bg-red-50/50 dark:bg-red-950/20"
                     }`}
                   >
                     <td className="py-2 pr-2 font-mono text-xs">
@@ -483,9 +484,9 @@ function ImportWizard() {
                     </td>
                     <td className="py-2 pr-2">
                       {row.valid ? (
-                        <CheckCircle className="h-4 w-4 text-emerald-600" />
+                        <CheckCircle className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                       ) : (
-                        <XCircle className="h-4 w-4 text-red-600" />
+                        <XCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
                       )}
                     </td>
                     <td className="py-2 pr-2 font-medium">
@@ -510,7 +511,7 @@ function ImportWizard() {
                     <td className="py-2 pr-2">
                       {row.parsed?.currency_original ?? "—"}
                     </td>
-                    <td className="py-2 max-w-[200px] truncate text-xs text-red-600">
+                    <td className="py-2 max-w-[200px] truncate text-xs text-red-600 dark:text-red-400">
                       {row.error ?? labels.noErrors}
                     </td>
                   </tr>
@@ -543,38 +544,38 @@ function ImportWizard() {
 
       {/* Step 4: Done */}
       {state.step === "done" && (
-        <section className="rounded-[2rem] bg-white p-6 shadow-sm ring-1 ring-slate-200 sm:p-8">
+        <section className="rounded-[2rem] bg-surface p-6 shadow-sm ring-1 ring-border-subtle sm:p-8">
           <div className="text-center">
             {state.result.status === "COMMITTED" ? (
               <>
-                <CheckCircle className="mx-auto h-12 w-12 text-emerald-600" />
-                <h2 className="mt-4 text-lg font-semibold text-slate-950">
+                <CheckCircle className="mx-auto h-12 w-12 text-emerald-600 dark:text-emerald-400" />
+                <h2 className="mt-4 text-lg font-semibold text-text-primary">
                   {labels.importSuccess}
                 </h2>
-                <p className="mt-2 text-sm text-slate-600">
+                <p className="mt-2 text-sm text-text-secondary">
                   {labels.importSuccessDescription}
                 </p>
-                <p className="mt-1 text-3xl font-bold text-emerald-600">
+                <p className="mt-1 text-3xl font-bold text-emerald-600 dark:text-emerald-400">
                   {state.result.imported}
                 </p>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-text-muted">
                   operaciones importadas
                 </p>
               </>
             ) : (
               <>
-                <XCircle className="mx-auto h-12 w-12 text-red-600" />
-                <h2 className="mt-4 text-lg font-semibold text-slate-950">
+                <XCircle className="mx-auto h-12 w-12 text-red-600 dark:text-red-400" />
+                <h2 className="mt-4 text-lg font-semibold text-text-primary">
                   {labels.importFailed}
                 </h2>
-                <p className="mt-2 text-sm text-slate-600">
+                <p className="mt-2 text-sm text-text-secondary">
                   {labels.importFailedDescription}
                 </p>
               </>
             )}
 
             {state.result.errors.length > 0 && (
-              <div className="mt-4 rounded-2xl bg-red-50 p-4 text-left text-sm text-red-700">
+              <div className="mt-4 rounded-2xl bg-red-50 p-4 text-left text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300">
                 <p className="font-medium">Errores:</p>
                 <ul className="mt-2 list-inside list-disc space-y-1">
                   {state.result.errors.map((err, i) => (

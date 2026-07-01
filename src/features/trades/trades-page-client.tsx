@@ -123,20 +123,20 @@ export function TradesPageClient({
       />
 
       {loading && (
-        <div className="py-12 text-center text-sm text-slate-500">
+        <div className="py-12 text-center text-sm text-text-muted">
           {labels.loading}
         </div>
       )}
 
       {error && (
-        <div className="rounded-2xl bg-red-50 p-4 text-center text-sm text-red-600 ring-1 ring-red-200">
+        <div className="rounded-2xl bg-red-50 p-4 text-center text-sm text-red-600 ring-1 ring-red-200 dark:bg-red-950/40 dark:text-red-300 dark:ring-red-800">
           {error}
         </div>
       )}
 
       {!loading && !error && (
         <>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-text-muted">
             {total === 0
               ? "Sin operaciones para mostrar"
               : `${total} operación${total === 1 ? "" : "es"}`}
@@ -147,7 +147,7 @@ export function TradesPageClient({
           {showDeniedToast && (
             <div
               role="status"
-              className="rounded-2xl bg-amber-50 p-3 text-sm text-amber-800 ring-1 ring-amber-200"
+              className="rounded-2xl bg-amber-50 p-3 text-sm text-amber-800 ring-1 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:ring-amber-800"
             >
               {labels.readOnlyBanner}
             </div>
@@ -159,8 +159,8 @@ export function TradesPageClient({
             canWrite={canWrite}
           />
           {totalPages > 1 && (
-            <div className="flex items-center justify-between rounded-2xl bg-white p-3 shadow-sm ring-1 ring-slate-200">
-              <p className="text-xs text-slate-500">
+            <div className="flex items-center justify-between rounded-2xl bg-surface p-3 shadow-sm ring-1 ring-border-subtle">
+              <p className="text-xs text-text-muted">
                 Página {filters.page ?? 1} de {totalPages}
               </p>
               <div className="flex items-center gap-2">
@@ -168,18 +168,18 @@ export function TradesPageClient({
                   type="button"
                   disabled={(filters.page ?? 1) <= 1 || loading}
                   onClick={() => handlePageChange((filters.page ?? 1) - 1)}
-                  className="rounded-lg px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+                  className="rounded-lg px-3 py-1.5 text-xs font-medium text-text-secondary hover:bg-surface-muted hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
                 >
                   ‹ Anterior
                 </button>
-                <span className="text-xs font-medium text-slate-700">
+                <span className="text-xs font-medium text-text-secondary">
                   {filters.page ?? 1} / {totalPages}
                 </span>
                 <button
                   type="button"
                   disabled={(filters.page ?? 1) >= totalPages || loading}
                   onClick={() => handlePageChange((filters.page ?? 1) + 1)}
-                  className="rounded-lg px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+                  className="rounded-lg px-3 py-1.5 text-xs font-medium text-text-secondary hover:bg-surface-muted hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
                 >
                   Siguiente ›
                 </button>

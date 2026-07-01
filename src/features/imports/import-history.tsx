@@ -48,11 +48,11 @@ export function ImportHistory() {
   const statusIcon = (status: string) => {
     switch (status) {
       case "COMMITTED":
-        return <CheckCircle className="h-4 w-4 text-emerald-600" />;
+        return <CheckCircle className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />;
       case "FAILED":
-        return <XCircle className="h-4 w-4 text-red-600" />;
+        return <XCircle className="h-4 w-4 text-red-600 dark:text-red-400" />;
       default:
-        return <AlertTriangle className="h-4 w-4 text-amber-600" />;
+        return <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />;
     }
   };
 
@@ -69,22 +69,22 @@ export function ImportHistory() {
 
   if (loading) {
     return (
-      <section className="rounded-[2rem] bg-white p-6 shadow-sm ring-1 ring-slate-200 sm:p-8">
+      <section className="rounded-[2rem] bg-surface p-6 shadow-sm ring-1 ring-border-subtle sm:p-8">
         <div className="flex items-center justify-center py-8">
-          <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+          <Loader2 className="h-6 w-6 animate-spin text-text-muted" />
         </div>
       </section>
     );
   }
 
   return (
-    <section className="rounded-[2rem] bg-white p-6 shadow-sm ring-1 ring-slate-200 sm:p-8">
-      <h2 className="text-lg font-semibold text-slate-950">
+    <section className="rounded-[2rem] bg-surface p-6 shadow-sm ring-1 ring-border-subtle sm:p-8">
+      <h2 className="text-lg font-semibold text-text-primary">
         {labels.history}
       </h2>
 
       {error && (
-        <div className="mt-3 flex items-center gap-2 rounded-2xl bg-red-50 p-3 text-sm text-red-700">
+        <div className="mt-3 flex items-center gap-2 rounded-2xl bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300">
           <AlertTriangle className="h-4 w-4" />
           <p>{error}</p>
         </div>
@@ -92,11 +92,11 @@ export function ImportHistory() {
 
       {!error && imports.length === 0 && (
         <div className="mt-6 text-center">
-          <FileText className="mx-auto h-10 w-10 text-slate-300" />
-          <p className="mt-3 text-sm font-medium text-slate-700">
+          <FileText className="mx-auto h-10 w-10 text-text-subtle" />
+          <p className="mt-3 text-sm font-medium text-text-secondary">
             {labels.noHistory}
           </p>
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-1 text-xs text-text-muted">
             {labels.noHistoryDescription}
           </p>
         </div>
@@ -106,7 +106,7 @@ export function ImportHistory() {
         <div className="mt-4 overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-200 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+              <tr className="border-b border-border-subtle text-left text-xs font-semibold uppercase tracking-wider text-text-muted">
                 <th className="pb-2 pr-2">{labels.fileName}</th>
                 <th className="pb-2 pr-2">{labels.selectBroker}</th>
                 <th className="pb-2 pr-2">{labels.statusLabel}</th>
@@ -116,11 +116,11 @@ export function ImportHistory() {
             </thead>
             <tbody>
               {imports.map((imp) => (
-                <tr key={imp.id} className="border-b border-slate-100">
-                  <td className="py-2 pr-2 font-medium text-slate-950">
+                <tr key={imp.id} className="border-b border-border-subtle">
+                  <td className="py-2 pr-2 font-medium text-text-primary">
                     {imp.file_name}
                   </td>
-                  <td className="py-2 pr-2 text-slate-600">
+                  <td className="py-2 pr-2 text-text-secondary">
                     {imp.brokers?.name ?? imp.broker_id}
                   </td>
                   <td className="py-2 pr-2">
@@ -132,7 +132,7 @@ export function ImportHistory() {
                   <td className="py-2 pr-2 text-right font-mono">
                     {imp.valid_rows}/{imp.total_rows}
                   </td>
-                  <td className="py-2 text-right text-xs text-slate-500">
+                  <td className="py-2 text-right text-xs text-text-muted">
                     {new Date(imp.created_at).toLocaleDateString("es-CO")}
                   </td>
                 </tr>

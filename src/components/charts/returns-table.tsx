@@ -33,9 +33,9 @@ function groupLabel(group: ReturnsGroupBy): string {
 }
 
 function pnlToneClass(value: number): string {
-  if (value > 0) return "text-emerald-600";
-  if (value < 0) return "text-red-600";
-  return "text-slate-700";
+  if (value > 0) return "text-emerald-600 dark:text-emerald-400";
+  if (value < 0) return "text-red-600 dark:text-red-400";
+  return "text-text-secondary";
 }
 
 interface ReturnsTableProps {
@@ -65,14 +65,14 @@ export function ReturnsTable({ initial }: ReturnsTableProps) {
 
   return (
     <section
-      className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200"
+      className="rounded-2xl bg-surface p-5 shadow-sm ring-1 ring-border-subtle"
       data-testid="returns-table"
     >
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold text-slate-950">
+        <h2 className="text-lg font-semibold text-text-primary">
           {labels.returnsTitle}
         </h2>
-        <div className="flex gap-1 rounded-full bg-slate-100 p-1 text-xs">
+        <div className="flex gap-1 rounded-full bg-surface-muted p-1 text-xs">
           {(["month", "year", "stock", "broker"] as const).map((option) => (
             <button
               key={option}
@@ -80,8 +80,8 @@ export function ReturnsTable({ initial }: ReturnsTableProps) {
               onClick={() => handleGroupChange(option)}
               className={`rounded-full px-3 py-1 font-semibold transition-colors ${
                 groupBy === option
-                  ? "bg-white text-slate-950 shadow-sm"
-                  : "text-slate-600 hover:text-slate-950"
+                  ? "bg-surface text-text-primary shadow-sm"
+                  : "text-text-secondary hover:text-text-primary"
               }`}
             >
               {groupLabel(option)}
@@ -92,13 +92,13 @@ export function ReturnsTable({ initial }: ReturnsTableProps) {
 
       <div className={`mt-4 overflow-x-auto ${loading ? "opacity-50" : ""}`}>
         {data.rows.length === 0 ? (
-          <p className="py-6 text-center text-sm text-slate-500">
+          <p className="py-6 text-center text-sm text-text-muted">
             {labels.returnsEmpty}
           </p>
         ) : (
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-200 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+              <tr className="border-b border-border-subtle text-left text-xs font-semibold uppercase tracking-wider text-text-muted">
                 <th className="pb-2">{labels.returnsLabel}</th>
                 <th className="pb-2 text-right">{labels.returnsRealized}</th>
                 <th className="pb-2 text-right">{labels.returnsUnrealized}</th>
@@ -108,8 +108,8 @@ export function ReturnsTable({ initial }: ReturnsTableProps) {
             </thead>
             <tbody>
               {data.rows.map((row) => (
-                <tr key={row.key} className="border-b border-slate-100">
-                  <td className="py-2 font-medium text-slate-950">{row.label}</td>
+                <tr key={row.key} className="border-b border-border-subtle">
+                  <td className="py-2 font-medium text-text-primary">{row.label}</td>
                   <td className={`py-2 text-right font-mono ${pnlToneClass(row.realizedPnlUsd)}`}>
                     {usdFormatter.format(row.realizedPnlUsd)}
                   </td>
