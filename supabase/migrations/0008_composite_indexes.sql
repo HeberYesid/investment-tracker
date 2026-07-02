@@ -11,4 +11,4 @@ create index if not exists csv_import_rows_validation_idx
 
 create index if not exists market_prices_delayed_until_idx 
   on public.market_prices (asset_id, observed_at desc) 
-  where delayed_until is null or delayed_until <= now();
+  where delayed_until is null;
