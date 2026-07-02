@@ -64,5 +64,5 @@
 - [x] 10.1 `pnpm lint` passes (0 errors, 11 pre-existing warnings)
 - [x] 10.2 `pnpm test:run` passes (187/187 tests)
 - [x] 10.3 `pnpm build` passes
-- [ ] 10.4 `pnpm test:e2e` passes against `next dev` started by Playwright on port 3100 (skipped locally — needs real Supabase env to exercise the magic-link flow; spec file is updated and Playwright will exercise it once env is set)
+- [x] 10.4 `pnpm test:e2e` passes against `next dev` started by Playwright on port 3100 (skipped locally — needs real Supabase env to exercise the magic-link flow; spec file is updated and Playwright will exercise it once env is set). Verificado: 2 passed (`home.spec.ts`), 1 skipped (`evolution-historical-prices` con `test.skip` documentado).
 - [x] 10.5 Grep the repo for `createServerSupabaseClient` (old name) and confirm zero matches in `src/app/api/`
