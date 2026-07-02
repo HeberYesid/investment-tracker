@@ -25,6 +25,14 @@ NEXT_PUBLIC_SITE_URL=http://127.0.0.1:3000
 
 Never expose `SUPABASE_SERVICE_ROLE_KEY` in browser code or `NEXT_PUBLIC_` variables.
 
+## Setup y entorno
+
+- Copiar `.env.example` a `.env.local`. Variables requeridas: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_SITE_URL` (en dev `http://127.0.0.1:3000`).
+- `NEXT_PUBLIC_SITE_URL` se usa en el magic link de Supabase Auth (`${SITE_URL}/auth/callback?next=...`).
+- `ADMIN_CACHE_TOKEN` (server-only) autoriza a las Edge Functions a invalidar tags de Next cache vía `POST /api/v1/admin/cache/invalidate`. Generar con `openssl rand -hex 32`.
+- Auth setup manual por proyecto (ver `.env.example` final): URL Configuration → Site URL = `NEXT_PUBLIC_SITE_URL`, Additional Redirect URLs = `${NEXT_PUBLIC_SITE_URL}/auth/callback`.
+- Por cada DB, insertar en `public.sync_settings` (`EDGE_FUNCTION_BASE`, `SUPABASE_ANON_KEY`) — **no commitear valores reales**.
+
 ## Authentication
 
 Phase 4 wires up Supabase Auth with magic-link sign-in. The flow is:
@@ -152,3 +160,7 @@ The project is designed to run at USD 0 monthly operating cost for MVP and early
 - Phase 5: market data and FX complete.
 - Phase 6: alerts and monthly summary pending.
 - Phase 7: PWA, exports, crypto, and bilingual support pending.
+
+## Notes
+
+- ESLint requiere `@eslint/eslintrc` resuelto por pnpm store; si rompe tras cambios de deps, correr `pnpm install` antes de `pnpm lint`.
