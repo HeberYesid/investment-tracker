@@ -14,10 +14,6 @@ function readFixtureAsBuffer(name: string): ArrayBuffer {
   return ab;
 }
 
-function readFixtureAsString(name: string): string {
-  return readFileSync(resolve(__dirname, "../../fixtures/files", name), "utf-8");
-}
-
 describe("EtoroParser (XLSX real format)", () => {
   const parser = new EtoroParser();
 

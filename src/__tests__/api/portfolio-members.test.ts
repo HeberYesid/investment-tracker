@@ -84,6 +84,7 @@ describe("GET /api/v1/portfolio/members", () => {
     const request = new NextRequest(
       "http://localhost/api/v1/portfolio/members",
     );
+    void request;
     const response = await GET();
     expect(response.status).toBe(401);
   });

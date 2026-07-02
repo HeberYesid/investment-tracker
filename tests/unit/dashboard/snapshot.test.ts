@@ -25,6 +25,7 @@ function dashboardData(
     assets: [],
     brokers: [],
     latestMarketPrices: [],
+    historicalPrices: [],
     portfolioId: "p1",
     ...overrides,
   };

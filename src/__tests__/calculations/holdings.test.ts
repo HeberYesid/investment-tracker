@@ -33,6 +33,7 @@ function trade(overrides: Partial<DashboardTrade> = {}): DashboardTrade {
     asset_id: ASSET_AAPL.id,
     broker_id: BROKER_ETORO.id,
     trade_type: "BUY",
+    trade_date: "",
     quantity: 0,
     price_usd: 0,
     commission_usd: 0,

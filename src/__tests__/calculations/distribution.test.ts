@@ -124,7 +124,7 @@ describe("groupByDimension", () => {
   it("uses estimated when no staleness map is provided", () => {
     const equity = new Map([["a1::b1", 1000]]);
     const result = groupByDimension(
-      [holding()],
+      [holding({})],
       equity,
       "broker",
     );

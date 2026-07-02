@@ -21,6 +21,8 @@ const serviceSupabase = {
   rpc: vi.fn(),
 };
 
+let currentRole: "OWNER" | "EDITOR" | "VIEWER" = "OWNER";
+
 vi.mock("@/lib/supabase/server", () => ({
   createUserSupabaseClient: () => Promise.resolve(userSupabase),
   createServiceSupabaseClient: () => serviceSupabase,
@@ -30,7 +32,7 @@ vi.mock("@/lib/supabase/auth", () => ({
   getCurrentPortfolio: () =>
     Promise.resolve({
       portfolioId: "p1",
-      role: "OWNER",
+      role: currentRole,
       portfolio: { id: "p1", name: "Mi portafolio", base_currency: "USD" },
     }),
 }));
@@ -42,6 +44,7 @@ beforeEach(() => {
   userBuilder.rpc.mockReset();
   userSupabase.from.mockReset();
   serviceSupabase.rpc.mockReset();
+  currentRole = "OWNER";
 });
 
 function postSyncRequest(body: unknown): NextRequest {
@@ -96,5 +99,39 @@ describe("POST /api/v1/admin/sync/run", () => {
     expect(response.status).toBe(400);
     const body = await response.json();
     expect(body.error.message).toBe("boom");
+  });
+
+  it("accepts PRICES_HISTORY kind and returns 202 with runId for OWNER", async () => {
+    serviceSupabase.rpc.mockResolvedValue({
+      data: "22222222-3333-4444-5555-666666666666",
+      error: null,
+    });
+    const response = await POST(
+      postSyncRequest({ kind: "PRICES_HISTORY" }) as NextRequest,
+    );
+    const body = await response.json();
+    expect(response.status).toBe(202);
+    expect(body.runId).toBe("22222222-3333-4444-5555-666666666666");
+    expect(serviceSupabase.rpc).toHaveBeenCalledWith("enqueue_sync_run", {
+      p_kind: "PRICES_HISTORY",
+    });
+  });
+
+  it("returns 403 when caller is EDITOR", async () => {
+    currentRole = "EDITOR";
+    const response = await POST(
+      postSyncRequest({ kind: "PRICES_HISTORY" }) as NextRequest,
+    );
+    expect(response.status).toBe(403);
+    expect(serviceSupabase.rpc).not.toHaveBeenCalled();
+  });
+
+  it("returns 403 when caller is VIEWER", async () => {
+    currentRole = "VIEWER";
+    const response = await POST(
+      postSyncRequest({ kind: "PRICES_HISTORY" }) as NextRequest,
+    );
+    expect(response.status).toBe(403);
+    expect(serviceSupabase.rpc).not.toHaveBeenCalled();
   });
 });

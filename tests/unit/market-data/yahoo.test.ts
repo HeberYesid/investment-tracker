@@ -11,6 +11,9 @@ function jsonResponse(body: unknown, status = 200): FetchResponse {
     ok: status >= 200 && status < 300,
     status,
     statusText: status === 200 ? "OK" : "ERR",
+    headers: {
+      get: (_name: string) => null,
+    },
     text: async () => JSON.stringify(body),
     json: async () => body,
   };

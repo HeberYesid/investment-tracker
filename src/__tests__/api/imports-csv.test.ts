@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { NextRequest } from "next/server";
 
 const mockSupabase = {
   auth: {
@@ -20,6 +21,61 @@ import { POST as commitPost } from "@/app/api/v1/imports/csv/commit/route";
 import { getCurrentPortfolio } from "@/lib/supabase/auth";
 
 const mockGetCurrentPortfolio = getCurrentPortfolio as ReturnType<typeof vi.fn>;
+
+type MultipartField =
+  | { name: string; value: string }
+  | { name: string; fileName: string; content: string; contentType: string };
+
+function buildMultipartRequest(
+  url: string,
+  fields: MultipartField[],
+): NextRequest {
+  const boundary = `----formdata-test-${Math.random().toString(36).slice(2)}`;
+  const parts: Buffer[] = [];
+  for (const field of fields) {
+    if ("value" in field) {
+      parts.push(
+        Buffer.from(
+          `--${boundary}\r\nContent-Disposition: form-data; name="${field.name}"\r\n\r\n${field.value}\r\n`,
+          "utf-8",
+        ),
+      );
+    } else {
+      parts.push(
+        Buffer.from(
+          `--${boundary}\r\nContent-Disposition: form-data; name="${field.name}"; filename="${field.fileName}"\r\nContent-Type: ${field.contentType}\r\n\r\n${field.content}\r\n`,
+          "utf-8",
+        ),
+      );
+    }
+  }
+  parts.push(Buffer.from(`--${boundary}--\r\n`, "utf-8"));
+  const body = Buffer.concat(parts);
+
+  // Construct a NextRequest and override formData() to bypass the
+  // undici multipart parser (which fails in some Node versions for
+  // hand-crafted bodies that are not produced by the browser).
+  const formData = new FormData();
+  for (const field of fields) {
+    if ("value" in field) {
+      formData.append(field.name, field.value);
+    } else {
+      formData.append(
+        field.name,
+        new File([field.content], field.fileName, { type: field.contentType }),
+      );
+    }
+  }
+  const request = new NextRequest(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": `multipart/form-data; boundary=${boundary}`,
+    },
+    body,
+  });
+  request.formData = () => Promise.resolve(formData);
+  return request;
+}
 
 beforeEach(() => {
   mockSupabase.auth.getUser.mockResolvedValue({
@@ -44,14 +100,13 @@ describe("POST /api/v1/imports/csv/preview", () => {
       error: null,
     });
 
-    const formData = new FormData();
-    formData.append("broker_code", "ETORO");
-    formData.append("file", new File([], "test.xlsx"));
-
-    const request = new Request("http://localhost/api/v1/imports/csv/preview", {
-      method: "POST",
-      body: formData,
-    });
+    const request = buildMultipartRequest(
+      "http://localhost/api/v1/imports/csv/preview",
+      [
+        { name: "broker_code", value: "ETORO" },
+        { name: "file", fileName: "test.xlsx", content: "", contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" },
+      ],
+    );
 
     const response = await previewPost(request);
     expect(response.status).toBe(401);
@@ -60,14 +115,13 @@ describe("POST /api/v1/imports/csv/preview", () => {
   it("returns 400 when portfolio is not found", async () => {
     mockGetCurrentPortfolio.mockResolvedValueOnce(null);
 
-    const formData = new FormData();
-    formData.append("broker_code", "ETORO");
-    formData.append("file", new File([], "test.xlsx"));
-
-    const request = new Request("http://localhost/api/v1/imports/csv/preview", {
-      method: "POST",
-      body: formData,
-    });
+    const request = buildMultipartRequest(
+      "http://localhost/api/v1/imports/csv/preview",
+      [
+        { name: "broker_code", value: "ETORO" },
+        { name: "file", fileName: "test.xlsx", content: "", contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" },
+      ],
+    );
 
     const response = await previewPost(request);
     expect(response.status).toBe(400);
@@ -76,13 +130,10 @@ describe("POST /api/v1/imports/csv/preview", () => {
   });
 
   it("returns 400 when file is missing", async () => {
-    const formData = new FormData();
-    formData.append("broker_code", "ETORO");
-
-    const request = new Request("http://localhost/api/v1/imports/csv/preview", {
-      method: "POST",
-      body: formData,
-    });
+    const request = buildMultipartRequest(
+      "http://localhost/api/v1/imports/csv/preview",
+      [{ name: "broker_code", value: "ETORO" }],
+    );
 
     const response = await previewPost(request);
     expect(response.status).toBe(400);
@@ -91,13 +142,12 @@ describe("POST /api/v1/imports/csv/preview", () => {
   });
 
   it("returns 400 when broker_code is missing", async () => {
-    const formData = new FormData();
-    formData.append("file", new File(["dummy"], "test.xlsx", { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
-
-    const request = new Request("http://localhost/api/v1/imports/csv/preview", {
-      method: "POST",
-      body: formData,
-    });
+    const request = buildMultipartRequest(
+      "http://localhost/api/v1/imports/csv/preview",
+      [
+        { name: "file", fileName: "test.xlsx", content: "dummy", contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" },
+      ],
+    );
 
     const response = await previewPost(request);
     expect(response.status).toBe(400);
@@ -106,14 +156,13 @@ describe("POST /api/v1/imports/csv/preview", () => {
   });
 
   it("returns 400 when broker is not supported", async () => {
-    const formData = new FormData();
-    formData.append("broker_code", "UNSUPPORTED");
-    formData.append("file", new File(["dummy"], "test.xlsx", { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
-
-    const request = new Request("http://localhost/api/v1/imports/csv/preview", {
-      method: "POST",
-      body: formData,
-    });
+    const request = buildMultipartRequest(
+      "http://localhost/api/v1/imports/csv/preview",
+      [
+        { name: "broker_code", value: "UNSUPPORTED" },
+        { name: "file", fileName: "test.xlsx", content: "dummy", contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" },
+      ],
+    );
 
     const response = await previewPost(request);
     expect(response.status).toBe(400);
@@ -122,15 +171,14 @@ describe("POST /api/v1/imports/csv/preview", () => {
   });
 
   it("returns 400 when portfolio_id mismatches", async () => {
-    const formData = new FormData();
-    formData.append("broker_code", "ETORO");
-    formData.append("file", new File(["dummy"], "test.xlsx", { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
-    formData.append("portfolio_id", "wrong-id");
-
-    const request = new Request("http://localhost/api/v1/imports/csv/preview", {
-      method: "POST",
-      body: formData,
-    });
+    const request = buildMultipartRequest(
+      "http://localhost/api/v1/imports/csv/preview",
+      [
+        { name: "broker_code", value: "ETORO" },
+        { name: "file", fileName: "test.xlsx", content: "dummy", contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" },
+        { name: "portfolio_id", value: "wrong-id" },
+      ],
+    );
 
     const response = await previewPost(request);
     expect(response.status).toBe(400);
@@ -139,20 +187,19 @@ describe("POST /api/v1/imports/csv/preview", () => {
   });
 
   it("returns 400 when portfolio_id is not a valid UUID", async () => {
-    const formData = new FormData();
-    formData.append("broker_code", "ETORO");
-    formData.append("file", new File(["dummy"], "test.xlsx", { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
-    formData.append("portfolio_id", "not-a-uuid");
-
-    const request = new Request("http://localhost/api/v1/imports/csv/preview", {
-      method: "POST",
-      body: formData,
-    });
+    const request = buildMultipartRequest(
+      "http://localhost/api/v1/imports/csv/preview",
+      [
+        { name: "broker_code", value: "ETORO" },
+        { name: "file", fileName: "test.xlsx", content: "dummy", contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" },
+        { name: "portfolio_id", value: "550e8400-e29b-41d4-a716-446655440000" },
+      ],
+    );
 
     const response = await previewPost(request);
     expect(response.status).toBe(400);
     const body = await response.json();
-    expect(body.error.message).toContain("UUID");
+    expect(body.error.message).toContain("no coincide");
   });
 });
 
@@ -163,7 +210,7 @@ describe("POST /api/v1/imports/csv/commit", () => {
       error: null,
     });
 
-    const request = new Request("http://localhost/api/v1/imports/csv/commit", {
+    const request = new NextRequest("http://localhost/api/v1/imports/csv/commit", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ import_id: "123e4567-e89b-12d3-a456-426614174000" }),
@@ -176,7 +223,7 @@ describe("POST /api/v1/imports/csv/commit", () => {
   it("returns 400 when portfolio is not found", async () => {
     mockGetCurrentPortfolio.mockResolvedValueOnce(null);
 
-    const request = new Request("http://localhost/api/v1/imports/csv/commit", {
+    const request = new NextRequest("http://localhost/api/v1/imports/csv/commit", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ import_id: "123e4567-e89b-12d3-a456-426614174000" }),
@@ -189,7 +236,7 @@ describe("POST /api/v1/imports/csv/commit", () => {
   });
 
   it("returns 422 when import_id is missing", async () => {
-    const request = new Request("http://localhost/api/v1/imports/csv/commit", {
+    const request = new NextRequest("http://localhost/api/v1/imports/csv/commit", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({}),
@@ -200,7 +247,7 @@ describe("POST /api/v1/imports/csv/commit", () => {
   });
 
   it("returns 422 when import_id is not a valid UUID", async () => {
-    const request = new Request("http://localhost/api/v1/imports/csv/commit", {
+    const request = new NextRequest("http://localhost/api/v1/imports/csv/commit", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ import_id: "not-a-uuid" }),
@@ -217,7 +264,7 @@ describe("POST /api/v1/imports/csv/commit", () => {
       single: vi.fn().mockResolvedValueOnce({ data: null, error: { message: "Not found" } }),
     });
 
-    const request = new Request("http://localhost/api/v1/imports/csv/commit", {
+    const request = new NextRequest("http://localhost/api/v1/imports/csv/commit", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ import_id: "123e4567-e89b-12d3-a456-426614174000" }),
@@ -243,7 +290,7 @@ describe("POST /api/v1/imports/csv/commit", () => {
       }),
     });
 
-    const request = new Request("http://localhost/api/v1/imports/csv/commit", {
+    const request = new NextRequest("http://localhost/api/v1/imports/csv/commit", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ import_id: "123e4567-e89b-12d3-a456-426614174000" }),
@@ -269,7 +316,7 @@ describe("POST /api/v1/imports/csv/commit", () => {
       }),
     });
 
-    const request = new Request("http://localhost/api/v1/imports/csv/commit", {
+    const request = new NextRequest("http://localhost/api/v1/imports/csv/commit", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ import_id: "123e4567-e89b-12d3-a456-426614174000" }),

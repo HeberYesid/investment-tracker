@@ -12,7 +12,9 @@ function createXlsxBuffer(sheets: { name: string; data: unknown[][] }[]): ArrayB
     XLSX.utils.book_append_sheet(wb, ws, sheet.name);
   }
   const buffer = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
-  return buffer.buffer;
+  const ab = new ArrayBuffer(buffer.byteLength);
+  new Uint8Array(ab).set(buffer);
+  return ab;
 }
 
 function createCsvBuffer(data: string): ArrayBuffer {
