@@ -1,43 +1,23 @@
 # Investment Tracker — Agent Guide
 
-Next.js 15 App Router + React 19 + Supabase. UI en español (`lang="es"`). Moneda base USD; brokers en USD (eToro, XTB) o COP (Trii, eTrading Bancolombia).
+Next.js 15 App Router + React 19 + Supabase. UI en español. Moneda base USD; brokers en USD (eToro, XTB) o COP (Trii, eTrading Bancolombia).
 Use pnpm.
-
-## Restricción absoluta: USD 0/mes
-
-Vercel Hobby + Supabase Free únicamente. Sin servicios pagos. Detalles en `README.md` "Cost Guardrails".
-Orden recomendado antes de commit: `pnpm lint && pnpm exec tsc --noEmit && pnpm test:run && pnpm build`.
+Restricción: USD 0/mes
+Vercel Hobby + Supabase Free únicamente. Sin servicios pagos.
+Antes de commit: Formatear, lint, tipos, pruebas, build.
+Usa OpenSpec cli, schema: `spec-driven`.
+Fases de desarrollo en docs/phases.
 
 ## Convenciones globales
 
-- **i18n**: strings en español en `src/lib/i18n/*.ts` (dictionary, auth, dashboard, trades, imports, errors, members, asset-metadata). Sin copy hardcodeado en componentes.
-- **Role gating**: helper único `getCurrentPortfolio()` en `src/lib/supabase/auth.ts`. Páginas sensibles (e.g. `/settings/members`) leen `portfolio.role` y redirigen en el RSC. Mutaciones en Route Handlers pasan `{ writeAccess: true }` a `requireApiUserWithPortfolio` para que VIEWERs reciban `403 FORBIDDEN` con `errors.writeAccessDenied`. Cliente: `canWrite = role !== "VIEWER"` se pasa explícitamente a los componentes cliente.
-- **Errores** en Route Handlers → `badRequest` / `validationError` / `serverError` / `unauthorized` / `forbidden` / `notFound` desde `src/lib/api/errors.ts`. Formato: `{ error: { code, message, details? } }`. No devolver `Response` con status crudo.
-- **Dinero** (objetivo de wire): decimales como string. Contrato Zod actual: `src/lib/validations/trades.ts`. `normalizeTradeUsdValues` calcula `total_invested_usd`, `fx_rate_to_usd`, etc. antes de persistir.
+- **i18n**: strings en español en `src/lib/i18n/*.ts`. Sin copy hardcodeado en componentes.
 - **Tailwind v4**: config via `@theme` en `src/app/globals.css`. **No existe `tailwind.config.*`**. PostCSS plugin: `@tailwindcss/postcss`.
-- **Mutaciones Supabase** desde Server Components → Route Handlers en `src/app/api/v1/...`. No llamar `.insert`/`.update`/`.delete` desde RSC.
 - **Path alias**: `@/*` → `./src/*` (tsconfig + Vitest).
-- **Tests unit**: `src/**/*.test.{ts,tsx}` y `tests/**/*.test.{ts,tsx}`. Excluye `tests/e2e/**`. **No habilitar `oxc: true` en vitest.config.ts** — rompe el transform actual (usar `esbuild`).
-- **Tests e2e**: `tests/e2e/`, un solo project `mobile-chromium` (Pixel 5). Web server arranca solo; `reuseExistingServer: !isCI`.
+- **Convenciones delegadas**: Role gating, Mutaciones, Route Handler errors → `src/app/AGENTS.md`. Dinero, clientes Supabase, validación Zod → `src/lib/AGENTS.md`. Tests → `tests/AGENTS.md`.
 
-## Clientes Supabase (3 sabores)
+## Clientes Supabase
 
-| Cliente | Dónde usar |
-|---|---|
-| `createBrowserSupabaseClient()` | Client components |
-| `createUserSupabaseClient()` | **Default**: Route Handlers, RSC, Server Actions. Lee cookies, respeta RLS. |
-| `createServiceSupabaseClient()` | Bypassa RLS. Solo tareas internas confiables. **Nunca en `src/app/`**. |
-
-`SUPABASE_SERVICE_ROLE_KEY` → nunca como `NEXT_PUBLIC_*`, nunca importar en client components.
-
-## OpenSpec (proposal-driven changes)
-
-CLI `openspec` es prerrequisito. Config: `openspec/config.yaml` (schema: `spec-driven`). Skills (vía tool `skill`): `openspec-propose|apply|archive|sync|explore`.
-
-- **Phase docs** (`docs/investment-tracker/phases/00..07-*.md`) = fuente humana del "qué".
-- **`openspec/changes/<id>/proposal.md`** = contrato de trabajo para features no triviales.
-- **`openspec/changes/<id>/tasks.md`** = checklist ejecutable.
-- **`openspec/specs/`** = specs canónicas por dominio (market-data-*).
+Canon en `src/lib/AGENTS.md`. `SUPABASE_SERVICE_ROLE_KEY` nunca en `NEXT_PUBLIC_*`.
 
 ### Routing de tareas
 
@@ -79,7 +59,6 @@ CLI `openspec` es prerrequisito. Config: `openspec/config.yaml` (schema: `spec-d
 ## Watch out
 
 - **`check-db.mts` (raíz) contiene un service-role key hardcodeado de un proyecto Supabase real** y está trackeado en git. **No ejecutar ni commitear más cambios sin antes** (1) rotar la key en el dashboard de Supabase, (2) borrar el archivo, (3) purgarlo del historial. Cualquier key en código committed = comprometida.
-- `supabase/functions/**` está excluido del tsconfig y del build de Next — no importar desde `src/`.
 - `tests/e2e/**` está excluido de Vitest — los tests de Playwright no corren con `pnpm test:run`.
 - ESLint requiere `@eslint/eslintrc` resuelto por pnpm store; si rompe tras cambios de deps, correr `pnpm install` antes de `pnpm lint`.
 - `pnpm-workspace.yaml` solo bloquea `sharp` y `unrs-resolver`; no es un monorepo, es un single-package workspace.

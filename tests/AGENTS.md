@@ -3,7 +3,7 @@
 ## Vitest (unit)
 - Incluye `src/**/*.test.{ts,tsx}` y `tests/**/*.test.{ts,tsx}`.
 - **Excluye** `tests/e2e/**`.
-- **No habilitar `oxc: true`** — rompe el transform actual.
+- **No habilitar `oxc: true`** — rompe el transform actual (usar `esbuild`).
 
 ## Playwright (e2e)
 - En `tests/e2e/`.

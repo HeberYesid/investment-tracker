@@ -8,6 +8,7 @@
 
 ## `functions/`
 Edge Functions en Deno (`sync-prices`, `sync-fx-rates`, `_shared`). Deployable independientemente. Sin acceso a filesystem local.
+**No importar desde `src/`** — `supabase/functions/**` está excluido del tsconfig y del build de Next.
 
 ## Smoke test de migraciones
 Corre DDL en PGlite en memoria. `auth.uid()` y schemas `auth`/`extensions` están stubbeados. El test strips la línea de `pgcrypto` (PGlite no lo implementa).

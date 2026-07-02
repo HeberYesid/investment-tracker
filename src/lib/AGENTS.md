@@ -1,5 +1,7 @@
 # src/lib
 
+Fuente canónica para: clientes Supabase, dinero/decimales como string, validaciones Zod.
+
 Lógica de negocio. Cada sub-área tiene un único responsable.
 
 ## Sub-áreas
