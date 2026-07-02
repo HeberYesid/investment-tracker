@@ -38,6 +38,12 @@ function pnlToneClass(value: number): string {
   return "text-text-secondary";
 }
 
+function breakdownToneClass(value: number): string {
+  if (value > 0) return "text-emerald-700 dark:text-emerald-500";
+  if (value < 0) return "text-red-700 dark:text-red-500";
+  return "text-text-muted";
+}
+
 interface ReturnsTableProps {
   initial: ReturnsResponse;
 }
@@ -62,6 +68,8 @@ export function ReturnsTable({ initial }: ReturnsTableProps) {
       setLoading(false);
     }
   }
+
+  const hasRealized = data.rows.some((r) => r.realizedPnlUsd !== 0);
 
   return (
     <section
@@ -100,24 +108,37 @@ export function ReturnsTable({ initial }: ReturnsTableProps) {
             <thead>
               <tr className="border-b border-border-subtle text-left text-xs font-semibold uppercase tracking-wider text-text-muted">
                 <th className="pb-2">{labels.returnsLabel}</th>
-                <th className="pb-2 text-right">{labels.returnsRealized}</th>
-                <th className="pb-2 text-right">{labels.returnsUnrealized}</th>
-                <th className="pb-2 text-right">{labels.returnsTotal}</th>
+                <th className="pb-2 text-right">{labels.returnsInvested}</th>
+                <th className="pb-2 text-right">{labels.returnsPnl}</th>
                 <th className="pb-2 text-right">{labels.returnsPct}</th>
               </tr>
             </thead>
             <tbody>
               {data.rows.map((row) => (
-                <tr key={row.key} className="border-b border-border-subtle">
+                <tr
+                  key={row.key}
+                  className="border-b border-border-subtle"
+                  title={`${labels.returnsRealized}: ${usdFormatter.format(row.realizedPnlUsd)}\n${labels.returnsUnrealized}: ${usdFormatter.format(row.unrealizedPnlUsd)}`}
+                >
                   <td className="py-2 font-medium text-text-primary">{row.label}</td>
-                  <td className={`py-2 text-right font-mono ${pnlToneClass(row.realizedPnlUsd)}`}>
-                    {usdFormatter.format(row.realizedPnlUsd)}
+                  <td className="py-2 text-right font-mono text-text-secondary">
+                    {usdFormatter.format(row.investedUsd)}
                   </td>
-                  <td className={`py-2 text-right font-mono ${pnlToneClass(row.unrealizedPnlUsd)}`}>
-                    {usdFormatter.format(row.unrealizedPnlUsd)}
-                  </td>
-                  <td className={`py-2 text-right font-mono font-semibold ${pnlToneClass(row.totalPnlUsd)}`}>
-                    {usdFormatter.format(row.totalPnlUsd)}
+                  <td className="py-2 text-right">
+                    <span className={`font-mono font-semibold ${pnlToneClass(row.totalPnlUsd)}`}>
+                      {usdFormatter.format(row.totalPnlUsd)}
+                    </span>
+                    {hasRealized && (
+                      <span className="block text-xs leading-tight text-text-muted">
+                        <span className={breakdownToneClass(row.realizedPnlUsd)}>
+                          {labels.returnsRealized} {usdFormatter.format(row.realizedPnlUsd)}
+                        </span>
+                        {" · "}
+                        <span className={breakdownToneClass(row.unrealizedPnlUsd)}>
+                          {labels.returnsUnrealized} {usdFormatter.format(row.unrealizedPnlUsd)}
+                        </span>
+                      </span>
+                    )}
                   </td>
                   <td className={`py-2 text-right font-mono ${pnlToneClass(row.returnPct)}`}>
                     {pctFormatter.format(row.returnPct / 100)}

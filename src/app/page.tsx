@@ -1,11 +1,13 @@
 import { Suspense } from "react";
 
 import { MainNavigation } from "@/components/layout/main-navigation";
-import { LastUpdatedIndicator } from "@/features/dashboard/last-updated-indicator";
+import { SyncNowButton } from "@/features/dashboard/sync-now-button";
+import { StalePriceSyncTrigger } from "@/features/dashboard/stale-price-sync-trigger";
 import { getDashboardLabels } from "@/lib/i18n/dashboard";
 import { logger } from "@/lib/logger";
+import { evaluateFreshness, getMarketDataFreshness } from "@/lib/market-data/freshness";
+import { createUserSupabaseClient } from "@/lib/supabase/server";
 import { getCurrentPortfolio } from "@/lib/supabase/auth";
-import { fetchLatestTradeDate } from "@/lib/trades/queries";
 
 import { DashboardDataLoader } from "@/features/dashboard/dashboard-data-loader";
 
@@ -33,29 +35,25 @@ function DashboardSkeleton() {
 }
 
 export default async function Home() {
-  // Fetch the latest trade timestamp here (outside <DashboardDataLoader />) so
-  // the "Última actualización" badge sits next to the page title and shares the
-  // same render scope. `getCurrentPortfolio` and `createUserSupabaseClient`
-  // are React-cached, so the calls inside DashboardDataLoader are deduped.
-  //
-  // Trade-off: a network/RLS error from the latest-trade query would normally
-  // bubble up and break the page. We swallow it and fall back to the
-  // "no trades yet" copy because the dashboard body still works without this
-  // hint — graceful degradation > a blank screen.
-  // Catch loguea pero degrada a null para que la página siga renderizando.
   const portfolio = await getCurrentPortfolio();
-  let createdAt: string | null = null;
+  let shouldBackgroundSync = false;
+  let canSync = false;
+  let lastSyncFinishedAt: string | null = null;
+
   if (portfolio) {
     try {
-      createdAt = await fetchLatestTradeDate(portfolio.portfolioId);
+      const supabase = await createUserSupabaseClient();
+      const freshness = await getMarketDataFreshness(supabase);
+      if (freshness) {
+        const evaluation = evaluateFreshness(freshness);
+        shouldBackgroundSync = evaluation.shouldBackgroundSync;
+        lastSyncFinishedAt = freshness.lastSyncFinishedAt;
+      }
     } catch (error) {
-      logger.error(
-        "dashboard",
-        `Failed to fetch latest trade date for portfolio ${portfolio.portfolioId}:`,
-        error,
-      );
-      createdAt = null;
+      logger.error("dashboard", "Failed to fetch market data freshness:", error);
     }
+
+    canSync = portfolio.role === "OWNER";
   }
 
   return (
@@ -68,9 +66,16 @@ export default async function Home() {
             <h1 className="text-3xl font-bold tracking-tight text-text-primary sm:text-4xl">
               {labels.pageTitle}
             </h1>
-            <LastUpdatedIndicator createdAt={createdAt} />
+            <div className="flex items-center gap-3">
+              <SyncNowButton lastSyncedAt={lastSyncFinishedAt} />
+            </div>
           </div>
         </section>
+
+        <StalePriceSyncTrigger
+          shouldSync={shouldBackgroundSync}
+          canSync={canSync}
+        />
 
         <Suspense fallback={<DashboardSkeleton />}>
           <DashboardDataLoader />

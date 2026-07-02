@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import {
   CartesianGrid,
   Legend,
@@ -15,6 +14,7 @@ import {
 import { getDashboardLabels } from "@/lib/i18n/dashboard";
 import { getChartPalette } from "@/lib/theme/chart-palette";
 import { useTheme } from "@/lib/theme/theme-provider";
+import { SyncNowButton } from "@/features/dashboard/sync-now-button";
 import type {
   BenchmarkPoint,
   BenchmarkSeries,
@@ -22,7 +22,6 @@ import type {
 } from "@/lib/validations/dashboard";
 
 const labels = getDashboardLabels();
-const IS_PRODUCTION = process.env.NODE_ENV === "production";
 
 const indexFormatter = new Intl.NumberFormat("es-CO", {
   maximumFractionDigits: 1,
@@ -224,7 +223,7 @@ export function BenchmarkChart({ evolution, benchmark }: BenchmarkChartProps) {
             <h2 className={titleClass}>{labels.benchmarkTitle}</h2>
             <p className="mt-3 text-sm text-text-muted">{labels.benchmarkEmpty}</p>
           </div>
-          {!IS_PRODUCTION && <SyncNowButton />}
+          <SyncNowButton />
         </div>
       </section>
     );
@@ -244,7 +243,7 @@ export function BenchmarkChart({ evolution, benchmark }: BenchmarkChartProps) {
               {labels.benchmarkSubtitle.replace("{benchmark}", benchmark.label)}
             </p>
           </div>
-          {!IS_PRODUCTION && <SyncNowButton />}
+          <SyncNowButton />
         </div>
         <div className="mt-4 h-64 w-full">
           <ResponsiveContainer width="100%" height="100%">
@@ -334,7 +333,7 @@ export function BenchmarkChart({ evolution, benchmark }: BenchmarkChartProps) {
               {labels.benchmarkStaleBadge}
             </span>
           )}
-          {!IS_PRODUCTION && <SyncNowButton />}
+          <SyncNowButton />
         </div>
       </div>
 
@@ -427,68 +426,5 @@ export function BenchmarkChart({ evolution, benchmark }: BenchmarkChartProps) {
         </div>
       </dl>
     </section>
-  );
-}
-
-type SyncStatus = "idle" | "loading" | "success" | "error";
-
-function SyncNowButton() {
-  const [status, setStatus] = useState<SyncStatus>("idle");
-  const [message, setMessage] = useState<string | null>(null);
-  const { resolvedTheme } = useTheme();
-  const isDark = resolvedTheme === "dark";
-
-  async function handleClick() {
-    setStatus("loading");
-    setMessage(null);
-    try {
-      const res = await fetch("/api/v1/admin/sync/run", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kind: "PRICES" }),
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => null);
-        const errorMessage =
-          typeof body?.error === "string"
-            ? body.error
-            : body?.error?.message ?? labels.benchmarkSyncError;
-        throw new Error(errorMessage);
-      }
-      setStatus("success");
-      setMessage(labels.benchmarkSyncSuccess);
-    } catch (err) {
-      setStatus("error");
-      setMessage(err instanceof Error ? err.message : labels.benchmarkSyncError);
-    }
-  }
-
-  const tone =
-    status === "success"
-      ? "text-emerald-600 dark:text-emerald-400"
-      : status === "error"
-        ? "text-red-600 dark:text-red-400"
-        : "text-text-muted";
-  return (
-    <div className="flex flex-col items-end gap-1">
-      <button
-        type="button"
-        onClick={() => void handleClick()}
-        disabled={status === "loading"}
-        className={`rounded-full px-3 py-1 text-xs font-semibold shadow-sm transition-colors disabled:cursor-not-allowed ${
-          isDark
-            ? "bg-surface-soft text-text-primary hover:bg-surface-muted disabled:bg-surface-muted"
-            : "bg-action-primary text-action-primary-fg hover:opacity-90 disabled:bg-action-primary/60"
-        }`}
-        data-testid="benchmark-sync-now"
-      >
-        {status === "loading" ? labels.benchmarkSyncRunning : labels.benchmarkSyncNow}
-      </button>
-      {message && (
-        <p className={`text-xs ${tone}`} role="status">
-          {message}
-        </p>
-      )}
-    </div>
   );
 }

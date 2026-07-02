@@ -19,29 +19,29 @@ export type ChartPalette = {
 };
 
 const PIE_LIGHT = [
-  "#0f172a",
-  "#1e293b",
-  "#334155",
-  "#475569",
-  "#64748b",
-  "#94a3b8",
-  "#cbd5e1",
-  "#10b981",
-  "#f59e0b",
-  "#ef4444",
+  "#2563eb",
+  "#ea580c",
+  "#7c3aed",
+  "#059669",
+  "#dc2626",
+  "#0891b2",
+  "#ca8a04",
+  "#db2777",
+  "#57534e",
+  "#0d9488",
 ];
 
 const PIE_DARK = [
-  "#f1f5f9",
-  "#e2e8f0",
-  "#cbd5e1",
-  "#94a3b8",
-  "#64748b",
-  "#475569",
-  "#334155",
-  "#10b981",
-  "#f59e0b",
-  "#ef4444",
+  "#60a5fa",
+  "#fb923c",
+  "#a78bfa",
+  "#34d399",
+  "#f87171",
+  "#22d3ee",
+  "#facc15",
+  "#f472b6",
+  "#a8a29e",
+  "#2dd4bf",
 ];
 
 export const lightChartPalette: ChartPalette = {

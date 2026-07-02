@@ -30,6 +30,10 @@ const assetPriceHistoryPath = path.join(
   migrationsDir,
   "0010_asset_price_history.sql",
 );
+const syncExtensionsPath = path.join(
+  migrationsDir,
+  "0011_sync_extensions_and_freshness.sql",
+);
 
 const publicTables = [
   "profiles",
@@ -82,6 +86,14 @@ async function applyMigrations() {
     language sql
     as $$
       insert into cron.job (jobname) values (p_name) returning jobid;
+    $$;
+    create or replace function cron.unschedule(
+      p_name text
+    ) returns boolean
+    language sql
+    as $$
+      delete from cron.job where jobname = p_name;
+      select true;
     $$;
     create or replace function net.http_post(
       url text, headers jsonb, body jsonb
@@ -143,6 +155,10 @@ async function applyMigrations() {
 
   if (await fileExists(assetPriceHistoryPath)) {
     await db.exec(readFileSync(assetPriceHistoryPath, "utf8"));
+  }
+
+  if (await fileExists(syncExtensionsPath)) {
+    await db.exec(readFileSync(syncExtensionsPath, "utf8"));
   }
 
   return db;
@@ -807,5 +823,77 @@ describe("0010 asset price history migration", () => {
     `);
     expect(runs.rows).toHaveLength(1);
     expect(runs.rows[0].kind).toBe("PRICES_HISTORY");
+  });
+});
+
+describe("0011 sync extensions and freshness migration", () => {
+  const syncExtensionsSql = readFileSync(syncExtensionsPath, "utf8");
+
+  it("attempts to create pg_cron and pg_net extensions guarded by pg_available_extensions", () => {
+    expect(syncExtensionsSql).toContain("pg_available_extensions");
+    expect(syncExtensionsSql).toContain("pg_cron");
+    expect(syncExtensionsSql).toContain("pg_net");
+  });
+
+  it("re-schedules all three cron jobs", () => {
+    expect(syncExtensionsSql).toContain("'sync-prices-30m'");
+    expect(syncExtensionsSql).toContain("'sync-fx-rates-daily'");
+    expect(syncExtensionsSql).toContain("'sync-asset-prices-history-daily'");
+  });
+
+  it("replaces enqueue_sync_run with dedupe logic", () => {
+    expect(syncExtensionsSql).toMatch(
+      /create or replace function public\.enqueue_sync_run\(/i,
+    );
+    expect(syncExtensionsSql).toContain(
+      "and started_at > now() - interval '5 minutes'",
+    );
+    expect(syncExtensionsSql).toContain("/functions/v1/sync-asset-prices-history");
+  });
+
+  it("declares get_market_data_freshness as security definer", () => {
+    expect(syncExtensionsSql).toMatch(
+      /create or replace function public\.get_market_data_freshness\(\)/i,
+    );
+    expect(syncExtensionsSql).toContain("security definer");
+    expect(syncExtensionsSql).toContain("latest_price_observed_at");
+    expect(syncExtensionsSql).toContain("last_sync_started_at");
+    expect(syncExtensionsSql).toContain("last_sync_finished_at");
+  });
+
+  it("grants get_market_data_freshness to authenticated", () => {
+    expect(syncExtensionsSql).toContain(
+      "grant execute on function public.get_market_data_freshness() to authenticated;",
+    );
+  });
+
+  it("applies cleanly to a PGlite database and exposes the freshness function", { timeout: 30_000 }, async () => {
+    const db = await applyMigrations();
+
+    const functions = await db.query<{ proname: string }>(`
+      select proname
+      from pg_proc
+      join pg_namespace on pg_namespace.oid = pg_proc.pronamespace
+      where pg_namespace.nspname = 'public'
+        and proname = 'get_market_data_freshness'
+      order by proname;
+    `);
+    expect(functions.rows).toHaveLength(1);
+
+    const result = await db.query<{
+      latest_price_observed_at: string | null;
+      last_sync_started_at: string | null;
+      last_sync_finished_at: string | null;
+    }>(`select * from public.get_market_data_freshness();`);
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0].latest_price_observed_at).toBeNull();
+    expect(result.rows[0].last_sync_started_at).toBeNull();
+    expect(result.rows[0].last_sync_finished_at).toBeNull();
+  });
+
+  it("enqueue_sync_run contains dedupe select ... limit 1", () => {
+    expect(syncExtensionsSql).toMatch(
+      /select id into v_run_id[\s\S]*?from public\.market_sync_runs[\s\S]*?limit 1/i,
+    );
   });
 });

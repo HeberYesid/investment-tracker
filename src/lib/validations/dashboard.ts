@@ -93,6 +93,7 @@ export type ReturnsQuery = z.infer<typeof ReturnsQuery>;
 export const ReturnsRow = z.object({
   key: z.string(),
   label: z.string(),
+  investedUsd: z.number(),
   realizedPnlUsd: z.number(),
   unrealizedPnlUsd: z.number(),
   totalPnlUsd: z.number(),

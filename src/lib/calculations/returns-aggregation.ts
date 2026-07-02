@@ -6,6 +6,7 @@ export type ReturnsGroupBy = "month" | "year" | "stock" | "broker";
 export type ReturnsRow = {
   key: string;
   label: string;
+  investedUsd: number;
   realizedPnlUsd: number;
   unrealizedPnlUsd: number;
   totalPnlUsd: number;
@@ -140,6 +141,7 @@ export function aggregateReturns(input: AggregateReturnsInput): ReturnsRow[] {
     return {
       key: b.key,
       label: b.label,
+      investedUsd: round2(b.investedUsd),
       realizedPnlUsd: round2(b.realizedPnlUsd),
       unrealizedPnlUsd: round2(b.unrealizedPnlUsd),
       totalPnlUsd: round2(total),
