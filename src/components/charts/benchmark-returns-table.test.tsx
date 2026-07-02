@@ -29,6 +29,7 @@ function makeEvolution(points: { date: string; valueUsd: number }[]): EvolutionR
     granularity: "monthly",
     from: points[0]?.date ?? "2023-01-28",
     to: points[points.length - 1]?.date ?? "2024-12-28",
+    isEstimated: false,
     points,
   };
 }

@@ -5,11 +5,17 @@ export type EvolutionPoint = {
   valueUsd: number;
 };
 
+export type EvolutionHistoricalPoint = {
+  observedAt: string;
+  priceUsd: number;
+};
+
 export type EvolutionSeries = {
   points: EvolutionPoint[];
   granularity: EvolutionGranularity;
   from: string;
   to: string;
+  isEstimated: boolean;
 };
 
 export type EvolutionInputTrade = {
@@ -34,6 +40,7 @@ export type BuildEvolutionOptions = {
   from?: string;
   to?: string;
   today?: Date;
+  historicalPricesByAsset?: Map<string, EvolutionHistoricalPoint[]>;
 };
 
 function bucketKey(date: string, granularity: EvolutionGranularity): string {
@@ -80,13 +87,15 @@ function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
-type AssetState = { quantity: number; latestPriceUsd: number };
+type AssetState = { quantity: number; fallbackPriceUsd: number };
 
 export function buildPortfolioValueSeries(
   trades: EvolutionInputTrade[],
   options: BuildEvolutionOptions = {},
 ): EvolutionSeries {
   const granularity = options.granularity ?? "monthly";
+  const historicalPricesByAsset =
+    options.historicalPricesByAsset ?? new Map<string, EvolutionHistoricalPoint[]>();
   if (trades.length === 0) {
     const today = (options.today ?? new Date()).toISOString().slice(0, 10);
     return {
@@ -94,6 +103,7 @@ export function buildPortfolioValueSeries(
       granularity,
       from: options.from ?? today,
       to: options.to ?? today,
+      isEstimated: true,
     };
   }
 
@@ -113,11 +123,38 @@ export function buildPortfolioValueSeries(
 
   const assetState = new Map<string, AssetState>();
   const explicitValues = new Map<string, number>();
+  let anyBucketEstimated = false;
 
-  function computeValue(): number {
+  function priceAtBucket(
+    assetId: string,
+    bucketDate: string,
+    state: AssetState,
+  ): number {
+    if (state.quantity === 0) return 0;
+    const series = historicalPricesByAsset.get(assetId);
+    if (series && series.length > 0) {
+      const bucketDay = bucketDate.slice(0, 10);
+      let chosen: EvolutionHistoricalPoint | null = null;
+      for (const point of series) {
+        if (point.observedAt.slice(0, 10) <= bucketDay) {
+          chosen = point;
+        } else {
+          break;
+        }
+      }
+      if (chosen) {
+        return chosen.priceUsd;
+      }
+    }
+    anyBucketEstimated = true;
+    return state.fallbackPriceUsd;
+  }
+
+  function computeValue(bucketDate: string): number {
     let total = 0;
-    for (const state of assetState.values()) {
-      total += state.quantity * state.latestPriceUsd;
+    for (const [assetId, state] of assetState.entries()) {
+      const price = priceAtBucket(assetId, bucketDate, state);
+      total += state.quantity * price;
     }
     return round2(total);
   }
@@ -128,31 +165,44 @@ export function buildPortfolioValueSeries(
   for (const trade of active) {
     const bucket = bucketKey(trade.trade_date, granularity);
     if (pendingBucket !== null && pendingBucket !== bucket) {
-      explicitValues.set(pendingBucket, computeValue());
+      const pendingDate =
+        granularity === "monthly"
+          ? monthEnd((pendingBucket ?? "").slice(0, 7))
+          : pendingBucket;
+      explicitValues.set(pendingBucket, computeValue(pendingDate));
     }
     pendingBucket = bucket;
 
     const current = assetState.get(trade.asset_id) ?? {
       quantity: 0,
-      latestPriceUsd: trade.price_usd,
+      fallbackPriceUsd: trade.price_usd,
     };
     switch (trade.trade_type) {
       case "BUY":
       case "TRANSFER_IN":
         current.quantity += trade.quantity;
+        current.fallbackPriceUsd = trade.price_usd;
         break;
       case "SELL":
       case "TRANSFER_OUT":
         current.quantity -= trade.quantity;
+        current.fallbackPriceUsd = trade.price_usd;
+        break;
+      case "DIVIDEND":
+      case "FEE":
+        current.quantity += 0;
         break;
       default:
         break;
     }
-    current.latestPriceUsd = trade.price_usd;
     assetState.set(trade.asset_id, current);
   }
   if (pendingBucket !== null) {
-    explicitValues.set(pendingBucket, computeValue());
+    const pendingDate =
+      granularity === "monthly"
+        ? monthEnd((pendingBucket ?? "").slice(0, 7))
+        : pendingBucket;
+    explicitValues.set(pendingBucket, computeValue(pendingDate));
   }
 
   const orderedExplicit = Array.from(explicitBuckets).sort(
@@ -178,8 +228,6 @@ export function buildPortfolioValueSeries(
   for (const bucket of sortedFinal) {
     if (explicitValues.has(bucket)) {
       lastValue = explicitValues.get(bucket) ?? 0;
-    } else {
-      lastValue = computeValue();
     }
     bucketToValue.set(bucket, lastValue);
   }
@@ -192,5 +240,11 @@ export function buildPortfolioValueSeries(
     points.push({ date: pointDate, valueUsd: bucketToValue.get(bucket) ?? 0 });
   }
 
-  return { points, granularity, from, to };
+  return {
+    points,
+    granularity,
+    from,
+    to,
+    isEstimated: anyBucketEstimated,
+  };
 }

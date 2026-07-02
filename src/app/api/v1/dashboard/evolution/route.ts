@@ -6,7 +6,7 @@ import { buildPortfolioValueSeries } from "@/lib/calculations/evolution";
 import { badRequest, serverError, validationError } from "@/lib/api/errors";
 import { requireApiUser } from "@/lib/api/auth";
 import { getCurrentPortfolio } from "@/lib/supabase/auth";
-import { loadDashboardData } from "@/lib/dashboard/loader";
+import { groupHistoricalPricesByAsset, loadDashboardData } from "@/lib/dashboard/loader";
 import { EvolutionQuery } from "@/lib/validations/dashboard";
 
 export async function GET(request: NextRequest) {
@@ -29,10 +29,14 @@ export async function GET(request: NextRequest) {
     }
     const data = await loadDashboardData(portfolio.portfolioId, supabase);
 
+    const historicalPricesByAsset = groupHistoricalPricesByAsset(
+      data.historicalPrices,
+    );
     const series = buildPortfolioValueSeries(data.trades, {
       granularity: parsed.data.granularity,
       from: parsed.data.from,
       to: parsed.data.to,
+      historicalPricesByAsset,
     });
 
     return NextResponse.json({
@@ -40,6 +44,7 @@ export async function GET(request: NextRequest) {
       from: series.from,
       to: series.to,
       points: series.points,
+      isEstimated: series.isEstimated,
     });
   } catch (err) {
     if (err instanceof Error) return badRequest(err.message);

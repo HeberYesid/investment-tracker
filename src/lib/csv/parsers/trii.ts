@@ -1,7 +1,7 @@
 import { readFile } from "../file-reader";
 import { parseSpanishDate, parseEnglishNumber, todayString } from "../date-parsers";
 import type { CsvBrokerParser, ParsedCsvTrade } from "../types";
-import { createTrade, calculatePriceFromTotal, validateTradeData } from "../parser-helpers";
+import { createTrade, validateTradeData } from "../parser-helpers";
 
 export class TriiParser implements CsvBrokerParser {
   readonly brokerCode = "TRII" as const;

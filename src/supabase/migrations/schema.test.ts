@@ -26,6 +26,10 @@ const roleAwareRlsPath = path.join(
   migrationsDir,
   "0009_role_aware_trades_imports_rls.sql",
 );
+const assetPriceHistoryPath = path.join(
+  migrationsDir,
+  "0010_asset_price_history.sql",
+);
 
 const publicTables = [
   "profiles",
@@ -137,6 +141,10 @@ async function applyMigrations() {
     await db.exec(readFileSync(roleAwareRlsPath, "utf8"));
   }
 
+  if (await fileExists(assetPriceHistoryPath)) {
+    await db.exec(readFileSync(assetPriceHistoryPath, "utf8"));
+  }
+
   return db;
 }
 
@@ -152,7 +160,6 @@ async function fileExists(filePath: string) {
 
 describe("foundation migration", () => {
   const foundationSql = readFileSync(foundationPath, "utf8").toLowerCase();
-  const originalMigrationSql = readFileSync(foundationPath, "utf8");
 
   it("enables row level security on every public table", () => {
     for (const tableName of publicTables) {
@@ -363,6 +370,7 @@ describe("0004 market data sync migration", () => {
       select jobname from cron.job order by jobname;
     `);
     expect(scheduled.rows.map((r) => r.jobname)).toEqual([
+      "sync-asset-prices-history-daily",
       "sync-fx-rates-daily",
       "sync-prices-30m",
     ]);
@@ -710,5 +718,94 @@ describe("0009 role-aware trades and imports RLS migration", () => {
       "current_user_role",
       "find_user_by_email",
     ]);
+  });
+});
+
+describe("0010 asset price history migration", () => {
+  const assetPriceHistorySql = readFileSync(assetPriceHistoryPath, "utf8");
+
+  it("drops and re-adds the market_sync_runs.kind CHECK with PRICES_HISTORY", () => {
+    expect(assetPriceHistorySql).toMatch(
+      /alter table public\.market_sync_runs[\s\S]*?drop constraint if exists market_sync_runs_kind_check/i,
+    );
+    expect(assetPriceHistorySql).toMatch(
+      /check \(kind in \('PRICES', 'FX', 'PRICES_HISTORY'\)\)/i,
+    );
+  });
+
+  it("replaces enqueue_sync_run with a PRICES_HISTORY branch", () => {
+    expect(assetPriceHistorySql).toMatch(
+      /create or replace function public\.enqueue_sync_run\(/i,
+    );
+    expect(assetPriceHistorySql).toContain("'PRICES_HISTORY'");
+    expect(assetPriceHistorySql).toContain(
+      "/functions/v1/sync-asset-prices-history",
+    );
+    expect(assetPriceHistorySql).toContain(
+      "/functions/v1/sync-prices",
+    );
+    expect(assetPriceHistorySql).toContain(
+      "/functions/v1/sync-fx-rates",
+    );
+  });
+
+  it("schedules sync-asset-prices-history-daily at 30 0 * * *", () => {
+    expect(assetPriceHistorySql).toContain(
+      "'sync-asset-prices-history-daily'",
+    );
+    expect(assetPriceHistorySql).toContain("'30 0 * * *'");
+  });
+
+  it("guards the cron schedule block behind a pg_cron extension check", () => {
+    expect(assetPriceHistorySql).toContain("pg_proc");
+    expect(assetPriceHistorySql).toContain("cron.schedule");
+    expect(assetPriceHistorySql).toContain("pg_namespace");
+  });
+
+  it("applies cleanly to a PGlite database with stubbed auth", async () => {
+    const db = await applyMigrations();
+
+    const kindCheck = await db.query<{ conname: string; consrc: string }>(`
+      select conname, pg_get_constraintdef(oid) as consrc
+      from pg_constraint
+      where conrelid = 'public.market_sync_runs'::regclass
+        and contype = 'c'
+        and conname = 'market_sync_runs_kind_check';
+    `);
+    expect(kindCheck.rows).toHaveLength(1);
+    expect(kindCheck.rows[0].consrc).toContain("PRICES_HISTORY");
+
+    const scheduled = await db.query<{ jobname: string }>(`
+      select jobname from cron.job order by jobname;
+    `);
+    expect(scheduled.rows.map((r) => r.jobname)).toContain(
+      "sync-asset-prices-history-daily",
+    );
+  });
+
+  it("accepts a PRICES_HISTORY run via enqueue_sync_run when settings exist", async () => {
+    const db = await applyMigrations();
+
+    await db.exec(`
+      insert into public.sync_settings (key, value) values
+        ('EDGE_FUNCTION_BASE', 'https://example.supabase.co'),
+        ('SUPABASE_ANON_KEY', 'fake-anon-key');
+    `);
+
+    const result = await db.query<{ run_id: string; kind: string }>(`
+      select public.enqueue_sync_run('PRICES_HISTORY') as run_id;
+    `);
+
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0].run_id).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+    );
+
+    const runs = await db.query<{ kind: string }>(`
+      select kind from public.market_sync_runs
+      where id = '${result.rows[0].run_id}';
+    `);
+    expect(runs.rows).toHaveLength(1);
+    expect(runs.rows[0].kind).toBe("PRICES_HISTORY");
   });
 });

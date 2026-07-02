@@ -5,11 +5,18 @@ import type { AssetMeta, BrokerMeta, DashboardTrade } from "@/lib/calculations/h
 import type { MarketPriceRow } from "@/lib/calculations/pricing";
 import { createServiceSupabaseClient } from "@/lib/supabase/server";
 
+export type HistoricalPriceRow = {
+  asset_id: string;
+  price_usd: number;
+  observed_at: string;
+};
+
 export type DashboardData = {
   trades: DashboardTrade[];
   assets: AssetMeta[];
   brokers: BrokerMeta[];
   latestMarketPrices: MarketPriceRow[];
+  historicalPrices: HistoricalPriceRow[];
   portfolioId: string;
 };
 
@@ -134,6 +141,62 @@ const loadLatestMarketPrices = async (
   return fetchLatestMarketPrices(assetIds);
 };
 
+const fetchHistoricalPrices = unstable_cache(
+  async (
+    assetIds: string[],
+    from: string,
+    to: string,
+  ): Promise<HistoricalPriceRow[]> => {
+    if (assetIds.length === 0) return [];
+    const supabase = createServiceSupabaseClient();
+    const { data, error } = await supabase
+      .from("market_prices")
+      .select("asset_id, price_usd, observed_at")
+      .in("asset_id", assetIds)
+      .eq("source", "PRICE_HISTORY")
+      .gte("observed_at", from)
+      .lte("observed_at", to)
+      .order("observed_at", { ascending: true });
+    if (error) throw new Error(error.message);
+    return ((data ?? []) as Array<{
+      asset_id: string;
+      price_usd: number | string;
+      observed_at: string;
+    }>).map((row) => ({
+      asset_id: row.asset_id,
+      price_usd: Number(row.price_usd),
+      observed_at: row.observed_at,
+    }));
+  },
+  ["asset-prices-history"],
+  { revalidate: 60, tags: ["asset-prices-history"] },
+);
+
+const loadHistoricalPrices = async (
+  assetIds: string[],
+  from: string,
+  to: string,
+  _supabase: SupabaseClient,
+): Promise<HistoricalPriceRow[]> => {
+  if (assetIds.length === 0) return [];
+  return fetchHistoricalPrices(assetIds, from, to);
+};
+
+export function groupHistoricalPricesByAsset(
+  rows: HistoricalPriceRow[],
+): Map<string, Array<{ observedAt: string; priceUsd: number }>> {
+  const grouped = new Map<
+    string,
+    Array<{ observedAt: string; priceUsd: number }>
+  >();
+  for (const row of rows) {
+    const list = grouped.get(row.asset_id) ?? [];
+    list.push({ observedAt: row.observed_at, priceUsd: row.price_usd });
+    grouped.set(row.asset_id, list);
+  }
+  return grouped;
+}
+
 export const loadDashboardData = cache(
   async (
     portfolioId: string,
@@ -144,11 +207,25 @@ export const loadDashboardData = cache(
       supabase,
     );
     const latestMarketPrices = await loadLatestMarketPrices(assetIds, supabase);
+    const firstTradeDate = trades.reduce<string | null>((acc, trade) => {
+      if (!acc || trade.trade_date < acc) return trade.trade_date;
+      return acc;
+    }, null);
+    const today = new Date().toISOString().slice(0, 10);
+    const historicalPrices = firstTradeDate
+      ? await loadHistoricalPrices(
+          assetIds,
+          firstTradeDate,
+          `${today}T23:59:59.999Z`,
+          supabase,
+        )
+      : [];
     return {
       trades,
       assets,
       brokers,
       latestMarketPrices,
+      historicalPrices,
       portfolioId,
     };
   },

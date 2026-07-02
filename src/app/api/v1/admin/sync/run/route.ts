@@ -8,13 +8,13 @@ import { getCurrentPortfolio } from "@/lib/supabase/auth";
 import { createServiceSupabaseClient } from "@/lib/supabase/server";
 
 const SyncRunInput = z.object({
-  kind: z.enum(["PRICES", "FX"]),
+  kind: z.enum(["PRICES", "FX", "PRICES_HISTORY"]),
 });
 
 export async function POST(request: NextRequest) {
   const auth = await requireApiUser();
   if (auth.response) return auth.response;
-  const { user } = auth;
+  const { user: _user } = auth;
 
   let body: unknown;
   try {

@@ -50,12 +50,12 @@ export function SummaryCards({ summary }: SummaryCardsProps) {
       {summary.isAnyStale && !summary.isEstimated && (
         <div
           role="status"
-          className="flex items-start gap-3 rounded-2xl bg-orange-50 p-4 text-sm text-orange-900 ring-1 ring-orange-200 dark:bg-orange-950/40 dark:text-orange-200 dark:ring-orange-800"
+          className="flex items-start gap-3 rounded-2xl border-l-4 border-orange-500 bg-orange-50 p-4 text-sm text-orange-950 ring-1 ring-orange-200 dark:border-l-orange-400 dark:bg-orange-950/40 dark:text-orange-100 dark:ring-orange-800"
           data-testid="summary-stale-banner"
         >
           <div>
             <p className="font-semibold">{labels.staleBanner}</p>
-            <p className="mt-1 text-xs text-orange-800 dark:text-orange-300/80">
+            <p className="mt-1 text-xs text-orange-900 dark:text-orange-300/80">
               {labels.staleBannerDescription}
             </p>
           </div>

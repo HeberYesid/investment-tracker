@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 
-const ALLOWED_TAGS = new Set(["market-prices", "benchmark"]);
+const ALLOWED_TAGS = new Set([
+  "market-prices",
+  "benchmark",
+  "asset-prices-history",
+]);
 
 export async function POST(request: NextRequest) {
   const authHeader = request.headers.get("authorization");

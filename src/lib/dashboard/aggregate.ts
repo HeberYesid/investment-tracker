@@ -7,7 +7,7 @@ import { buildPortfolioValueSeries } from "@/lib/calculations/evolution";
 import { aggregateReturns } from "@/lib/calculations/returns-aggregation";
 import { resolveAssetPrice } from "@/lib/calculations/pricing";
 import { groupByDimension } from "@/lib/calculations/distribution";
-import { loadDashboardData } from "@/lib/dashboard/loader";
+import { groupHistoricalPricesByAsset, loadDashboardData } from "@/lib/dashboard/loader";
 import { computeAssetStaleness, loadSnapshot } from "@/lib/dashboard/snapshot";
 import type {
   DistributionDimension,
@@ -86,16 +86,21 @@ export async function loadDashboardAggregate(
     isAnyStale,
   };
 
+  const historicalPricesByAsset = groupHistoricalPricesByAsset(
+    data.historicalPrices,
+  );
   const series = buildPortfolioValueSeries(data.trades, {
     granularity: options?.evolutionGranularity ?? DEFAULT_GRANULARITY,
     from: options?.evolutionFrom,
     to: options?.evolutionTo,
+    historicalPricesByAsset,
   });
   const evolution: EvolutionResponse = {
     granularity: series.granularity,
     from: series.from,
     to: series.to,
     points: series.points,
+    isEstimated: series.isEstimated,
   };
 
   const equityByHolding = new Map<string, number>();
@@ -103,7 +108,6 @@ export async function loadDashboardAggregate(
     string,
     "fresh" | "stale" | "estimated"
   >();
-  const nowIso = new Date().toISOString();
   for (const holding of holdings) {
     const key = `${holding.assetId}::${holding.brokerId}`;
     if (!equityByHolding.has(key)) {

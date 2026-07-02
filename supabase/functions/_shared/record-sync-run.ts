@@ -7,7 +7,7 @@
 
 import type { ServiceClient } from "./supabase.ts";
 
-export type SyncKind = "PRICES" | "FX";
+export type SyncKind = "PRICES" | "FX" | "PRICES_HISTORY";
 
 export async function recordRunStart(
   supabase: ServiceClient,

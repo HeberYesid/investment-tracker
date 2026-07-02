@@ -55,7 +55,7 @@ export function DashboardView({ payload }: { payload: DashboardViewPayload }) {
       {payload.evolution && (
         <EvolutionChartLazy
           data={payload.evolution}
-          isEstimated={payload.summary?.isEstimated ?? false}
+          isEstimated={payload.evolution.isEstimated ?? true}
         />
       )}
     </div>

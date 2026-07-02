@@ -30,6 +30,7 @@ const evolution: EvolutionResponse = {
   granularity: "monthly",
   from: "2024-01-28",
   to: "2024-12-28",
+  isEstimated: false,
   points: [
     { date: "2024-01-28", valueUsd: 1000 },
     { date: "2024-02-28", valueUsd: 1050 },
@@ -122,6 +123,7 @@ describe("buildChartRows", () => {
       granularity: "monthly",
       from: "2023-06-28",
       to: "2024-12-28",
+      isEstimated: false,
       points: [
         { date: "2023-06-28", valueUsd: 800 },
         { date: "2023-07-28", valueUsd: 820 },
@@ -177,6 +179,7 @@ describe("buildChartRows", () => {
       granularity: "monthly",
       from: "2024-09-28",
       to: "2024-12-28",
+      isEstimated: false,
       points: [
         { date: "2024-09-28", valueUsd: 1000 },
         { date: "2024-10-28", valueUsd: 1100 },

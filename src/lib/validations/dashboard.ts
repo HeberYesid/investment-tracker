@@ -75,6 +75,7 @@ export const EvolutionResponse = z.object({
       valueUsd: z.number(),
     }),
   ),
+  isEstimated: z.boolean(),
 });
 
 export type EvolutionResponse = z.infer<typeof EvolutionResponse>;

@@ -271,7 +271,7 @@ describe("YahooProvider.fetchProfile", () => {
             get: () => null,
             getSetCookie: () => [],
           },
-        } as Response;
+        } as unknown as Response;
       }
       return jsonResponse({
         quoteSummary: {

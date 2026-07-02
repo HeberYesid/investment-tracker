@@ -13,7 +13,7 @@ import {
   isYahooRange,
 } from "./types";
 import { getMarketDataEnv, type MarketDataEnv } from "./config";
-import { acquireYahooSession, resetYahooSessionForTests } from "./yahoo-session";
+import { acquireYahooSession } from "./yahoo-session";
 
 const CHART_PATH = "/v8/finance/chart/";
 const PROFILE_PATH = "/v10/finance/quoteSummary/";

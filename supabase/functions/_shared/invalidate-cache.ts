@@ -7,7 +7,7 @@
 
 type InvalidateResult = { ok: boolean; status?: number; message?: string };
 
-export async function invalidateCacheTag(tag: "market-prices" | "benchmark"): Promise<InvalidateResult> {
+export async function invalidateCacheTag(tag: "market-prices" | "benchmark" | "asset-prices-history"): Promise<InvalidateResult> {
   const appUrl = Deno.env.get("APP_URL");
   const token = Deno.env.get("ADMIN_CACHE_TOKEN");
 

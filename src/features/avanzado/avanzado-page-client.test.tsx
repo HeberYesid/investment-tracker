@@ -46,6 +46,7 @@ const readySummary = {
   returnPct: 25,
   holdingsCount: 3,
   isEstimated: false,
+  isAnyStale: false,
 };
 
 describe("AvanzadoPageClient", () => {

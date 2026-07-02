@@ -24,6 +24,8 @@ export const dashboardLabels = {
     evolutionEmpty: "Aún no hay datos de evolución.",
     evolutionFootnote:
       "Valores estimados a partir de los precios de tus operaciones.",
+    evolutionFootnoteHistorical:
+      "Valores basados en cotizaciones de mercado de fin de mes. Sincroniza para mantenerlos al día.",
 
     distributionTitle: "Distribución",
     distributionEmpty: "Sin datos de distribución.",

@@ -35,7 +35,7 @@ export function validateTradeData(data: {
   total?: number;
 }): boolean {
   if (!data.ticker || data.ticker.trim() === "") return false;
-  if (data.quantity !== undefined && data.quantity < 0) return false;
+  if (data.quantity !== undefined && data.quantity <= 0) return false;
   if (data.price !== undefined && data.price < 0) return false;
   if (data.total !== undefined && data.total < 0) return false;
   return true;

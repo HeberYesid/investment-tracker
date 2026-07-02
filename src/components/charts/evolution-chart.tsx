@@ -50,10 +50,13 @@ function safeFormatLongDate(value: unknown): string {
 
 interface EvolutionChartProps {
   data: EvolutionResponse;
-  isEstimated: boolean;
+  isEstimated?: boolean;
 }
 
-export function EvolutionChart({ data, isEstimated }: EvolutionChartProps) {
+export function EvolutionChart({
+  data,
+  isEstimated = true,
+}: EvolutionChartProps) {
   const { resolvedTheme } = useTheme();
   const palette = getChartPalette(resolvedTheme);
   const gradientId = `equityFill-${resolvedTheme}`;
@@ -133,9 +136,13 @@ export function EvolutionChart({ data, isEstimated }: EvolutionChartProps) {
           </AreaChart>
         </ResponsiveContainer>
       </div>
-      {isEstimated && (
+      {isEstimated ? (
         <p className="mt-3 text-xs text-amber-700 dark:text-amber-400">
           {labels.evolutionFootnote}
+        </p>
+      ) : (
+        <p className="mt-3 text-xs text-amber-700 dark:text-amber-400">
+          {labels.evolutionFootnoteHistorical}
         </p>
       )}
     </section>

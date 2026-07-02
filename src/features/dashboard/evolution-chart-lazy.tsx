@@ -19,12 +19,12 @@ const EvolutionChart = dynamic(
 
 type EvolutionChartLazyProps = {
   data: EvolutionResponse;
-  isEstimated: boolean;
+  isEstimated?: boolean;
 };
 
 export function EvolutionChartLazy({
   data,
-  isEstimated,
+  isEstimated = true,
 }: EvolutionChartLazyProps) {
   return <EvolutionChart data={data} isEstimated={isEstimated} />;
 }
