@@ -15,6 +15,80 @@ El dashboard ya muestra el banner "Precio desactualizado" cuando una cotización
 - `market_sync_runs` **sigue siendo service-role-only** (privacidad — no exponer qué símbolos sincroniza el sistema). La salud agregada que ve el usuario se sirve desde el nuevo endpoint, que lee de `market_sync_runs` con service role pero solo expone campos agregados.
 - Crypto queda explícitamente fuera de este change (no se añade CoinGecko, Stooq no se usa para tickers cripto de Trii).
 
+## Requirements (EARS)
+
+### R1 — Proveedor Stooq
+CUANDO el sistema sincroniza precios de mercado, el sistema DEBE disponer de
+un proveedor Stooq (`createStooqProvider`) como alternativa a Yahoo Finance,
+sin requerir API key.
+
+### R2 — Composite con fallback
+SI Yahoo Finance devuelve error 429 (rate-limit) ENTONCES el sistema DEBE
+reintentar automáticamente con Stooq antes de reportar el fallo del símbolo.
+
+### R3 — Fuente del precio en DB
+MIENTRAS se persiste un precio en `market_prices`, el sistema DEBE registrar
+qué proveedor lo obtuvo (`YAHOO`, `STOOQ` o `BENCHMARK`) en la columna `source`.
+
+### R4 — Migración amplía CHECK de source
+El sistema DEBE crear la migración `0006_market_prices_source.sql` que amplíe
+el CHECK de `market_prices.source` para aceptar `'STOOQ'`. Las filas existentes
+con `'YAHOO'` y `'BENCHMARK'` DEBEN seguir siendo válidas.
+
+### R5 — Stooq CSV parsing con Zod
+SI Stooq devuelve un CSV malformado ENTONCES el sistema DEBE rechazar la
+respuesta con código `INVALID_PAYLOAD`, usando un schema Zod para validar
+cada fila.
+
+### R6 — Símbolos sin mapping rechazados
+SI un símbolo no tiene entrada en la tabla de mapping local de Stooq ENTONCES
+el sistema DEBE rechazar con código `NOT_FOUND` antes de hacer ninguna request HTTP.
+
+### R7 — Fallback por símbolo
+MIENTRAS se procesa un batch de símbolos, cada símbolo DEBE tener su propia
+lógica de fallback independiente: si Yahoo falla para un símbolo, Stooq
+rellena ese símbolo sin abortar el resto del batch.
+
+### R8 — Métricas de fallback en sync_runs
+CUANDO una ejecución de sync finaliza con éxito, el sistema DEBE registrar
+en `market_sync_runs.error` las métricas por proveedor en formato
+`"yahoo_ok=N,stooq_fallback=M"`.
+
+### R9 — Endpoint de sync-status
+CUANDO un usuario autenticado consulta `GET /api/v1/market-data/sync-status`,
+el sistema DEBE devolver la salud agregada del último sync de su portafolio:
+`lastSuccessAt`, `lastAttemptAt`, `nextRunEstimate`, `failedAssetCount`,
+`lastFailureReason`. NO DEBE exponer la lista de símbolos sincronizados.
+
+### R10 — Banner enriquecido con diagnóstico
+SI un precio está desactualizado ENTONCES el banner DEBE mostrar: tiempo
+relativo desde la última sync, próxima estimada, y razón de la obsolescencia
+("Mercado cerrado", "Proveedor no devolvió precio", "Sincronización en cola").
+
+### R11 — Banner solo cuando hay impacto real
+El banner de precio desactualizado SOLO DEBE mostrarse cuando el desfase afecta
+precios que el usuario realmente tiene en su portafolio. Un fallo en un símbolo
+no poseído NO DEBE activar el banner.
+
+### R12 — Tooltip con fuente en DistributionChart
+MIENTRAS se renderiza el tooltip del glyph ⏱ en `DistributionChart`, el sistema
+DEBE mostrar el timestamp absoluto y la fuente del dato
+(`Fuente: Yahoo · 14 jun 18:32`).
+
+### R13 — Helper i18n formatRelativeEs
+CUANDO se necesita mostrar un tiempo relativo en español, el sistema DEBE usar
+`formatRelativeEs(iso, now)` en `src/lib/i18n/dates.ts`, produciendo formatos
+como "hace 5 min", "hace 2 h 14 min", "ayer 18:32", "14 jun 18:32".
+
+### R14 — SyncHealth en SummaryResponse y SnapshotResponse
+El `SummaryResponse` y `SnapshotResponse` del dashboard DEBEN incluir un bloque
+`sync: SyncHealth` con la salud del sync, y un booleano `shouldShowStaleBanner`
+derivado de si los precios del portafolio están afectados.
+
+### R15 — market_sync_runs sigue siendo privado
+El sistema NO DEBE exponer la tabla `market_sync_runs` al cliente. El endpoint
+`/sync-status` DEBE leer con service role y solo exponer campos agregados.
+
 ## Capabilities
 
 ### New Capabilities

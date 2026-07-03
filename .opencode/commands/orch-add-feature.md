@@ -22,23 +22,30 @@ Manually launch a gated Research → Plan → TDD → Review → Commit pipeline
 
 ## Pipeline
 
-1. **Classify** the size (small / medium / large) and state the tier in one line.
-2. **Research** existing libraries/patterns in this repo (use `explore` agent if needed). Then plan a task list. → **GATE 1** — stop and get user approval of the plan before any implementation.
-3. **TDD** each task: write a failing test first, then make it green. Use `pnpm test:run` for verification.
-4. **Review** the diff for security, type-safety, and pattern compliance. If a security-sensitive surface is touched, do an extra security pass.
-5. **Commit** as a conventional `feat:` commit. → **GATE 2** — confirm with user before committing.
+1. **Detectar el estado** de la feature en `feature_list.json`. Si no existe, clasificarla como nueva feature.
+2. **Ruta según estado:**
+   - `pending` → Lanzar `spec-author` (crea spec EARS en `openspec/changes/<name>/`, transiciona a `spec_ready`).
+   - `spec_ready` → **PARAR.** La puerta de aprobación humana está cerrada. Decir: "Spec listo en `openspec/changes/<name>/`. Revísalo y di **'aprobado'** para continuar, o pídeme cambios."
+   - `in_progress` → Reanudar con `implementer`.
+3. **Spec → Aprobación humana (GATE 1):** Cuando el `spec-author` termina, la feature queda en `spec_ready`. El flujo se **detiene**. NO continuar sin que el humano diga "aprobado".
+4. **Implementación (post-aprobación):** El leader transiciona `spec_ready → in_progress` y lanza `implementer`. El implementer ejecuta `tasks.md` task por task (TDD: test primero → verde), marca `[x]`, escribe trazabilidad `R<n> → test` en `progress/impl_<name>.md`.
+5. **Review:** Al terminar el implementer, lanzar `reviewer`. El reviewer recorre `CHECKPOINTS.md`, verifica trazabilidad, tasks completas, y `node init.mjs` verde.
+6. **Cierre:** Si el reviewer aprueba, transicionar `in_progress → done`. Mover resumen a `progress/history.md`.
+7. **Commit** como `feat:` convencional con mensaje descriptivo. → **GATE 2** — confirmar con usuario antes de commitear.
 
 ## Hard Gates
 
-- Do not write implementation code before Gate 1 is approved.
-- Do not commit before Gate 2 is confirmed.
-- If a task starts to drift beyond the approved scope, stop and ask.
+- **GATE 1 — Puerta SDD:** NO escribas código de implementación antes de que el humano apruebe el spec (`spec_ready`). Si la feature está en `pending`, primero lanza `spec-author`.
+- **GATE 2 — Puerta de commit:** NO hagas commit sin confirmación explícita del usuario.
+- Si una task se desvía del spec aprobado, para y notifica.
+- El `leader` NUNCA edita `src/` ni `tests/`. Solo orquesta subagentes.
 
 ## Output
 
-When done, report:
-- Files created / modified
-- Tests added and pass count
-- Lint + typecheck + build status
-- Commit hash and message
-- Suggested follow-up (PR, openspec sync, etc.)
+Cuando termines, reporta:
+- Feature y estado final en `feature_list.json`
+- Spec en `openspec/changes/<name>/` (proposal + design + tasks)
+- Trazabilidad en `progress/impl_<name>.md`
+- Revisión en `progress/review_<name>.md`
+- Resultado de `node init.mjs`
+- Commit hash y mensaje (si aplica)
