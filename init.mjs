@@ -179,10 +179,27 @@ async function main() {
     }
   }
 
-  // ── 4. Ejecutar tests ────────────────────────────────────
+  // ── 4. Escanear secrets ─────────────────────────────────
 
   console.log("");
-  console.log("── 4. Ejecutando tests ─────────────────────────────────");
+  console.log("── 4. Escaneando secrets en código ────────────────────");
+
+  if (existsSync(resolve(__dirname, "secrets-check.mjs"))) {
+    try {
+      execSync("node secrets-check.mjs --all", { cwd: __dirname, stdio: "inherit" });
+      ok("Escaneo de secrets limpio");
+    } catch {
+      fail("Se detectaron secrets en el código fuente");
+      exitCode = 1;
+    }
+  } else {
+    warn("secrets-check.mjs no encontrado — sin escaneo de secrets");
+  }
+
+  // ── 5. Ejecutar tests ────────────────────────────────────
+
+  console.log("");
+  console.log("── 5. Ejecutando tests ─────────────────────────────────");
 
   if (existsSync(resolve(__dirname, "vitest.config.ts"))) {
     try {
@@ -196,10 +213,10 @@ async function main() {
     warn("No se encontró vitest.config.ts — sin tests que ejecutar");
   }
 
-  // ── 5. Resumen ───────────────────────────────────────────
+  // ── 6. Resumen ───────────────────────────────────────────
 
   console.log("");
-  console.log("── 5. Resumen ──────────────────────────────────────────");
+  console.log("── 6. Resumen ──────────────────────────────────────────");
 
   if (exitCode === 0) {
     ok("Entorno listo. Puedes empezar a trabajar.");
