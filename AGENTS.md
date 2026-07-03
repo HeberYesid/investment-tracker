@@ -45,7 +45,3 @@ Canon en `src/lib/AGENTS.md`. `SUPABASE_SERVICE_ROLE_KEY` nunca en `NEXT_PUBLIC_
 - Botón `Sincronizar ahora` en `BenchmarkChart` es **solo dev** (gate `NODE_ENV !== 'production'`) → `POST /api/v1/admin/sync/run`.
 - Providers: Yahoo Finance (precios + S&P 500 benchmark) y open.er-api.com (USD/COP). Sin API keys. CORS-restringidos → viven en Edge Functions, no en el cliente.
 - Lectura: dashboard y form de trades leen `market_prices` y `fx_rates` cacheados, **nunca** llaman providers on-read.
-
-## Watch out
-
-- **`check-db.mts` (raíz) contiene un service-role key hardcodeado de un proyecto Supabase real** y está trackeado en git. **No ejecutar ni commitear más cambios sin antes** (1) rotar la key en el dashboard de Supabase, (2) borrar el archivo, (3) purgarlo del historial. Cualquier key en código committed = comprometida.
