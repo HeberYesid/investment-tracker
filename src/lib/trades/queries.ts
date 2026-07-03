@@ -1,4 +1,4 @@
-import { unstable_cache } from "next/cache";
+import { cacheLife, cacheTag } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { createServiceSupabaseClient } from "@/lib/supabase/server";
@@ -174,11 +174,10 @@ async function fetchLatestTradeDateRaw(portfolioId: string): Promise<string | nu
 export async function fetchLatestTradeDate(
   portfolioId: string,
 ): Promise<string | null> {
-  return unstable_cache(
-    () => fetchLatestTradeDateRaw(portfolioId),
-    ["latest-trade-date", portfolioId],
-    { revalidate: 30, tags: ["trades", `trades:${portfolioId}`] },
-  )();
+  "use cache";
+  cacheTag("trades", `trades:${portfolioId}`);
+  cacheLife({ revalidate: 30 });
+  return fetchLatestTradeDateRaw(portfolioId);
 }
 
 // Compile-time hint for tests / consumers that want the underlying fn without

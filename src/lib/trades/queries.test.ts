@@ -1,14 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
-// Capture the arguments passed to `unstable_cache` so the configuration test
-// can assert on revalidate/tags. The wrapper is constructed per call (see
-// implementation), so the test calls the function first to populate the
-// capture.
-const cacheCapture = vi.hoisted(() => ({
-  fn: null as unknown,
-  keys: null as unknown,
-  options: null as { revalidate?: number; tags?: string[] } | unknown,
-}));
+const cacheTag = vi.hoisted(() => vi.fn());
+const cacheLife = vi.hoisted(() => vi.fn());
 
 // Build a fake service-role Supabase client whose query chain returns itself
 // from every method except `maybeSingle`, which is the actual terminal and
@@ -30,16 +23,10 @@ const serviceSupabase = vi.hoisted(() => {
 });
 
 vi.mock("next/cache", () => ({
-  unstable_cache: (
-    fn: unknown,
-    keys: unknown,
-    options: { revalidate?: number; tags?: string[] },
-  ) => {
-    cacheCapture.fn = fn;
-    cacheCapture.keys = keys;
-    cacheCapture.options = options;
-    return fn;
-  },
+  cacheTag,
+  cacheLife,
+  revalidatePath: vi.fn(),
+  revalidateTag: vi.fn(),
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
@@ -52,9 +39,6 @@ const PORTFOLIO_ID = "portfolio-xyz";
 
 describe("fetchLatestTradeDate", () => {
   beforeEach(() => {
-    // Clear call history only — implementations (mockReturnValue on the chain,
-    // mockResolvedValue on maybeSingle) persist so each test only has to set
-    // the return value it cares about.
     vi.clearAllMocks();
   });
 
@@ -112,7 +96,7 @@ describe("fetchLatestTradeDate", () => {
     expect(serviceSupabase._maybeSingle).toHaveBeenCalled();
   });
 
-  it("wraps the query with unstable_cache keyed by portfolioId with 30s revalidation and trades tags", async () => {
+  it("tags the cache entry with trades and portfolio-specific tag", async () => {
     serviceSupabase._maybeSingle.mockResolvedValue({
       data: { created_at: "2026-06-20T10:00:00.000Z" },
       error: null,
@@ -120,15 +104,7 @@ describe("fetchLatestTradeDate", () => {
 
     await fetchLatestTradeDate(PORTFOLIO_ID);
 
-    const options = cacheCapture.options as
-      | { revalidate?: number; tags?: string[] }
-      | null;
-    expect(options?.revalidate).toBe(30);
-    expect(options?.tags).toBeDefined();
-    expect(options?.tags).toContain("trades");
-    expect(options?.tags).toContain(`trades:${PORTFOLIO_ID}`);
-
-    const keys = cacheCapture.keys as unknown[] | null;
-    expect(keys).toEqual(["latest-trade-date", PORTFOLIO_ID]);
+    expect(cacheTag).toHaveBeenCalledWith("trades", `trades:${PORTFOLIO_ID}`);
+    expect(cacheLife).toHaveBeenCalledWith({ revalidate: 30 });
   });
 });

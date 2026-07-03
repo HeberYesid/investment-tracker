@@ -1,5 +1,5 @@
 import { cache } from "react";
-import { unstable_cache } from "next/cache";
+import { cacheLife, cacheTag } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AssetMeta, BrokerMeta, DashboardTrade } from "@/lib/calculations/holdings";
 import type { MarketPriceRow } from "@/lib/calculations/pricing";
@@ -115,23 +115,30 @@ const loadTradesAndAssets = async (
   };
 };
 
-const fetchLatestMarketPrices = unstable_cache(
-  async (assetIds: string[]): Promise<MarketPriceRow[]> => {
-    const supabase = createServiceSupabaseClient();
-    const { data, error } = await supabase.rpc("get_latest_market_prices", {
-      p_asset_ids: assetIds,
-    });
-    if (error) throw new Error(error.message);
-    return ((data ?? []) as MarketPriceRow[]).map((row) => ({
-      asset_id: row.asset_id,
-      price_usd: Number(row.price_usd),
-      observed_at: row.observed_at,
-      delayed_until: row.delayed_until,
-    }));
-  },
-  ["market-prices"],
-  { revalidate: 60, tags: ["market-prices"] },
-);
+async function fetchLatestMarketPricesInner(
+  assetIds: string[],
+): Promise<MarketPriceRow[]> {
+  const supabase = createServiceSupabaseClient();
+  const { data, error } = await supabase.rpc("get_latest_market_prices", {
+    p_asset_ids: assetIds,
+  });
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as MarketPriceRow[]).map((row) => ({
+    asset_id: row.asset_id,
+    price_usd: Number(row.price_usd),
+    observed_at: row.observed_at,
+    delayed_until: row.delayed_until,
+  }));
+}
+
+async function fetchLatestMarketPrices(
+  assetIds: string[],
+): Promise<MarketPriceRow[]> {
+  "use cache";
+  cacheTag("market-prices");
+  cacheLife({ revalidate: 60 });
+  return fetchLatestMarketPricesInner(assetIds);
+}
 
 const loadLatestMarketPrices = async (
   assetIds: string[],
@@ -141,36 +148,43 @@ const loadLatestMarketPrices = async (
   return fetchLatestMarketPrices(assetIds);
 };
 
-const fetchHistoricalPrices = unstable_cache(
-  async (
-    assetIds: string[],
-    from: string,
-    to: string,
-  ): Promise<HistoricalPriceRow[]> => {
-    if (assetIds.length === 0) return [];
-    const supabase = createServiceSupabaseClient();
-    const { data, error } = await supabase
-      .from("market_prices")
-      .select("asset_id, price_usd, observed_at")
-      .in("asset_id", assetIds)
-      .eq("source", "PRICE_HISTORY")
-      .gte("observed_at", from)
-      .lte("observed_at", to)
-      .order("observed_at", { ascending: true });
-    if (error) throw new Error(error.message);
-    return ((data ?? []) as Array<{
-      asset_id: string;
-      price_usd: number | string;
-      observed_at: string;
-    }>).map((row) => ({
-      asset_id: row.asset_id,
-      price_usd: Number(row.price_usd),
-      observed_at: row.observed_at,
-    }));
-  },
-  ["asset-prices-history"],
-  { revalidate: 60, tags: ["asset-prices-history"] },
-);
+async function fetchHistoricalPricesInner(
+  assetIds: string[],
+  from: string,
+  to: string,
+): Promise<HistoricalPriceRow[]> {
+  if (assetIds.length === 0) return [];
+  const supabase = createServiceSupabaseClient();
+  const { data, error } = await supabase
+    .from("market_prices")
+    .select("asset_id, price_usd, observed_at")
+    .in("asset_id", assetIds)
+    .eq("source", "PRICE_HISTORY")
+    .gte("observed_at", from)
+    .lte("observed_at", to)
+    .order("observed_at", { ascending: true });
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as Array<{
+    asset_id: string;
+    price_usd: number | string;
+    observed_at: string;
+  }>).map((row) => ({
+    asset_id: row.asset_id,
+    price_usd: Number(row.price_usd),
+    observed_at: row.observed_at,
+  }));
+}
+
+async function fetchHistoricalPrices(
+  assetIds: string[],
+  from: string,
+  to: string,
+): Promise<HistoricalPriceRow[]> {
+  "use cache";
+  cacheTag("asset-prices-history");
+  cacheLife({ revalidate: 60 });
+  return fetchHistoricalPricesInner(assetIds, from, to);
+}
 
 const loadHistoricalPrices = async (
   assetIds: string[],

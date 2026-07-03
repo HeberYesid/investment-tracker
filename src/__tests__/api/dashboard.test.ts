@@ -37,7 +37,8 @@ vi.mock("@/lib/supabase/server", () => ({
 }));
 
 vi.mock("next/cache", () => ({
-  unstable_cache: (cb: unknown) => cb,
+  cacheTag: vi.fn(),
+  cacheLife: vi.fn(),
 }));
 
 vi.mock("@/lib/supabase/auth", () => ({

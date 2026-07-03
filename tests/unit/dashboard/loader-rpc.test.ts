@@ -43,7 +43,8 @@ vi.mock("@/lib/supabase/server", () => ({
 }));
 
 vi.mock("next/cache", () => ({
-  unstable_cache: <T extends (...args: never[]) => unknown>(fn: T) => fn,
+  cacheTag: vi.fn(),
+  cacheLife: vi.fn(),
 }));
 
 import { loadDashboardData } from "@/lib/dashboard/loader";

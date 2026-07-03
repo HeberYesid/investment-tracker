@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { unstable_cache } from "next/cache";
+import { cacheLife, cacheTag } from "next/cache";
 
 import { aggregateHoldings } from "@/lib/calculations/holdings";
 import { isHistoryStale, isQuoteStale } from "@/lib/market-data/config";
@@ -157,57 +157,60 @@ type BenchmarkRawData = {
   rows: BenchmarkRow[];
 };
 
-const fetchBenchmarkRawData = unstable_cache(
-  async (): Promise<BenchmarkRawData> => {
-    const supabase = createServiceSupabaseClient();
-    const { data: benchmarkAsset, error: assetError } = await supabase
-      .from("assets")
-      .select("id, ticker, yahoo_symbol")
-      .or(`ticker.eq.${BENCHMARK_TICKER},yahoo_symbol.eq.${BENCHMARK_TICKER}`)
-      .limit(1)
-      .maybeSingle();
+async function fetchBenchmarkRawDataInner(): Promise<BenchmarkRawData> {
+  const supabase = createServiceSupabaseClient();
+  const { data: benchmarkAsset, error: assetError } = await supabase
+    .from("assets")
+    .select("id, ticker, yahoo_symbol")
+    .or(`ticker.eq.${BENCHMARK_TICKER},yahoo_symbol.eq.${BENCHMARK_TICKER}`)
+    .limit(1)
+    .maybeSingle();
 
-    if (assetError) {
-      throw new Error(assetError.message);
-    }
-    if (!benchmarkAsset) return { rows: [] };
+  if (assetError) {
+    throw new Error(assetError.message);
+  }
+  if (!benchmarkAsset) return { rows: [] };
 
-    const assetId = (benchmarkAsset as { id: string }).id;
+  const assetId = (benchmarkAsset as { id: string }).id;
 
-    const [historyResult, intradayResult] = await Promise.all([
-      supabase
-        .from("market_prices")
-        .select("observed_at, price_usd")
-        .eq("asset_id", assetId)
-        .eq("source", "BENCHMARK_HISTORY")
-        .order("observed_at", { ascending: false })
-        .limit(BENCHMARK_HISTORY_LIMIT),
-      supabase
-        .from("market_prices")
-        .select("observed_at, price_usd")
-        .eq("asset_id", assetId)
-        .eq("source", "BENCHMARK")
-        .order("observed_at", { ascending: false })
-        .limit(BENCHMARK_INTRADAY_LIMIT),
-    ]);
+  const [historyResult, intradayResult] = await Promise.all([
+    supabase
+      .from("market_prices")
+      .select("observed_at, price_usd")
+      .eq("asset_id", assetId)
+      .eq("source", "BENCHMARK_HISTORY")
+      .order("observed_at", { ascending: false })
+      .limit(BENCHMARK_HISTORY_LIMIT),
+    supabase
+      .from("market_prices")
+      .select("observed_at, price_usd")
+      .eq("asset_id", assetId)
+      .eq("source", "BENCHMARK")
+      .order("observed_at", { ascending: false })
+      .limit(BENCHMARK_INTRADAY_LIMIT),
+  ]);
 
-    if (historyResult.error) {
-      throw new Error(historyResult.error.message);
-    }
-    if (intradayResult.error) {
-      throw new Error(intradayResult.error.message);
-    }
+  if (historyResult.error) {
+    throw new Error(historyResult.error.message);
+  }
+  if (intradayResult.error) {
+    throw new Error(intradayResult.error.message);
+  }
 
-    const merged = dedupBenchmarkRowsPerUtcDay([
-      ...((historyResult.data ?? []) as BenchmarkRow[]),
-      ...((intradayResult.data ?? []) as BenchmarkRow[]),
-    ]);
+  const merged = dedupBenchmarkRowsPerUtcDay([
+    ...((historyResult.data ?? []) as BenchmarkRow[]),
+    ...((intradayResult.data ?? []) as BenchmarkRow[]),
+  ]);
 
-    return { rows: merged };
-  },
-  ["benchmark"],
-  { revalidate: 60, tags: ["benchmark"] },
-);
+  return { rows: merged };
+}
+
+async function fetchBenchmarkRawData(): Promise<BenchmarkRawData> {
+  "use cache";
+  cacheTag("benchmark");
+  cacheLife({ revalidate: 60 });
+  return fetchBenchmarkRawDataInner();
+}
 
 export async function loadBenchmarkSeries(
   _supabase: SupabaseClient,

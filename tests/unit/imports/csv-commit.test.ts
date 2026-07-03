@@ -219,7 +219,7 @@ describe("POST /api/v1/imports/csv/commit", () => {
     expect(tradeInserts[0].payload).toHaveLength(50);
     expect(revalidatePathMock).toHaveBeenCalledWith("/");
     expect(revalidatePathMock).toHaveBeenCalledWith("/avanzado");
-    expect(revalidateTagMock).toHaveBeenCalledWith("market-prices");
+    expect(revalidateTagMock).toHaveBeenCalledWith("market-prices", "max");
   });
 
   it("returns 422 when import_id is not a valid uuid", async () => {

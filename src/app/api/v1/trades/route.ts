@@ -165,7 +165,7 @@ export async function POST(request: NextRequest) {
 
     revalidatePath("/");
     revalidatePath("/avanzado");
-    revalidateTag("market-prices");
+    revalidateTag("market-prices", "max");
 
     return NextResponse.json(trade, { status: 201 });
   } catch {

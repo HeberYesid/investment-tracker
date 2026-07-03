@@ -80,7 +80,7 @@ export async function PATCH(
 
     revalidatePath("/");
     revalidatePath("/avanzado");
-    revalidateTag("market-prices");
+    revalidateTag("market-prices", "max");
 
     return NextResponse.json(trade);
   } catch {
@@ -125,7 +125,7 @@ export async function DELETE(
 
     revalidatePath("/");
     revalidatePath("/avanzado");
-    revalidateTag("market-prices");
+    revalidateTag("market-prices", "max");
 
     return new NextResponse(null, { status: 204 });
   } catch {
