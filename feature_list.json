@@ -1,0 +1,139 @@
+{
+  "project": "investment-tracker",
+  "description": "Aplicación de tracking de inversiones. Next.js 15 + React 19 + Supabase. Moneda base USD, UI en español.",
+  "rules": {
+    "one_feature_at_a_time": true,
+    "require_tests_to_close": true,
+    "require_approved_spec_to_implement": true,
+    "valid_status": ["pending", "spec_ready", "in_progress", "done", "blocked"],
+    "sdd_required_when": "feature has \"sdd\": true"
+  },
+  "features": [
+    {
+      "id": 1,
+      "name": "foundation",
+      "title": "Fase 0: Fundación — Schema, Auth stub, Proyecto base",
+      "description": "Next.js 15 App Router + Supabase. Migración 0001 (trades, portfolios, market_prices, fx_rates). Clientes Supabase (browser/user/service). Tailwind v4, i18n skeleton.",
+      "acceptance": [
+        "Migración 0001_foundation.sql aplicada con RLS habilitado en todas las tablas",
+        "Clientes Supabase browser/user/service exportados desde src/lib/supabase/",
+        "UI shell con layout, login page, home placeholder",
+        "Tests unit (Vitest) de schema y clientes",
+        "Build Next.js exitoso"
+      ],
+      "status": "done"
+    },
+    {
+      "id": 2,
+      "name": "trades_mvp",
+      "title": "Fase 1: Trades MVP — Captura manual, listado, edición, eliminación, cálculos",
+      "description": "Formulario manual de trades, lista con filtros, editar/eliminar, cálculos de posición, eventos de auditoría.",
+      "acceptance": [
+        "Páginas /trades, /trades/new, /trades/[id]/edit funcionales",
+        "CRUD via Route Handlers en api/v1/trades/",
+        "Validación Zod en src/lib/validations/trades.ts (dinero como string)",
+        "Posición calculada en src/lib/calculations/",
+        "Audit events para create/update/delete",
+        "Tests unit + integración"
+      ],
+      "status": "done"
+    },
+    {
+      "id": 3,
+      "name": "csv_import",
+      "title": "Fase 2: CSV Import MVP — eToro, XTB, Trii, eTrading Bancolombia",
+      "description": "Parsers por broker, preview con validación, commit atómico, historial de importaciones.",
+      "acceptance": [
+        "Parsers para eToro, XTB, Trii, eTrading Bancolombia",
+        "Pipeline csv/parsers → registry → validation",
+        "Endpoints preview y commit en api/v1/imports/csv/",
+        "Validación por fila con errores mostrados en UI",
+        "Historial de importaciones",
+        "Fixtures CSV por broker + tests unit de parsers"
+      ],
+      "status": "done"
+    },
+    {
+      "id": 4,
+      "name": "phase-3-dashboard-mvp",
+      "title": "Fase 3: Dashboard MVP — Resumen, evolución, distribución, returns",
+      "description": "Dashboard mobile-first con tarjetas de resumen, gráfico de evolución, distribución por activo y tabla de returns. Reemplaza el home estático.",
+      "acceptance": [
+        "Cards de resumen (equity, P/L, return %, portfolio value)",
+        "Gráfico de evolución (Recharts)",
+        "Gráfico de distribución por activo",
+        "Tabla de returns",
+        "Endpoints GET /api/v1/dashboard/{summary,distribution,evolution,returns}",
+        "Dashboard loader que une trades + market_prices en una sola lectura",
+        "i18n: strings en src/lib/i18n/dashboard.ts",
+        "Placeholder de benchmark hasta Fase 5"
+      ],
+      "sdd": true,
+      "status": "spec_ready"
+    },
+    {
+      "id": 5,
+      "name": "phase-4-auth-permissions",
+      "title": "Fase 4: Auth & Permisos — Supabase Auth, RLS por portafolio, roles",
+      "description": "Magic link por email, RLS basada en portfolio_members, roles OWNER/EDITOR/VIEWER, middleware de sesión, protecciones por rol en UI y API.",
+      "acceptance": [
+        "Supabase Auth con magic link",
+        "Trigger SQL que crea perfil + portafolio + miembro OWNER al registrarse",
+        "RLS reescritas para usar portfolio_members",
+        "Cliente user-scoped (ssr) como default; service role relegado a tareas internas",
+        "Middleware de sesión con refresh automático",
+        "Role gating en pages (OWNER para /settings/members, EDITOR/OWNER para escritura)",
+        "Tests E2E validando redirect a /login"
+      ],
+      "sdd": true,
+      "status": "spec_ready"
+    },
+    {
+      "id": 6,
+      "name": "market-data-resilience-and-disclosure",
+      "title": "Fase 5: Market Data & FX — Yahoo Finance, Stooq, FX rates, sync automático",
+      "description": "Proveedores de precios (Yahoo Finance + Stooq fallback) y FX (USD/COP). Edge Functions Deno con pg_cron. Cache en market_prices y fx_rates. Benchmark S&P 500. Banner de precio desactualizado con diagnóstico.",
+      "acceptance": [
+        "PriceProvider Yahoo Finance + Stooq (composite con fallback)",
+        "FX provider open.er-api.com (USD/COP)",
+        "Edge Functions sync-prices y sync-fx-rates (Deno)",
+        "pg_cron: sync-prices cada 30 min, sync-fx-rates diario",
+        "Botón Sincronizar ahora solo en dev (gate NODE_ENV)",
+        "Banner de precio desactualizado con razón y tiempo desde última sync",
+        "Endpoint GET /api/v1/market-data/sync-status",
+        "BenchmarkChart con S&P 500 (Yahoo Finance)"
+      ],
+      "sdd": true,
+      "status": "in_progress"
+    },
+    {
+      "id": 7,
+      "name": "alerts_summary",
+      "title": "Fase 6: Alertas & Resumen — Umbrales, notificaciones, reporte periódico",
+      "description": "Configuración de alertas por umbral (P/L %, equity). Resumen periódico. Sin envío de email (restricción USD 0/mes).",
+      "acceptance": [
+        "Configuración de umbrales de alerta en /settings",
+        "Evaluación de alertas al cargar dashboard",
+        "Indicador visual de alertas activas en UI",
+        "Resumen de período (diario/semanal/mensual)"
+      ],
+      "sdd": true,
+      "status": "pending"
+    },
+    {
+      "id": 8,
+      "name": "pwa_exports",
+      "title": "Fase 7: PWA, Exportaciones, Crypto, Bilingüe",
+      "description": "PWA offline-capable, exportación CSV/PDF, activos crypto, interfaz bilingüe EN/ES.",
+      "acceptance": [
+        "PWA con service worker (offline-first)",
+        "Exportación de trades a CSV y PDF",
+        "Soporte para activos crypto (BTC, ETH, etc.)",
+        "Toggle de idioma EN/ES con persistencia",
+        "App instalable en mobile/desktop"
+      ],
+      "sdd": true,
+      "status": "pending"
+    }
+  ]
+}
