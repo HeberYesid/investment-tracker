@@ -72,9 +72,15 @@ export function aggregateReturns(input: AggregateReturnsInput): ReturnsRow[] {
   };
   const buckets = new Map<string, Bucket>();
 
+  const activeAssetIds =
+    groupBy === "stock"
+      ? new Set(holdings.filter((h) => h.quantity > 0).map((h) => h.assetId))
+      : null;
+
   const active = trades.filter((t) => t.deleted_at === null);
 
   for (const trade of active) {
+    if (activeAssetIds && !activeAssetIds.has(trade.asset_id)) continue;
     const holding = holdingByAssetBroker.get(
       `${trade.asset_id}::${trade.broker_id}`,
     );
@@ -114,6 +120,7 @@ export function aggregateReturns(input: AggregateReturnsInput): ReturnsRow[] {
   }
 
   for (const holding of holdings) {
+    if (activeAssetIds && !activeAssetIds.has(holding.assetId)) continue;
     const { key, label } = getKey(
       { asset_id: holding.assetId, broker_id: holding.brokerId, trade_date: "" } as EvolutionInputTrade,
       holding,
