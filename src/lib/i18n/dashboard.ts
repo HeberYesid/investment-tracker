@@ -53,6 +53,7 @@ export const dashboardLabels = {
     returnsTitle: "Rentabilidad",
     returnsEmpty: "Sin datos de rentabilidad.",
     groupYear: "Anual",
+    groupYearHint: "Rentabilidad calculada con el valor del portafolio al inicio y fin de cada a\u00f1o",
     groupStock: "Por activo",
     groupBroker: "Por br\u00f3ker",
     returnsLabel: "Etiqueta",

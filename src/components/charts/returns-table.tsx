@@ -88,6 +88,10 @@ export function ReturnsTable({ initial }: ReturnsTableProps) {
         </div>
       </div>
 
+      {groupBy === "year" && (
+        <p className="mt-2 text-xs text-text-muted">{labels.groupYearHint}</p>
+      )}
+
       <div className={`mt-4 overflow-x-auto ${loading ? "opacity-50" : ""}`}>
         {data.rows.length === 0 ? (
           <p className="py-6 text-center text-sm text-text-muted">
