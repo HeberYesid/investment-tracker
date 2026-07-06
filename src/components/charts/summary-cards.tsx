@@ -56,7 +56,12 @@ export function SummaryCards({ summary }: SummaryCardsProps) {
           <div>
             <p className="font-semibold">{labels.staleBanner}</p>
             <p className="mt-1 text-xs text-orange-900 dark:text-orange-300/80">
-              {labels.staleBannerDescription}
+              {summary.staleTickers.length > 0
+                ? labels.staleBannerDetail.replace(
+                    "{tickers}",
+                    summary.staleTickers.join(", "),
+                  )
+                : labels.staleBannerDescription}
             </p>
           </div>
         </div>

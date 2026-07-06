@@ -44,6 +44,7 @@ const readySummary = {
   holdingsCount: 0,
   isEstimated: false,
   isAnyStale: false,
+  staleTickers: [] as string[],
 };
 
 describe("home dashboard client", () => {

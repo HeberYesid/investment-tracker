@@ -174,5 +174,6 @@ describe("loadDashboardAggregate", () => {
     const result = await loadDashboardAggregate(PORTFOLIO_ID, supabase, "full");
 
     expect(result.summary!.isAnyStale).toBe(true);
+    expect(result.summary!.staleTickers).toEqual(["AAPL"]);
   });
 });

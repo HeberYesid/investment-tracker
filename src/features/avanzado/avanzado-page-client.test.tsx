@@ -47,6 +47,7 @@ const readySummary = {
   holdingsCount: 3,
   isEstimated: false,
   isAnyStale: false,
+  staleTickers: [] as string[],
 };
 
 describe("AvanzadoPageClient", () => {

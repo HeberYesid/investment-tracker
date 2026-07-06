@@ -112,6 +112,7 @@ describe("GET /api/v1/dashboard/summary", () => {
       holdingsCount: 1,
       isEstimated: true,
       isAnyStale: false,
+      staleTickers: [],
     });
   });
 
@@ -147,6 +148,7 @@ describe("GET /api/v1/dashboard/summary", () => {
 
     expect(response.status).toBe(200);
     expect(body.isAnyStale).toBe(true);
+    expect(body.staleTickers).toEqual(["AAPL"]);
     expect(body.isEstimated).toBe(false);
   });
 });

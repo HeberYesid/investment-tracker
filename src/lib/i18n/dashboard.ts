@@ -14,6 +14,8 @@ export const dashboardLabels = {
     staleBanner: "Precio desactualizado",
     staleBannerDescription:
       "Una o m\u00e1s cotizaciones tienen m\u00e1s de 2 horas sin actualizarse. Los totales podr\u00edan no reflejar el precio m\u00e1s reciente.",
+    staleBannerDetail:
+      "{tickers} \u2014 estas cotizaciones tienen m\u00e1s de 2 horas sin actualizarse. Los totales podr\u00edan no reflejar el precio m\u00e1s reciente.",
 
     kpiEquity: "Equity total",
     kpiInvested: "Capital invertido",

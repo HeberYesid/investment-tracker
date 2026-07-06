@@ -73,6 +73,9 @@ export async function loadDashboardAggregate(
   const isAnyStale = Array.from(staleness.values()).some(
     (value) => value === "stale",
   );
+  const staleTickers = Array.from(staleness.entries())
+    .filter(([, v]) => v === "stale")
+    .map(([id]) => data.assets.find((a) => a.id === id)?.ticker ?? id);
 
   const summary: SummaryResponse = {
     equityUsd,
@@ -84,6 +87,7 @@ export async function loadDashboardAggregate(
     holdingsCount: holdings.filter((h) => h.quantity > 0).length,
     isEstimated: isAnyEstimated,
     isAnyStale,
+    staleTickers,
   };
 
   const historicalPricesByAsset = groupHistoricalPricesByAsset(

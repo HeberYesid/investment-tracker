@@ -53,6 +53,9 @@ export async function GET(request: NextRequest) {
     const isAnyStale = Array.from(staleness.values()).some(
       (value) => value === "stale",
     );
+    const staleTickers = Array.from(staleness.entries())
+      .filter(([, v]) => v === "stale")
+      .map(([id]) => data.assets.find((a) => a.id === id)?.ticker ?? id);
 
     return NextResponse.json({
       equityUsd,
@@ -64,6 +67,7 @@ export async function GET(request: NextRequest) {
       holdingsCount: holdings.filter((h) => h.quantity > 0).length,
       isEstimated: isAnyEstimated,
       isAnyStale,
+      staleTickers,
     });
   } catch (err) {
     if (err instanceof Error) return badRequest(err.message);

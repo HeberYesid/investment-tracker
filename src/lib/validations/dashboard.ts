@@ -16,6 +16,7 @@ export const SummaryResponse = z.object({
   holdingsCount: z.number(),
   isEstimated: z.boolean(),
   isAnyStale: z.boolean(),
+  staleTickers: z.array(z.string()),
 });
 
 export type SummaryResponse = z.infer<typeof SummaryResponse>;
