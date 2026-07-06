@@ -21,8 +21,6 @@ const pctFormatter = new Intl.NumberFormat("es-CO", {
 
 function groupLabel(group: ReturnsGroupBy): string {
   switch (group) {
-    case "month":
-      return labels.groupMonth;
     case "year":
       return labels.groupYear;
     case "stock":
@@ -36,12 +34,6 @@ function pnlToneClass(value: number): string {
   if (value > 0) return "text-emerald-600 dark:text-emerald-400";
   if (value < 0) return "text-red-600 dark:text-red-400";
   return "text-text-secondary";
-}
-
-function breakdownToneClass(value: number): string {
-  if (value > 0) return "text-emerald-700 dark:text-emerald-500";
-  if (value < 0) return "text-red-700 dark:text-red-500";
-  return "text-text-muted";
 }
 
 interface ReturnsTableProps {
@@ -69,8 +61,6 @@ export function ReturnsTable({ initial }: ReturnsTableProps) {
     }
   }
 
-  const hasRealized = data.rows.some((r) => r.realizedPnlUsd !== 0);
-
   return (
     <section
       className="rounded-2xl bg-surface p-5 shadow-sm ring-1 ring-border-subtle"
@@ -81,7 +71,7 @@ export function ReturnsTable({ initial }: ReturnsTableProps) {
           {labels.returnsTitle}
         </h2>
         <div className="flex gap-1 rounded-full bg-surface-muted p-1 text-xs">
-          {(["month", "year", "stock", "broker"] as const).map((option) => (
+          {(["year", "stock", "broker"] as const).map((option) => (
             <button
               key={option}
               type="button"
@@ -109,7 +99,7 @@ export function ReturnsTable({ initial }: ReturnsTableProps) {
               <tr className="border-b border-border-subtle text-left text-xs font-semibold uppercase tracking-wider text-text-muted">
                 <th className="pb-2">{labels.returnsLabel}</th>
                 <th className="pb-2 text-right">{labels.returnsInvested}</th>
-                <th className="pb-2 text-right">{labels.returnsPnl}</th>
+                <th className="pb-2 text-right">{labels.returnsActual}</th>
                 <th className="pb-2 text-right">{labels.returnsPct}</th>
               </tr>
             </thead>
@@ -125,20 +115,9 @@ export function ReturnsTable({ initial }: ReturnsTableProps) {
                     {usdFormatter.format(row.investedUsd)}
                   </td>
                   <td className="py-2 text-right">
-                    <span className={`font-mono font-semibold ${pnlToneClass(row.totalPnlUsd)}`}>
-                      {usdFormatter.format(row.totalPnlUsd)}
+                    <span className="font-mono text-text-secondary">
+                      {usdFormatter.format(row.actualUsd)}
                     </span>
-                    {hasRealized && (
-                      <span className="block text-xs leading-tight text-text-muted">
-                        <span className={breakdownToneClass(row.realizedPnlUsd)}>
-                          {labels.returnsRealized} {usdFormatter.format(row.realizedPnlUsd)}
-                        </span>
-                        {" · "}
-                        <span className={breakdownToneClass(row.unrealizedPnlUsd)}>
-                          {labels.returnsUnrealized} {usdFormatter.format(row.unrealizedPnlUsd)}
-                        </span>
-                      </span>
-                    )}
                   </td>
                   <td className={`py-2 text-right font-mono ${pnlToneClass(row.returnPct)}`}>
                     {pctFormatter.format(row.returnPct / 100)}

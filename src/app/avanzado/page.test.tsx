@@ -75,7 +75,7 @@ describe("avanzado dashboard client", () => {
           ...emptyPayload,
           summary: { ...readySummary, holdingsCount: 3 },
           distribution: { dim: "broker", slices: [], unclassified: false, totalUsd: 0 },
-          returns: { groupBy: "month", rows: [] },
+          returns: { groupBy: "stock", rows: [] },
         },
       }),
     );

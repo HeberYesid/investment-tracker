@@ -22,7 +22,7 @@ export default async function AvanzadoPage() {
     "full",
     {
       evolutionGranularity: "monthly",
-      returnsGroupBy: "month",
+      returnsGroupBy: "stock",
       distributionDimension: "broker",
     },
   );

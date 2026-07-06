@@ -4,7 +4,7 @@ import { aggregateHoldings } from "@/lib/calculations/holdings";
 import { calculateTotalEquity } from "@/lib/calculations/equity";
 import { calculatePortfolioPnl } from "@/lib/calculations/pnl";
 import { buildPortfolioValueSeries } from "@/lib/calculations/evolution";
-import { aggregateReturns } from "@/lib/calculations/returns-aggregation";
+import { aggregateReturns, computeAnnualReturnsFromSeries } from "@/lib/calculations/returns-aggregation";
 import { resolveAssetPrice } from "@/lib/calculations/pricing";
 import { groupByDimension } from "@/lib/calculations/distribution";
 import { groupHistoricalPricesByAsset, loadDashboardData } from "@/lib/dashboard/loader";
@@ -31,7 +31,7 @@ export type DashboardAggregate = {
 };
 
 const DEFAULT_GRANULARITY: EvolutionGranularity = "monthly";
-const DEFAULT_GROUP_BY: ReturnsGroupBy = "month";
+const DEFAULT_GROUP_BY: ReturnsGroupBy = "stock";
 const DEFAULT_DIMENSION: DistributionDimension = "broker";
 
 export async function loadDashboardAggregate(
@@ -131,12 +131,16 @@ export async function loadDashboardAggregate(
     }
   }
 
-  const returnsRows = aggregateReturns({
-    groupBy: options?.returnsGroupBy ?? DEFAULT_GROUP_BY,
-    trades: data.trades,
-    holdings,
-    equityByHolding,
-  });
+  const returnsGroupBy = options?.returnsGroupBy ?? DEFAULT_GROUP_BY;
+  const returnsRows =
+    returnsGroupBy === "year"
+      ? computeAnnualReturnsFromSeries(series.points)
+      : aggregateReturns({
+          groupBy: returnsGroupBy,
+          trades: data.trades,
+          holdings,
+          equityByHolding,
+        });
   const returns: ReturnsResponse = {
     groupBy: options?.returnsGroupBy ?? DEFAULT_GROUP_BY,
     rows: returnsRows,

@@ -1,15 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// Deprecated: use GET /api/v1/dashboard/aggregate for a single consolidated
-// payload. Kept for backwards compatibility.
 import { aggregateHoldings } from "@/lib/calculations/holdings";
-import { aggregateReturns } from "@/lib/calculations/returns-aggregation";
+import {
+  aggregateReturns,
+  computeAnnualReturnsFromSeries,
+} from "@/lib/calculations/returns-aggregation";
+import { buildPortfolioValueSeries } from "@/lib/calculations/evolution";
 import { resolveAssetPrice } from "@/lib/calculations/pricing";
 import { badRequest, serverError, validationError } from "@/lib/api/errors";
 import { requireApiUser } from "@/lib/api/auth";
 import { getCurrentPortfolio } from "@/lib/supabase/auth";
-import { loadDashboardData } from "@/lib/dashboard/loader";
+import { groupHistoricalPricesByAsset, loadDashboardData } from "@/lib/dashboard/loader";
 import { ReturnsQuery } from "@/lib/validations/dashboard";
+import type { ReturnsRow } from "@/lib/validations/dashboard";
 
 export async function GET(request: NextRequest) {
   const auth = await requireApiUser();
@@ -33,28 +36,39 @@ export async function GET(request: NextRequest) {
 
     const holdings = aggregateHoldings(data.trades, data.assets, data.brokers);
 
-    const equityByHolding = new Map<string, number>();
-    for (const holding of holdings) {
-      const latest = data.latestMarketPrices.find(
-        (m) => m.asset_id === holding.assetId,
+    let rows: ReturnsRow[];
+    if (parsed.data.groupBy === "year") {
+      const historicalPricesByAsset = groupHistoricalPricesByAsset(
+        data.historicalPrices,
       );
-      const resolved = resolveAssetPrice({
-        assetId: holding.assetId,
-        latestMarketPrice: latest,
-        fallbackTradePriceUsd: holding.averageCost,
+      const series = buildPortfolioValueSeries(data.trades, {
+        historicalPricesByAsset,
       });
-      equityByHolding.set(
-        `${holding.assetId}::${holding.brokerId}`,
-        resolved.priceUsd * holding.quantity,
-      );
-    }
+      rows = computeAnnualReturnsFromSeries(series.points);
+    } else {
+      const equityByHolding = new Map<string, number>();
+      for (const holding of holdings) {
+        const latest = data.latestMarketPrices.find(
+          (m) => m.asset_id === holding.assetId,
+        );
+        const resolved = resolveAssetPrice({
+          assetId: holding.assetId,
+          latestMarketPrice: latest,
+          fallbackTradePriceUsd: holding.averageCost,
+        });
+        equityByHolding.set(
+          `${holding.assetId}::${holding.brokerId}`,
+          resolved.priceUsd * holding.quantity,
+        );
+      }
 
-    const rows = aggregateReturns({
-      groupBy: parsed.data.groupBy,
-      trades: data.trades,
-      holdings,
-      equityByHolding,
-    });
+      rows = aggregateReturns({
+        groupBy: parsed.data.groupBy,
+        trades: data.trades,
+        holdings,
+        equityByHolding,
+      });
+    }
 
     return NextResponse.json({
       groupBy: parsed.data.groupBy,

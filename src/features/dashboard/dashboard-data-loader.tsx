@@ -19,7 +19,7 @@ export async function DashboardDataLoader() {
     "full",
     {
       evolutionGranularity: "monthly",
-      returnsGroupBy: "month",
+      returnsGroupBy: "stock",
       distributionDimension: "broker",
     },
   );

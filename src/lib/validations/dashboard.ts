@@ -81,11 +81,11 @@ export const EvolutionResponse = z.object({
 
 export type EvolutionResponse = z.infer<typeof EvolutionResponse>;
 
-export const ReturnsGroupBy = z.enum(["month", "year", "stock", "broker"]);
+export const ReturnsGroupBy = z.enum(["year", "stock", "broker"]);
 export type ReturnsGroupBy = z.infer<typeof ReturnsGroupBy>;
 
 export const ReturnsQuery = z.object({
-  groupBy: ReturnsGroupBy.default("month"),
+  groupBy: ReturnsGroupBy.default("stock"),
   portfolio_id: z.string().uuid().optional(),
 });
 
@@ -95,6 +95,7 @@ export const ReturnsRow = z.object({
   key: z.string(),
   label: z.string(),
   investedUsd: z.number(),
+  actualUsd: z.number(),
   realizedPnlUsd: z.number(),
   unrealizedPnlUsd: z.number(),
   totalPnlUsd: z.number(),

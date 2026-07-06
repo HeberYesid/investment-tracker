@@ -88,7 +88,7 @@ describe("AvanzadoPageClient", () => {
         ],
       },
       distribution: { dim: "broker", slices: [], unclassified: false },
-      returns: { groupBy: "month", rows: [] },
+      returns: { groupBy: "stock", rows: [] },
       snapshot: {
         benchmark: {
           benchmark: "S&P 500",
@@ -119,7 +119,7 @@ describe("AvanzadoPageClient", () => {
     mockAdvanced({
       summary: readySummary,
       distribution: { dim: "broker", slices: [], unclassified: false },
-      returns: { groupBy: "month", rows: [] },
+      returns: { groupBy: "stock", rows: [] },
       snapshot: { benchmark: null, assets: [], isAnyEstimated: false, isAnyStale: false },
     });
     const { AvanzadoPageClient: Component } = await import("./avanzado-page-client");
@@ -135,7 +135,7 @@ describe("AvanzadoPageClient", () => {
     mockAdvanced({
       summary: readySummary,
       distribution: { dim: "broker", slices: [], unclassified: false },
-      returns: { groupBy: "month", rows: [] },
+      returns: { groupBy: "stock", rows: [] },
       snapshot: { benchmark: null, assets: [], isAnyEstimated: false, isAnyStale: false },
     });
     const { AvanzadoPageClient: Component } = await import("./avanzado-page-client");
