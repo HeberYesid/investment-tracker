@@ -14,6 +14,8 @@ import {
 import { getDashboardLabels } from "@/lib/i18n/dashboard";
 import { getChartPalette } from "@/lib/theme/chart-palette";
 import { useTheme } from "@/lib/theme/theme-provider";
+import { useChartExport } from "@/lib/chart-export";
+import { ChartExportButton } from "@/components/ui/chart-export-button";
 import { SyncNowButton } from "@/features/dashboard/sync-now-button";
 import type {
   BenchmarkPoint,
@@ -208,6 +210,7 @@ function formatSignedDelta(value: number | null): string {
 export function BenchmarkChart({ evolution, benchmark }: BenchmarkChartProps) {
   const { resolvedTheme } = useTheme();
   const palette = getChartPalette(resolvedTheme);
+  const { containerRef, exporting, exportAsPng } = useChartExport("benchmark");
   const sectionClass =
     "rounded-2xl bg-surface p-5 shadow-sm ring-1 ring-border-subtle";
   const titleClass = "text-lg font-semibold text-text-primary";
@@ -334,10 +337,14 @@ export function BenchmarkChart({ evolution, benchmark }: BenchmarkChartProps) {
             </span>
           )}
           <SyncNowButton />
+          <ChartExportButton
+            exporting={exporting}
+            onExport={exportAsPng}
+          />
         </div>
       </div>
 
-      <div className="mt-4 h-64 w-full">
+      <div className="mt-4 h-64 w-full" ref={containerRef}>
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart
             data={rows}

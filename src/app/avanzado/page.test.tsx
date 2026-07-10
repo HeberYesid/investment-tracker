@@ -42,6 +42,7 @@ const readySummary = {
   unrealizedPnlUsd: 200,
   totalPnlUsd: 200,
   returnPct: 25,
+  twr: null,
   holdingsCount: 0,
   isEstimated: false,
   isAnyStale: false,

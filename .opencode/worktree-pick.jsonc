@@ -1,0 +1,10 @@
+{
+  "defaultTerminal": "wt",
+  "worktreePath": null,
+  "terminals": {
+    "wt":     ["wt.exe",   "-d",  "{cwd}", "cmd", "/k", "{cmd}"],
+    "wt-dev": ["wt.exe",   "-p",  "Dev", "-d", "{cwd}", "cmd", "/k", "{cmd}"],
+    "pwsh":   ["pwsh.exe", "-NoExit", "-Command", "Set-Location \"{cwd}\"; {cmd}"],
+    "cmd":    ["cmd.exe",  "/c", "start", "", "cmd", "/k", "cd /d \"{cwd}\" && {cmd}"]
+  }
+}

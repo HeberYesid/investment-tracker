@@ -20,7 +20,7 @@ export async function createUserSupabaseClient() {
       setAll(cookiesToSet) {
         try {
           for (const { name, value, options } of cookiesToSet) {
-            cookieStore.set(name, value, options);
+            cookieStore.set(name, value, { ...options, sameSite: "lax" });
           }
         } catch {
           // Called from a Server Component. Middleware refreshes the

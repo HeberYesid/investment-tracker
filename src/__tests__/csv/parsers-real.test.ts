@@ -7,7 +7,7 @@ import { TriiParser } from "@/lib/csv/parsers/trii";
 import { EtradingBancolombiaParser } from "@/lib/csv/parsers/etrading-bancolombia";
 
 function readFixtureAsBuffer(name: string): ArrayBuffer {
-  const buf = readFileSync(resolve(__dirname, "../../fixtures/files", name));
+  const buf = readFileSync(resolve(__dirname, "../../../tests/fixtures/files", name));
   // Create a fresh ArrayBuffer that is a copy of the file data
   const ab = new ArrayBuffer(buf.byteLength);
   new Uint8Array(ab).set(buf);

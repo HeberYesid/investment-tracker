@@ -13,6 +13,7 @@ import {
   isYahooRange,
 } from "./types";
 import { getMarketDataEnv, type MarketDataEnv } from "./config";
+import { logger } from "@/lib/logger";
 import { acquireYahooSession } from "./yahoo-session";
 
 const CHART_PATH = "/v8/finance/chart/";
@@ -176,8 +177,9 @@ export function createYahooProvider(
     }
 
     if (response.status === 401 && useSession) {
-      console.warn(
-        `[yahoo] ${symbol} returned 401 with session, retrying without…`,
+      logger.warn(
+        "yahoo",
+        `${symbol} returned 401 with session, retrying without…`,
       );
       return fetchProfileRaw(symbol, false);
     }

@@ -10,6 +10,8 @@ import {
   YAxis,
 } from "recharts";
 
+import { useChartExport } from "@/lib/chart-export";
+import { ChartExportButton } from "@/components/ui/chart-export-button";
 import { getDashboardLabels } from "@/lib/i18n/dashboard";
 import { getChartPalette } from "@/lib/theme/chart-palette";
 import { useTheme } from "@/lib/theme/theme-provider";
@@ -60,6 +62,7 @@ export function EvolutionChart({
   const { resolvedTheme } = useTheme();
   const palette = getChartPalette(resolvedTheme);
   const gradientId = `equityFill-${resolvedTheme}`;
+  const { containerRef, exporting, exportAsPng } = useChartExport("evolucion");
   const sectionClass =
     "rounded-2xl bg-surface p-5 shadow-sm ring-1 ring-border-subtle sm:p-6";
   const titleClass = "text-lg font-semibold text-text-primary";
@@ -93,8 +96,14 @@ export function EvolutionChart({
       className={sectionClass}
       data-testid="evolution-chart"
     >
-      <h2 className={titleClass}>{labels.evolutionTitle}</h2>
-      <div className="mt-4 h-64 w-full">
+      <div className="flex items-center justify-between">
+        <h2 className={titleClass}>{labels.evolutionTitle}</h2>
+        <ChartExportButton
+          exporting={exporting}
+          onExport={exportAsPng}
+        />
+      </div>
+      <div className="mt-4 h-64 w-full" ref={containerRef}>
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
             <defs>

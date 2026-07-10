@@ -6,12 +6,14 @@ import {
   TradeFormInput,
   TradeListQuery,
   normalizeTradeUsdValues,
+  serializeTradeDTO,
 } from "@/lib/validations/trades";
 import type { CreateTradeInput } from "@/lib/validations/trades";
 import { badRequest, validationError, serverError } from "@/lib/api/errors";
 import { fetchTradesPage } from "@/lib/trades/queries";
 import { createYahooProvider } from "@/lib/market-data/yahoo";
 import { candidateYahooSymbols } from "@/lib/market-data/symbols";
+import { logger } from "@/lib/logger";
 
 export async function GET(request: NextRequest) {
   const auth = await requireApiUser();
@@ -40,7 +42,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const auth = await requireApiUserWithPortfolio(undefined, { writeAccess: true });
   if (auth.response) return auth.response;
-  const { supabase } = auth;
+  const { supabase, user } = auth;
 
   try {
     const body = await request.json();
@@ -116,8 +118,9 @@ export async function POST(request: NextRequest) {
           }
         }
       } catch (err) {
-        console.warn(
-          `[trades] Failed to enrich asset metadata for ${input.ticker}:`,
+        logger.warn(
+          "trades",
+          `Failed to enrich asset metadata for ${input.ticker}:`,
           err,
         );
       }
@@ -156,6 +159,7 @@ export async function POST(request: NextRequest) {
     }
 
     await supabase.from("audit_events").insert({
+      actor_user_id: user.id,
       portfolio_id: trade.portfolio_id,
       entity_type: "trade",
       entity_id: trade.id,
@@ -167,7 +171,7 @@ export async function POST(request: NextRequest) {
     revalidatePath("/avanzado");
     revalidateTag("market-prices", "max");
 
-    return NextResponse.json(trade, { status: 201 });
+    return NextResponse.json(serializeTradeDTO(trade), { status: 201 });
   } catch {
     return serverError();
   }

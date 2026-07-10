@@ -20,10 +20,10 @@ export function EditTradeClient({ trade }: EditTradeClientProps) {
     trade_type: trade.trade_type,
     trade_date: trade.trade_date,
     quantity: trade.quantity,
-    price_original: trade.price_original,
+    price_original: Number(trade.price_original),
     currency_original: trade.currency_original,
-    commission_original: trade.commission_original,
-    fx_rate_to_usd: trade.fx_rate_to_usd,
+    commission_original: Number(trade.commission_original),
+    fx_rate_to_usd: Number(trade.fx_rate_to_usd),
   };
 
   const handleSubmit = async (data: TradeFormValues) => {

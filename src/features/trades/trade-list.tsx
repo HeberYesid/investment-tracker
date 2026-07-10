@@ -34,11 +34,13 @@ interface TradeRowProps {
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
   canWrite: boolean;
+  selected?: boolean;
+  onSelect?: (id: string, checked: boolean) => void;
 }
 
-function TradeRowImpl({ trade, onEdit, onDelete, canWrite }: TradeRowProps) {
+function TradeRowImpl({ trade, onEdit, onDelete, canWrite, selected, onSelect }: TradeRowProps) {
   const dateFormatted = dateFormatter.format(new Date(trade.trade_date));
-  const totalUsd = trade.total_invested_usd;
+  const totalUsd = Number(trade.total_invested_usd);
   const totalClass =
     totalUsd >= 0
       ? "text-text-primary"
@@ -50,6 +52,14 @@ function TradeRowImpl({ trade, onEdit, onDelete, canWrite }: TradeRowProps) {
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 flex-1 items-center gap-2">
+          {onSelect && (
+            <input
+              type="checkbox"
+              checked={selected ?? false}
+              onChange={(e) => onSelect(trade.id, e.target.checked)}
+              className="h-4 w-4 rounded accent-primary-600"
+            />
+          )}
           <span
             className={cn(
               "inline-flex shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold",
@@ -87,7 +97,7 @@ function TradeRowImpl({ trade, onEdit, onDelete, canWrite }: TradeRowProps) {
         <div>
           <span className="text-text-muted">{labels.price}</span>
           <p className="font-medium text-text-primary">
-            {currencyFormatter.format(trade.price_usd)}
+            {currencyFormatter.format(Number(trade.price_usd))}
           </p>
         </div>
         <div>
@@ -128,7 +138,9 @@ const areTradeRowsEqual = (prev: TradeRowProps, next: TradeRowProps) =>
   prev.trade === next.trade &&
   prev.onEdit === next.onEdit &&
   prev.onDelete === next.onDelete &&
-  prev.canWrite === next.canWrite;
+  prev.canWrite === next.canWrite &&
+  prev.selected === next.selected &&
+  prev.onSelect === next.onSelect;
 
 export const TradeRow = memo(TradeRowImpl, areTradeRowsEqual);
 
@@ -137,9 +149,11 @@ interface TradeListProps {
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
   canWrite: boolean;
+  selectedIds?: Set<string>;
+  onSelect?: (id: string, checked: boolean) => void;
 }
 
-export function TradeList({ trades, onEdit, onDelete, canWrite }: TradeListProps) {
+export function TradeList({ trades, onEdit, onDelete, canWrite, selectedIds, onSelect }: TradeListProps) {
   if (trades.length === 0) {
     return (
       <div className="rounded-3xl bg-surface p-8 text-center shadow-sm ring-1 ring-border-subtle">
@@ -162,6 +176,8 @@ export function TradeList({ trades, onEdit, onDelete, canWrite }: TradeListProps
           onEdit={onEdit}
           onDelete={onDelete}
           canWrite={canWrite}
+          selected={selectedIds?.has(trade.id)}
+          onSelect={onSelect}
         />
       ))}
     </div>

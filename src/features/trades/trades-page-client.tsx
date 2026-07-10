@@ -34,6 +34,8 @@ export function TradesPageClient({
   const [total, setTotal] = useState(initialData.meta.total);
   const [totalPages, setTotalPages] = useState(initialData.meta.totalPages);
   const [showDeniedToast, setShowDeniedToast] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
   const isMounted = useRef(false);
 
   useEffect(() => {
@@ -101,7 +103,7 @@ export function TradesPageClient({
   );
 
   const handleDelete = useCallback(async (id: string) => {
-    if (!confirm("¿Estás seguro de eliminar esta operación?")) return;
+    if (!confirm("Estas seguro de eliminar esta operacion?")) return;
 
     try {
       const res = await fetch(`/api/v1/trades/${id}`, { method: "DELETE" });
@@ -109,9 +111,49 @@ export function TradesPageClient({
       setTrades((prev) => prev.filter((t) => t.id !== id));
       setTotal((prev) => Math.max(0, prev - 1));
     } catch {
-      alert("Error al eliminar la operación");
+      alert("Error al eliminar la operacion");
     }
   }, []);
+
+  const handleSelect = useCallback((id: string, checked: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }, []);
+
+  const handleBulkDelete = useCallback(async () => {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`Eliminar ${selectedIds.size} operaciones seleccionadas?`)) return;
+
+    setBulkDeleting(true);
+    try {
+      const res = await fetch("/api/v1/trades/bulk-delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: Array.from(selectedIds) }),
+      });
+      if (!res.ok) throw new Error("Error al eliminar");
+      const json = (await res.json()) as { deleted: number };
+      setTrades((prev) => prev.filter((t) => !selectedIds.has(t.id)));
+      setTotal((prev) => Math.max(0, prev - json.deleted));
+      setSelectedIds(new Set());
+    } catch {
+      alert("Error al eliminar operaciones");
+    } finally {
+      setBulkDeleting(false);
+    }
+  }, [selectedIds]);
+
+  const handleSelectAll = useCallback(() => {
+    if (selectedIds.size === trades.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(trades.map((t) => t.id)));
+    }
+  }, [selectedIds.size, trades]);
 
   return (
     <div className="space-y-4">
@@ -152,11 +194,38 @@ export function TradesPageClient({
               {labels.readOnlyBanner}
             </div>
           )}
+          {canWrite && trades.length > 0 && (
+            <div className="flex items-center gap-2 text-xs">
+              <label className="flex items-center gap-1 text-text-muted">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.size === trades.length && trades.length > 0}
+                  onChange={handleSelectAll}
+                  className="h-4 w-4 rounded accent-primary-600"
+                />
+                Seleccionar todo
+              </label>
+              {selectedIds.size > 0 && (
+                <button
+                  type="button"
+                  onClick={handleBulkDelete}
+                  disabled={bulkDeleting}
+                  className="rounded-lg bg-red-100 px-3 py-1 text-xs font-medium text-red-700 hover:bg-red-200 disabled:opacity-50 dark:bg-red-950/40 dark:text-red-300"
+                >
+                  {bulkDeleting
+                    ? "Eliminando..."
+                    : `Eliminar (${selectedIds.size})`}
+                </button>
+              )}
+            </div>
+          )}
           <TradeList
             trades={trades}
             onEdit={handleEdit}
             onDelete={handleDelete}
             canWrite={canWrite}
+            selectedIds={canWrite ? selectedIds : undefined}
+            onSelect={canWrite ? handleSelect : undefined}
           />
           {totalPages > 1 && (
             <div className="flex items-center justify-between rounded-2xl bg-surface p-3 shadow-sm ring-1 ring-border-subtle">

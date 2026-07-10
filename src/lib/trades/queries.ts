@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { createServiceSupabaseClient } from "@/lib/supabase/server";
 import type { TradeDTO, TradeListQuery } from "@/lib/validations/trades";
+import { serializeTradeDTO } from "@/lib/validations/trades";
 
 export type TradeListResult = {
   data: TradeDTO[];
@@ -113,7 +114,7 @@ export async function fetchTradesPage(
       broker_name: brokers?.name ?? null,
       broker_code: brokers?.code ?? null,
     };
-  }) as TradeDTO[];
+  }).map((row) => serializeTradeDTO(row)) as TradeDTO[];
 
   const total = count ?? 0;
   const totalPages = Math.ceil(total / limit);

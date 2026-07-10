@@ -1,19 +1,61 @@
 "use client";
 
+import { Suspense } from "react";
+
 import { Button } from "@/components/ui/button";
 import { getDashboardLabels } from "@/lib/i18n/dashboard";
 
 import { DashboardView, type DashboardViewPayload } from "./dashboard-view";
 import { useDashboardData } from "./use-dashboard-data";
+import { useDateFilters } from "./use-date-filters";
 
 const labels = getDashboardLabels();
 
-export function DashboardPageClient({
-  initialPayload,
+function DateFilterBar({
+  from,
+  to,
+  onApply,
 }: {
-  initialPayload: DashboardViewPayload;
+  from: string;
+  to: string;
+  onApply: (from: string, to: string) => void;
 }) {
-  const { loading, error, payload, reload } = useDashboardData(initialPayload);
+  return (
+    <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-border-subtle">
+      <label className="text-xs font-medium text-text-secondary">
+        Desde
+        <input
+          type="date"
+          value={from}
+          onChange={(e) => onApply(e.target.value, to)}
+          className="ml-1 rounded-lg border border-border-subtle bg-surface px-2 py-1 text-xs text-text-primary"
+        />
+      </label>
+      <label className="text-xs font-medium text-text-secondary">
+        Hasta
+        <input
+          type="date"
+          value={to}
+          onChange={(e) => onApply(from, e.target.value)}
+          className="ml-1 rounded-lg border border-border-subtle bg-surface px-2 py-1 text-xs text-text-primary"
+        />
+      </label>
+      {(from || to) && (
+        <button
+          type="button"
+          onClick={() => onApply("", "")}
+          className="rounded-lg px-2 py-1 text-xs text-text-muted hover:text-text-primary"
+        >
+          Limpiar
+        </button>
+      )}
+    </div>
+  );
+}
+
+function DashboardInner({ initialPayload }: { initialPayload: DashboardViewPayload }) {
+  const { from, to, setFilters, queryString } = useDateFilters();
+  const { loading, error, payload, reload } = useDashboardData(initialPayload, queryString);
 
   if (error) {
     return (
@@ -41,7 +83,22 @@ export function DashboardPageClient({
           {labels.loadingDashboard}
         </section>
       )}
-      <DashboardView payload={payload} />
+      <DateFilterBar from={from} to={to} onApply={setFilters} />
+      <div className="mt-4">
+        <DashboardView payload={payload} />
+      </div>
     </>
+  );
+}
+
+export function DashboardPageClient({
+  initialPayload,
+}: {
+  initialPayload: DashboardViewPayload;
+}) {
+  return (
+    <Suspense fallback={null}>
+      <DashboardInner initialPayload={initialPayload} />
+    </Suspense>
   );
 }

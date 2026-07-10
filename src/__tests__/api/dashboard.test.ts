@@ -10,19 +10,25 @@ function createBuilder(): MockBuilder {
   const builder: MockBuilder = {};
   const chainMethods = [
     "select", "insert", "update", "eq", "is",
-    "order", "range", "single", "maybeSingle", "limit", "gte", "lte", "in",
+    "order", "range", "single", "maybeSingle", "limit", "gte", "lte", "in", "or",
   ];
   for (const method of chainMethods) {
     builder[method] = vi.fn().mockReturnValue(builder);
   }
-  builder.then = vi.fn((resolve: (v: unknown) => void) => resolve(queuedResults.shift()));
+  builder.then = vi.fn((resolve: (v: unknown) => void) => {
+    const result = queuedResults.shift();
+    resolve(result ?? { data: null, error: null });
+  });
   builders.push(builder);
   return builder;
 }
 
 const mockSupabase = {
   from: vi.fn().mockImplementation(() => createBuilder()),
-  rpc: vi.fn().mockImplementation(() => Promise.resolve(queuedResults.shift())),
+  rpc: vi.fn().mockImplementation(() => {
+    const result = queuedResults.shift();
+    return Promise.resolve(result ?? { data: null, error: null });
+  }),
   auth: {
     getUser: vi.fn().mockResolvedValue({
       data: { user: { id: "user-id-1" } },
@@ -73,6 +79,14 @@ function pushPrices(rows: unknown[] = []) {
   queuedResults.push({ data: rows, error: null });
 }
 
+function pushHistoricalPrices(rows: unknown[] = []) {
+  queuedResults.push({ data: rows, error: null });
+}
+
+function pushNoBenchmarkAsset() {
+  queuedResults.push({ data: null, error: null });
+}
+
 describe("GET /api/v1/dashboard/summary", () => {
   it("returns 422 on invalid query params", async () => {
     const request = new NextRequest("http://localhost/api/v1/dashboard/summary?portfolio_id=not-a-uuid");
@@ -96,6 +110,8 @@ describe("GET /api/v1/dashboard/summary", () => {
       },
     ]);
     pushPrices([]);
+    pushHistoricalPrices([]);
+    pushNoBenchmarkAsset();
 
     const request = new NextRequest("http://localhost/api/v1/dashboard/summary");
     const response = await summaryGET(request);
@@ -141,6 +157,8 @@ describe("GET /api/v1/dashboard/summary", () => {
         delayed_until: null,
       },
     ]);
+    pushHistoricalPrices([]);
+    pushNoBenchmarkAsset();
 
     const request = new NextRequest("http://localhost/api/v1/dashboard/summary");
     const response = await summaryGET(request);

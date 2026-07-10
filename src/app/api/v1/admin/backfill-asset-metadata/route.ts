@@ -106,8 +106,9 @@ export async function POST(request: NextRequest) {
               .update(updates)
               .eq("id", asset.id);
             if (updateError) {
-              console.warn(
-                `[backfill-asset-metadata] update failed for ${asset.ticker} (${result.resolvedSymbol}):`,
+              logger.warn(
+                "backfill-asset-metadata",
+                `update failed for ${asset.ticker} (${result.resolvedSymbol}):`,
                 updateError.message,
               );
               return {
@@ -137,8 +138,9 @@ export async function POST(request: NextRequest) {
             message: result.message,
           };
         } catch (err) {
-          console.warn(
-            `[backfill-asset-metadata] fetch failed for ${asset.ticker}:`,
+          logger.warn(
+            "backfill-asset-metadata",
+            `fetch failed for ${asset.ticker}:`,
             err,
           );
           return {

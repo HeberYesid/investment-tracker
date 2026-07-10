@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { getDashboardLabels } from "@/lib/i18n/dashboard";
 import { getChartPalette } from "@/lib/theme/chart-palette";
 import { useTheme } from "@/lib/theme/theme-provider";
+import { useChartExport } from "@/lib/chart-export";
+import { ChartExportButton } from "@/components/ui/chart-export-button";
 import type {
   AssetStaleness,
   DistributionDimension,
@@ -52,6 +54,7 @@ function stalenessTooltip(staleness: AssetStaleness): string {
 export function DistributionChart({ initial }: DistributionChartProps) {
   const { resolvedTheme } = useTheme();
   const palette = getChartPalette(resolvedTheme);
+  const { containerRef, exporting, exportAsPng } = useChartExport("distribucion");
   const [dim, setDim] = useState<DistributionDimension>(initial.dim);
   const [data, setData] = useState<DistributionResponse>(initial);
   const [loading, setLoading] = useState(false);
@@ -189,6 +192,10 @@ export function DistributionChart({ initial }: DistributionChartProps) {
             </button>
           ))}
         </div>
+        <ChartExportButton
+          exporting={exporting}
+          onExport={exportAsPng}
+        />
       </div>
 
       {data.unclassified && (
@@ -223,7 +230,7 @@ export function DistributionChart({ initial }: DistributionChartProps) {
       )}
 
       <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_1.4fr]">
-        <div className="h-56">
+        <div className="h-56" ref={containerRef}>
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Tooltip

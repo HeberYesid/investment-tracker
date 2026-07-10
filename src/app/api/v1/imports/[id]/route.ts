@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireApiUser } from "@/lib/api/auth";
+import { getCurrentPortfolio } from "@/lib/supabase/auth";
 import { badRequest, notFound, serverError } from "@/lib/api/errors";
 
 export async function GET(
@@ -11,12 +12,18 @@ export async function GET(
   const { supabase } = auth;
 
   try {
+    const portfolio = await getCurrentPortfolio();
+    if (!portfolio) {
+      return notFound("Portafolio no encontrado.");
+    }
+
     const { id } = await params;
 
     const { data: importRecord, error } = await supabase
       .from("csv_imports")
       .select("*, brokers(name, code)")
       .eq("id", id)
+      .eq("portfolio_id", portfolio.portfolioId)
       .single();
 
     if (error || !importRecord) {
@@ -58,12 +65,18 @@ export async function DELETE(
   const { supabase } = auth;
 
   try {
+    const portfolio = await getCurrentPortfolio();
+    if (!portfolio) {
+      return notFound("Portafolio no encontrado.");
+    }
+
     const { id } = await params;
 
     const { data: importRecord, error } = await supabase
       .from("csv_imports")
       .select("id, status")
       .eq("id", id)
+      .eq("portfolio_id", portfolio.portfolioId)
       .single();
 
     if (error || !importRecord) {

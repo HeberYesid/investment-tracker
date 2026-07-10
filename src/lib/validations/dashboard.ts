@@ -13,6 +13,7 @@ export const SummaryResponse = z.object({
   unrealizedPnlUsd: z.number(),
   totalPnlUsd: z.number(),
   returnPct: z.number(),
+  twr: z.number().nullable(),
   holdingsCount: z.number(),
   isEstimated: z.boolean(),
   isAnyStale: z.boolean(),

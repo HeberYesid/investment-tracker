@@ -30,7 +30,7 @@
       No hay lógica de negocio en componentes.
 - [ ] `src/features/` contiene feature-level components (new-trade, edit-trade, import, etc.).
       Cada feature tiene su carpeta dedicada.
-- [ ] `src/middleware.ts` gestiona session refresh + auth gate. No hay auth checks inline.
+- [ ] `src/proxy.ts` (Next.js 16+) gestiona session refresh + auth gate. No hay auth checks inline.
 - [ ] `supabase/` contiene migraciones numeradas (`000N_*.sql` inmutables una vez aplicadas)
       y Edge Functions Deno. No hay lógica de negocio de la app en Edge Functions.
 - [ ] Strings de UI en `src/lib/i18n/*.ts`. Sin copy hardcodeado en componentes.

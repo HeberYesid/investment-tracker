@@ -2,6 +2,13 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { createElement } from "react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
+vi.mock("next/dynamic", () => ({
+  default: (_importFn: unknown, opts?: { ssr?: boolean; loading?: React.ComponentType }) => {
+    if (opts?.loading) return opts.loading;
+    return () => null;
+  },
+}));
+
 const reloadMock = vi.fn();
 
 function mockAdvanced(overrides: Partial<{
@@ -44,6 +51,7 @@ const readySummary = {
   unrealizedPnlUsd: 200,
   totalPnlUsd: 200,
   returnPct: 25,
+  twr: null,
   holdingsCount: 3,
   isEstimated: false,
   isAnyStale: false,

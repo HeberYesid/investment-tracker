@@ -40,6 +40,12 @@ export async function POST(request: NextRequest) {
     if (!(file instanceof File)) {
       return badRequest("Debes adjuntar un archivo.");
     }
+
+    const MAX_FILE_SIZE = 10 * 1024 * 1024;
+    if (file.size > MAX_FILE_SIZE) {
+      return badRequest("El archivo excede el tamaño máximo de 10 MB.");
+    }
+
     if (typeof brokerCodeRaw !== "string") {
       return badRequest("broker_code es requerido.");
     }
@@ -60,7 +66,7 @@ export async function POST(request: NextRequest) {
 
     const brokerCode = brokerCodeRaw as BrokerCode;
     if (!validBrokers.includes(brokerCode)) {
-      return badRequest(`Bróker no soportado: ${brokerCodeRaw}`);
+      return badRequest("Bróker no soportado.");
     }
 
     const arrayBuffer = await file.arrayBuffer();
@@ -113,7 +119,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (brokerError || !broker) {
-      return badRequest(`Bróker no encontrado: ${brokerCode}`);
+      return badRequest("Bróker no encontrado.");
     }
 
     const { data: importRecord, error: importError } = await supabase

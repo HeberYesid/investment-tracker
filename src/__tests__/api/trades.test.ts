@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
 import { NextRequest } from "next/server";
 
+import { serializeTradeDTO } from "@/lib/validations/trades";
+
 const mockTrade = {
   id: "550e8400-e29b-41d4-a716-446655440003",
   portfolio_id: "550e8400-e29b-41d4-a716-446655440000",
@@ -115,7 +117,7 @@ describe("POST /api/v1/trades", () => {
     const body = await response.json();
 
     expect(response.status).toBe(201);
-    expect(body).toEqual(mockTrade);
+    expect(body).toEqual(serializeTradeDTO(mockTrade));
   });
 
   it("returns 422 for invalid data (missing required fields)", async () => {

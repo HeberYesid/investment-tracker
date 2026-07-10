@@ -1,15 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// Deprecated: use GET /api/v1/dashboard/aggregate for a single consolidated
-// payload. Kept for backwards compatibility.
-import { aggregateHoldings } from "@/lib/calculations/holdings";
-import { calculateTotalEquity } from "@/lib/calculations/equity";
-import { calculatePortfolioPnl } from "@/lib/calculations/pnl";
 import { badRequest, serverError, validationError } from "@/lib/api/errors";
 import { requireApiUser } from "@/lib/api/auth";
 import { getCurrentPortfolio } from "@/lib/supabase/auth";
-import { loadDashboardData } from "@/lib/dashboard/loader";
-import { computeAssetStaleness } from "@/lib/dashboard/snapshot";
+import { loadDashboardAggregate } from "@/lib/dashboard/aggregate";
 import { SummaryQuery } from "@/lib/validations/dashboard";
 
 export async function GET(request: NextRequest) {
@@ -30,45 +24,19 @@ export async function GET(request: NextRequest) {
     ) {
       return badRequest("portfolio_id no coincide con tu portafolio.");
     }
-    const data = await loadDashboardData(portfolio.portfolioId, supabase);
 
-    const holdings = aggregateHoldings(data.trades, data.assets, data.brokers);
-    const { equityUsd, isAnyEstimated } = calculateTotalEquity(
-      holdings,
-      data.latestMarketPrices,
+    const aggregate = await loadDashboardAggregate(
+      portfolio.portfolioId,
+      supabase,
     );
-    const pnl = calculatePortfolioPnl(holdings, equityUsd);
 
-    const activeAssetIds = Array.from(
-      new Set(
-        holdings
-          .filter((h) => h.quantity > 0)
-          .map((h) => h.assetId),
-      ),
+    const response = NextResponse.json(aggregate.summary);
+    response.headers.set("Deprecation", "true");
+    response.headers.set(
+      "Link",
+      '</api/v1/dashboard/aggregate>; rel="alternate"',
     );
-    const staleness = computeAssetStaleness(
-      activeAssetIds,
-      data.latestMarketPrices,
-    );
-    const isAnyStale = Array.from(staleness.values()).some(
-      (value) => value === "stale",
-    );
-    const staleTickers = Array.from(staleness.entries())
-      .filter(([, v]) => v === "stale")
-      .map(([id]) => data.assets.find((a) => a.id === id)?.ticker ?? id);
-
-    return NextResponse.json({
-      equityUsd,
-      investedUsd: pnl.investedUsd,
-      realizedPnlUsd: pnl.realizedPnlUsd,
-      unrealizedPnlUsd: pnl.unrealizedPnlUsd,
-      totalPnlUsd: pnl.totalPnlUsd,
-      returnPct: pnl.returnPct,
-      holdingsCount: holdings.filter((h) => h.quantity > 0).length,
-      isEstimated: isAnyEstimated,
-      isAnyStale,
-      staleTickers,
-    });
+    return response;
   } catch (err) {
     if (err instanceof Error) return badRequest(err.message);
     return serverError();

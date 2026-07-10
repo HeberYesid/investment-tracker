@@ -10,6 +10,7 @@ import { candidateYahooSymbols } from "@/lib/market-data/symbols";
 import type { AssetProfile } from "@/lib/market-data/types";
 import { z } from "zod";
 import { errors as errorMessages } from "@/lib/i18n/errors";
+import { logger } from "@/lib/logger";
 
 const CommitBody = z.object({
   import_id: z.string().uuid(),
@@ -41,6 +42,7 @@ export async function POST(request: NextRequest) {
       .from("csv_imports")
       .select("*")
       .eq("id", import_id)
+      .eq("portfolio_id", portfolio.portfolioId)
       .single();
 
     if (importError || !importRecord) {
@@ -133,7 +135,7 @@ export async function POST(request: NextRequest) {
           }
         }
       } catch (err) {
-        console.warn("[csv-commit] asset profile enrichment failed:", err);
+        logger.warn("csv-commit", "asset profile enrichment failed:", err);
       }
 
       const newAssetPayloads = newTickers.map((ticker) => {
@@ -244,6 +246,7 @@ export async function POST(request: NextRequest) {
       .eq("id", import_id);
 
     await supabase.from("audit_events").insert({
+      actor_user_id: auth.user.id,
       portfolio_id: portfolio.portfolioId,
       entity_type: "csv_import",
       entity_id: import_id,

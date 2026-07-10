@@ -88,13 +88,13 @@ export const TradeDTO = z.object({
   trade_date: z.string(),
   trade_type: z.enum(TRADE_TYPES),
   quantity: z.number(),
-  price_original: z.number(),
+  price_original: z.string(),
   currency_original: z.enum(SUPPORTED_CURRENCIES),
-  commission_original: z.number(),
-  fx_rate_to_usd: z.number(),
-  price_usd: z.number(),
-  commission_usd: z.number(),
-  total_invested_usd: z.number(),
+  commission_original: z.string(),
+  fx_rate_to_usd: z.string(),
+  price_usd: z.string(),
+  commission_usd: z.string(),
+  total_invested_usd: z.string(),
   source: z.enum(SOURCES),
   source_file_id: z.string().uuid().nullable().optional(),
   created_at: z.string(),
@@ -129,6 +129,29 @@ export type NormalizedTradeValues = {
   commission_usd: number;
   total_invested_usd: number;
 };
+
+const MONETARY_KEYS = [
+  "price_original",
+  "commission_original",
+  "fx_rate_to_usd",
+  "price_usd",
+  "commission_usd",
+  "total_invested_usd",
+] as const;
+
+export function serializeTradeDTO(
+  row: Record<string, unknown>,
+): Record<string, unknown> {
+  const dto = { ...row };
+  for (const key of MONETARY_KEYS) {
+    if (typeof dto[key] === "number") {
+      dto[key] = String(dto[key]);
+    } else if (dto[key] == null) {
+      dto[key] = "0";
+    }
+  }
+  return dto;
+}
 
 export function normalizeTradeUsdValues(input: CreateTradeInput): NormalizedTradeValues {
   const price_usd = input.price_original * input.fx_rate_to_usd;

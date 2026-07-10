@@ -50,6 +50,7 @@ async function fetchJson<T>(url: string, signal: AbortSignal): Promise<T> {
 
 export function useDashboardData(
   initial: DashboardPayload,
+  queryParams = "",
 ): DashboardDataState {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -61,7 +62,7 @@ export function useDashboardData(
     setError(null);
     try {
       const aggregate = await fetchJson<DashboardAggregate>(
-        "/api/v1/dashboard/aggregate?granularity=monthly&groupBy=month",
+        `/api/v1/dashboard/aggregate?granularity=monthly&groupBy=month${queryParams}`,
         controller.signal,
       );
       setPayload(fromAggregate(aggregate));
@@ -71,7 +72,7 @@ export function useDashboardData(
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [queryParams]);
 
   return {
     loading,

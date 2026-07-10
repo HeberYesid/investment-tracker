@@ -9,6 +9,7 @@ import { resolveAssetPrice } from "@/lib/calculations/pricing";
 import { groupByDimension } from "@/lib/calculations/distribution";
 import { groupHistoricalPricesByAsset, loadDashboardData } from "@/lib/dashboard/loader";
 import { computeAssetStaleness, loadSnapshot } from "@/lib/dashboard/snapshot";
+import { computeTWRFromTrades } from "@/lib/calculations/twr";
 import type {
   DistributionDimension,
   DistributionResponse,
@@ -77,6 +78,8 @@ export async function loadDashboardAggregate(
     .filter(([, v]) => v === "stale")
     .map(([id]) => data.assets.find((a) => a.id === id)?.ticker ?? id);
 
+  const twr = computeTWRFromTrades(data.trades, 0, equityUsd);
+
   const summary: SummaryResponse = {
     equityUsd,
     investedUsd: pnl.investedUsd,
@@ -84,6 +87,7 @@ export async function loadDashboardAggregate(
     unrealizedPnlUsd: pnl.unrealizedPnlUsd,
     totalPnlUsd: pnl.totalPnlUsd,
     returnPct: pnl.returnPct,
+    twr,
     holdingsCount: holdings.filter((h) => h.quantity > 0).length,
     isEstimated: isAnyEstimated,
     isAnyStale,

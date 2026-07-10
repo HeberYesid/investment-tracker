@@ -111,54 +111,28 @@ async function backfillBenchmarkHistory(
 }
 
 async function listActiveAssets(supabase: ReturnType<typeof getServiceClient>): Promise<ActiveAssetRow[]> {
-  const { data, error } = await supabase.rpc("execute_sql", {
-    query: `
-      select t.asset_id, a.yahoo_symbol, a.ticker
-      from public.trades t
-      join public.assets a on a.id = t.asset_id
-      where t.deleted_at is null
-      group by t.asset_id, a.yahoo_symbol, a.ticker
-      having sum(
-        case
-          when t.trade_type in ('BUY', 'TRANSFER_IN') then t.quantity
-          when t.trade_type in ('SELL', 'TRANSFER_OUT') then -t.quantity
-          else 0
-        end
-      ) > 0;
-    `,
-  }).then((res) => res, () => ({ data: null, error: null }));
-  // The execute_sql RPC may not exist in Supabase. Fall back to a raw
-  // PostgREST select with view if available; here we just attempt a
-  // direct select via raw SQL through a custom RPC.
-  if (error || !data) {
-    // Fallback: query market_prices + assets to find tickers that
-    // appear in trades. Simpler approach: select all distinct
-    // asset_ids from trades and let the caller dedupe with the
-    // benchmark.
-    const { data: tradeAssets, error: tradeError } = await supabase
-      .from("trades")
-      .select("asset_id, assets(yahoo_symbol, ticker)")
-      .is("deleted_at", null);
-    if (tradeError) {
-      throw new Error(`listActiveAssets: ${tradeError.message}`);
-    }
-    type Row = { asset_id: string; assets: { yahoo_symbol: string | null; ticker: string } | { yahoo_symbol: string | null; ticker: string }[] | null };
-    const seen = new Set<string>();
-    const result: ActiveAssetRow[] = [];
-    for (const row of (tradeAssets ?? []) as Row[]) {
-      if (seen.has(row.asset_id)) continue;
-      const asset = Array.isArray(row.assets) ? row.assets[0] : row.assets;
-      if (!asset) continue;
-      seen.add(row.asset_id);
-      result.push({
-        asset_id: row.asset_id,
-        yahoo_symbol: asset.yahoo_symbol,
-        ticker: asset.ticker,
-      });
-    }
-    return result;
+  const { data: tradeAssets, error: tradeError } = await supabase
+    .from("trades")
+    .select("asset_id, assets(yahoo_symbol, ticker)")
+    .is("deleted_at", null);
+  if (tradeError) {
+    throw new Error(`listActiveAssets: ${tradeError.message}`);
   }
-  return (data as ActiveAssetRow[]) ?? [];
+  type Row = { asset_id: string; assets: { yahoo_symbol: string | null; ticker: string } | { yahoo_symbol: string | null; ticker: string }[] | null };
+  const seen = new Set<string>();
+  const result: ActiveAssetRow[] = [];
+  for (const row of (tradeAssets ?? []) as Row[]) {
+    if (seen.has(row.asset_id)) continue;
+    const asset = Array.isArray(row.assets) ? row.assets[0] : row.assets;
+    if (!asset) continue;
+    seen.add(row.asset_id);
+    result.push({
+      asset_id: row.asset_id,
+      yahoo_symbol: asset.yahoo_symbol,
+      ticker: asset.ticker,
+    });
+  }
+  return result;
 }
 
 async function findBenchmarkAsset(supabase: ReturnType<typeof getServiceClient>): Promise<BenchmarkAssetRow | null> {

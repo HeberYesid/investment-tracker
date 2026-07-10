@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { requireApiUserWithPortfolio } from "@/lib/api/auth";
+import { getCurrentPortfolio } from "@/lib/supabase/auth";
 import {
   UpdateTradeInput,
   normalizeTradeUsdValues,
+  serializeTradeDTO,
 } from "@/lib/validations/trades";
 import { notFound, validationError, serverError } from "@/lib/api/errors";
 
@@ -21,9 +23,14 @@ export async function PATCH(
 ) {
   const auth = await requireApiUserWithPortfolio(undefined, { writeAccess: true });
   if (auth.response) return auth.response;
-  const { supabase } = auth;
+  const { supabase, user } = auth;
 
   try {
+    const portfolio = await getCurrentPortfolio();
+    if (!portfolio) {
+      return notFound("Portafolio no encontrado");
+    }
+
     const { id } = await params;
     const body = await request.json();
     const parsed = UpdateTradeInput.safeParse(body);
@@ -38,6 +45,7 @@ export async function PATCH(
       .from("trades")
       .select()
       .eq("id", id)
+      .eq("portfolio_id", portfolio.portfolioId)
       .is("deleted_at", null)
       .single();
 
@@ -66,10 +74,11 @@ export async function PATCH(
       .single();
 
     if (updateError) {
-      return notFound(updateError.message);
+      return notFound("Error al actualizar la operación.");
     }
 
     await supabase.from("audit_events").insert({
+      actor_user_id: user.id,
       portfolio_id: trade.portfolio_id,
       entity_type: "trade",
       entity_id: trade.id,
@@ -82,7 +91,7 @@ export async function PATCH(
     revalidatePath("/avanzado");
     revalidateTag("market-prices", "max");
 
-    return NextResponse.json(trade);
+    return NextResponse.json(serializeTradeDTO(trade));
   } catch {
     return serverError();
   }
@@ -94,15 +103,21 @@ export async function DELETE(
 ) {
   const auth = await requireApiUserWithPortfolio(undefined, { writeAccess: true });
   if (auth.response) return auth.response;
-  const { supabase } = auth;
+  const { supabase, user } = auth;
 
   try {
+    const portfolio = await getCurrentPortfolio();
+    if (!portfolio) {
+      return notFound("Portafolio no encontrado");
+    }
+
     const { id } = await params;
 
     const { data: existing, error: fetchError } = await supabase
       .from("trades")
       .select()
       .eq("id", id)
+      .eq("portfolio_id", portfolio.portfolioId)
       .is("deleted_at", null)
       .single();
 
@@ -116,6 +131,7 @@ export async function DELETE(
       .eq("id", id);
 
     await supabase.from("audit_events").insert({
+      actor_user_id: user.id,
       portfolio_id: existing.portfolio_id,
       entity_type: "trade",
       entity_id: existing.id,
