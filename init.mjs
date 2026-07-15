@@ -7,7 +7,7 @@
 // Salida esperada: códigos de salida claros y bloques marcados con [OK]/[FAIL].
 // Ejecutar con: node init.mjs
 
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { execSync } from "node:child_process";
@@ -151,11 +151,31 @@ async function main() {
               f.name
             );
             const specFiles = ["proposal.md", "design.md", "tasks.md"];
+            const missing = [];
+
             for (const sf of specFiles) {
-              if (!existsSync(join(changeDir, sf))) {
-                specErrors.push(
-                  `feature ${f.id} (${f.name}) en ${f.status} sin openspec/changes/${f.name}/${sf}`
-                );
+              if (existsSync(join(changeDir, sf))) continue;
+              missing.push(sf);
+            }
+
+            if (missing.length > 0) {
+              const archiveDir = join(__dirname, "openspec", "changes", "archive");
+              let foundAll = false;
+              if (existsSync(archiveDir)) {
+                const archiveEntries = readdirSync(archiveDir, { withFileTypes: true })
+                  .filter((d) => d.isDirectory() && d.name.endsWith(f.name))
+                  .map((d) => d.name);
+                if (archiveEntries.length === 1) {
+                  const archiveChange = join(archiveDir, archiveEntries[0]);
+                  foundAll = missing.every((sf) => existsSync(join(archiveChange, sf)));
+                }
+              }
+              if (!foundAll) {
+                for (const sf of missing) {
+                  specErrors.push(
+                    `feature ${f.id} (${f.name}) en ${f.status} sin openspec/changes/${f.name}/${sf} (ni en archive)`
+                  );
+                }
               }
             }
           }
