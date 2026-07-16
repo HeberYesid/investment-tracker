@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Suspense } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -53,7 +54,32 @@ function DateFilterBar({
   );
 }
 
-function DashboardInner({ initialPayload }: { initialPayload: DashboardViewPayload }) {
+function DemoBanner() {
+  return (
+    <section
+      className="rounded-2xl bg-blue-50 p-4 text-center shadow-sm ring-1 ring-blue-200 dark:bg-blue-950 dark:ring-blue-800"
+      data-testid="demo-banner"
+    >
+      <p className="text-sm font-medium text-blue-800 dark:text-blue-200">
+        {labels.demoBannerTitle}
+      </p>
+      <p className="mt-1 text-xs text-blue-600 dark:text-blue-400">
+        {labels.demoBannerDescription}
+      </p>
+      <Button asChild className="mt-3" size="sm">
+        <Link href="/login">{labels.demoBannerCta}</Link>
+      </Button>
+    </section>
+  );
+}
+
+function DashboardInner({
+  initialPayload,
+  isDemo,
+}: {
+  initialPayload: DashboardViewPayload;
+  isDemo?: boolean;
+}) {
   const { from, to, setFilters, queryString } = useDateFilters();
   const { loading, error, payload, reload } = useDashboardData(initialPayload, queryString);
 
@@ -74,6 +100,7 @@ function DashboardInner({ initialPayload }: { initialPayload: DashboardViewPaylo
 
   return (
     <>
+      {isDemo && <DemoBanner />}
       {loading && (
         <section
           className="rounded-2xl bg-surface p-4 text-center text-sm text-text-muted shadow-sm ring-1 ring-border-subtle"
@@ -93,12 +120,14 @@ function DashboardInner({ initialPayload }: { initialPayload: DashboardViewPaylo
 
 export function DashboardPageClient({
   initialPayload,
+  isDemo = false,
 }: {
   initialPayload: DashboardViewPayload;
+  isDemo?: boolean;
 }) {
   return (
     <Suspense fallback={null}>
-      <DashboardInner initialPayload={initialPayload} />
+      <DashboardInner initialPayload={initialPayload} isDemo={isDemo} />
     </Suspense>
   );
 }

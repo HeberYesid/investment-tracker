@@ -66,16 +66,20 @@ export default async function Home() {
             <h1 className="text-3xl font-bold tracking-tight text-text-primary sm:text-4xl">
               {labels.pageTitle}
             </h1>
-            <div className="flex items-center gap-3">
-              <SyncNowButton lastSyncedAt={lastSyncFinishedAt} />
-            </div>
+            {portfolio && (
+              <div className="flex items-center gap-3">
+                <SyncNowButton lastSyncedAt={lastSyncFinishedAt} />
+              </div>
+            )}
           </div>
         </section>
 
-        <StalePriceSyncTrigger
-          shouldSync={shouldBackgroundSync}
-          canSync={canSync}
-        />
+        {portfolio && (
+          <StalePriceSyncTrigger
+            shouldSync={shouldBackgroundSync}
+            canSync={canSync}
+          />
+        )}
 
         <Suspense fallback={<DashboardSkeleton />}>
           <DashboardDataLoader />

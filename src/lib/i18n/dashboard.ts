@@ -118,6 +118,11 @@ export const dashboardLabels = {
     loadingDashboard: "Cargando dashboard...",
     errorLoading: "Error al cargar el dashboard",
     retry: "Reintentar",
+
+    demoBannerTitle: "Est\u00e1s viendo un portafolio de demostraci\u00f3n",
+    demoBannerDescription:
+      "Los datos que ves son de ejemplo. Inicia sesi\u00f3n para ver tu portafolio real con tus propias operaciones.",
+    demoBannerCta: "Iniciar sesi\u00f3n",
   },
 } as const;
 
