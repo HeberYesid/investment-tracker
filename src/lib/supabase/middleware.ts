@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
 const PUBLIC_PREFIXES = ["/login", "/auth/", "/api/v1/auth/"];
-const PUBLIC_EXACT = new Set<string>([]);
+const PUBLIC_EXACT = new Set<string>(["/"]);
 
 function isPublicPath(pathname: string): boolean {
   if (PUBLIC_EXACT.has(pathname)) return true;
