@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createUserSupabaseClient } from "@/lib/supabase/server";
+import { createServerClient } from "@supabase/ssr";
 
 function safeRedirectPath(next: string | null): string {
   if (!next) return "/";
@@ -19,7 +19,28 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${origin}/auth/error?reason=missing_code`);
   }
 
-  const supabase = await createUserSupabaseClient();
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+
+  if (!supabaseUrl || !publishableKey) {
+    return NextResponse.redirect(`${origin}/auth/error?reason=missing_code`);
+  }
+
+  const response = NextResponse.redirect(`${origin}${next}`);
+
+  const supabase = createServerClient(supabaseUrl, publishableKey, {
+    cookies: {
+      getAll() {
+        return request.cookies.getAll();
+      },
+      setAll(cookiesToSet) {
+        for (const { name, value, options } of cookiesToSet) {
+          response.cookies.set(name, value, { ...options, sameSite: "lax" });
+        }
+      },
+    },
+  });
+
   const { error } = await supabase.auth.exchangeCodeForSession(code);
 
   if (error) {
@@ -29,5 +50,5 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${origin}/auth/error?reason=${reason}`);
   }
 
-  return NextResponse.redirect(`${origin}${next}`);
+  return response;
 }

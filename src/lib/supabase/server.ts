@@ -23,8 +23,15 @@ export async function createUserSupabaseClient() {
             cookieStore.set(name, value, { ...options, sameSite: "lax" });
           }
         } catch {
-          // Called from a Server Component. Middleware refreshes the
-          // session on every request, so this is safe to ignore.
+          // `cookieStore.set()` throws only in Server Components (RSC)
+          // because Next.js prohibits cookie writes during rendering.
+          // In those contexts the proxy (src/proxy.ts) refreshes the
+          // session via its own response-bound cookies, so swallowing
+          // here is safe.
+          //
+          // Route Handlers that mutate the session (auth callback,
+          // signout) must NOT rely on this client for writes — they
+          // should bind cookies to the returned NextResponse directly.
         }
       },
     },
