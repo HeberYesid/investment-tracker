@@ -3,6 +3,13 @@ import { updateSession } from "@/lib/supabase/middleware";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 
 export async function proxy(request: NextRequest) {
+  const code = request.nextUrl.searchParams.get("code");
+  if (request.nextUrl.pathname === "/" && code) {
+    const callbackUrl = new URL("/auth/callback", request.url);
+    callbackUrl.searchParams.set("code", code);
+    return NextResponse.redirect(callbackUrl);
+  }
+
   if (request.nextUrl.pathname.startsWith("/api/")) {
     const result = checkRateLimit(request);
     if (!result.allowed) {
