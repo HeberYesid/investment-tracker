@@ -1,6 +1,11 @@
 allowBuilds:
   sharp: false
   unrs-resolver: false
+# Mantener estos mínimos hasta que el lockfile los resuelva sin overrides.
+overrides:
+  'next@16.4.6>baseline-browser-mapping': '2.11.38'
+  'browserslist@<=4.28.6': '4.28.7'
+  'source-map-js@>=1.0.0 <1.2.2': '1.2.2'
 minimumReleaseAgeExclude:
   - '@next/env@16.3.0-preview.0'
   - '@next/eslint-plugin-next@16.3.0-preview.0'

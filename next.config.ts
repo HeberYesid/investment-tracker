@@ -27,6 +27,7 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   compress: true,
   cacheComponents: true,
+  partialPrefetching: false,
   experimental: {
     optimizePackageImports: ["lucide-react", "recharts"],
   },
