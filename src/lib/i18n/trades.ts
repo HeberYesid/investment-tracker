@@ -7,6 +7,8 @@ export const tradeLabels = {
     tradeType: "Tipo de operación",
     tradeDate: "Fecha",
     broker: "Bróker",
+    selectBroker: "Seleccionar bróker",
+    referenceUnavailable: "No disponible",
     asset: "Activo",
     ticker: "Ticker",
     quantity: "Cantidad",
@@ -58,7 +60,7 @@ export const tradeLabels = {
     invalidDate: "Fecha inválida",
     positiveNumber: "Debe ser un número positivo",
     copFxRateRequired:
-      "Las operaciones en COP requieren una tasa de cambio válida",
+      "Ingresa el multiplicador de COP a USD (por ejemplo, 0.00026316).",
 
     readOnlyBanner:
       "Tu rol es de solo lectura — no puedes crear ni editar operaciones.",

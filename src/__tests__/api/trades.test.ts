@@ -101,6 +101,36 @@ beforeEach(() => {
 });
 
 describe("POST /api/v1/trades", () => {
+  it("rechaza la cotización USD→COP usada como multiplicador COP→USD", async () => {
+    const response = await POST(new NextRequest("http://localhost/api/v1/trades", {
+      method: "POST",
+      body: JSON.stringify({ ...validTradeInput, currency_original: "COP", fx_rate_to_usd: 3800 }),
+    }));
+
+    expect(response.status).toBe(422);
+    expect(mockSupabase.from).not.toHaveBeenCalledWith("trades");
+  });
+
+  it("persiste 380.000 COP como aproximadamente 100 USD usando la precisión de la tasa guardada", async () => {
+    queuedResults.push({ data: { id: mockTrade.broker_id }, error: null });
+    queuedResults.push({ data: { id: mockTrade.asset_id }, error: null });
+    queuedResults.push({ data: mockTrade, error: null });
+    queuedResults.push({ data: null, error: null });
+
+    const response = await POST(new NextRequest("http://localhost/api/v1/trades", {
+      method: "POST",
+      body: JSON.stringify({ ...validTradeInput, currency_original: "COP", quantity: 1,
+        price_original: "380000", commission_original: "0", fx_rate_to_usd: "0.0002631578947368421" }),
+    }));
+
+    expect(response.status).toBe(201);
+    expect(builders[2].insert).toHaveBeenCalledWith(expect.objectContaining({
+      portfolio_id: mockTrade.portfolio_id,
+      fx_rate_to_usd: 0.00026316,
+    }));
+    expect(builders[2].insert.mock.calls[0][0].total_invested_usd).toBeCloseTo(100, 2);
+  });
+
   it("returns 201 for a valid trade", async () => {
     queuedResults.push({ data: { id: mockTrade.broker_id }, error: null });
     queuedResults.push({ data: { id: mockTrade.asset_id }, error: null });
@@ -237,6 +267,36 @@ describe("GET /api/v1/trades", () => {
 
 describe("PATCH /api/v1/trades/:id", () => {
   const tradeId = "550e8400-e29b-41d4-a716-446655440003";
+
+  it("rechaza cambiar solo la moneda a COP cuando la operación tiene tasa 1", async () => {
+    queuedResults.push({ data: mockTrade, error: null });
+    const request = new NextRequest(`http://localhost/api/v1/trades/${tradeId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ currency_original: "COP" }),
+    });
+
+    const response = await PATCH(request, { params: Promise.resolve({ id: tradeId }) });
+
+    expect(response.status).toBe(422);
+    expect(builders).toHaveLength(1);
+  });
+
+  it("restablece la tasa a 1 y recalcula el total al cambiar solo la moneda a USD", async () => {
+    queuedResults.push({ data: { ...mockTrade, currency_original: "COP", fx_rate_to_usd: 0.00025 }, error: null });
+    queuedResults.push({ data: mockTrade, error: null });
+    queuedResults.push({ data: null, error: null });
+    const request = new NextRequest(`http://localhost/api/v1/trades/${tradeId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ currency_original: "USD" }),
+    });
+
+    const response = await PATCH(request, { params: Promise.resolve({ id: tradeId }) });
+
+    expect(response.status).toBe(200);
+    expect(builders[1].update).toHaveBeenCalledWith(expect.objectContaining({
+      fx_rate_to_usd: 1, price_usd: 100, commission_usd: 5, total_invested_usd: 1005,
+    }));
+  });
 
   it("returns 200 for a valid partial update", async () => {
     const updatedTrade = { ...mockTrade, quantity: 20, updated_at: expect.any(String) };

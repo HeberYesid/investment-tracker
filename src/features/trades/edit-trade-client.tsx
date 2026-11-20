@@ -3,10 +3,13 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import type { TradeDTO } from "@/lib/validations/trades";
+import { TRADE_DECIMAL_SCALE, type TradeDTO } from "@/lib/validations/trades";
 import { errors } from "@/lib/i18n/errors";
+import { getTradeLabels } from "@/lib/i18n/trades";
 
 import { TradeForm, type TradeFormValues } from "./trade-form";
+
+const labels = getTradeLabels();
 
 interface EditTradeClientProps {
   trade: TradeDTO;
@@ -19,6 +22,8 @@ export function EditTradeClient({ trade }: EditTradeClientProps) {
   const initialData: Partial<TradeFormValues> = {
     trade_type: trade.trade_type,
     trade_date: trade.trade_date,
+    broker_code: trade.broker_code ?? labels.referenceUnavailable,
+    ticker: trade.ticker ?? labels.referenceUnavailable,
     quantity: trade.quantity,
     price_original: Number(trade.price_original),
     currency_original: trade.currency_original,
@@ -37,16 +42,16 @@ export function EditTradeClient({ trade }: EditTradeClientProps) {
           trade_type: data.trade_type,
           trade_date: data.trade_date,
           quantity: data.quantity,
-          price_original: data.price_original,
+          price_original: data.price_original.toFixed(TRADE_DECIMAL_SCALE),
           currency_original: data.currency_original,
-          commission_original: data.commission_original,
-          fx_rate_to_usd: data.fx_rate_to_usd,
+          commission_original: data.commission_original.toFixed(TRADE_DECIMAL_SCALE),
+          fx_rate_to_usd: data.fx_rate_to_usd.toFixed(TRADE_DECIMAL_SCALE),
         }),
       });
 
       if (!res.ok) {
         const json = await res.json().catch(() => null);
-        throw new Error(json?.error ?? "Error al actualizar la operación");
+        throw new Error(json?.error?.message ?? "Error al actualizar la operación");
       }
 
       router.push("/trades");

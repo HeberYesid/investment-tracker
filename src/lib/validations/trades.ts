@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { getTradeLabels } from "@/lib/i18n/trades";
 
 export const TRADE_TYPES = [
   "BUY",
@@ -12,6 +13,46 @@ export const TRADE_TYPES = [
 export const SUPPORTED_CURRENCIES = ["USD", "COP"] as const;
 
 export const SOURCES = ["MANUAL", "CSV"] as const;
+
+export const TRADE_DECIMAL_SCALE = 8;
+
+function roundTradeFxRate(rate: number): number {
+  return Number(rate.toFixed(TRADE_DECIMAL_SCALE));
+}
+
+export function isCopToUsdRate(rate: number): boolean {
+  const rounded = roundTradeFxRate(rate);
+  return rate > 0 && rate < 1 && rounded > 0 && rounded < 1;
+}
+
+const validTradeFxOptions = {
+  message: getTradeLabels().copFxRateRequired,
+  path: ["fx_rate_to_usd"],
+};
+
+type TradeFxFields = {
+  currency_original: (typeof SUPPORTED_CURRENCIES)[number];
+  fx_rate_to_usd: number;
+};
+
+export function hasValidTradeFx(input: TradeFxFields): boolean {
+  return input.currency_original === "USD" || isCopToUsdRate(input.fx_rate_to_usd);
+}
+
+export function normalizeTradeFx<T extends TradeFxFields>(input: T): T {
+  return {
+    ...input,
+    fx_rate_to_usd: input.currency_original === "USD" ? 1 : roundTradeFxRate(input.fx_rate_to_usd),
+  };
+}
+
+// Los clientes nuevos envían strings; se mantienen los números del contrato anterior.
+const nonNegativeDecimalInput = z.union([
+  z.string().regex(/^\d+(?:\.\d+)?$/).transform(Number),
+  z.number(),
+]).pipe(z.number().nonnegative());
+
+const positiveDecimalInput = nonNegativeDecimalInput.pipe(z.number().positive());
 
 const TradeInputFields = z.object({
   portfolio_id: z.string().uuid(),
@@ -27,29 +68,19 @@ const TradeInputFields = z.object({
   source: z.enum(SOURCES),
 });
 
+export const TradeFxInput = TradeInputFields.pick({ currency_original: true, fx_rate_to_usd: true })
+  .refine(hasValidTradeFx, validTradeFxOptions)
+  .transform(normalizeTradeFx);
+
 const CreateTradeInputBase = TradeInputFields.extend({
   commission_original: z.number().min(0).default(0),
   fx_rate_to_usd: z.number().positive().default(1),
   source: z.enum(SOURCES).default("MANUAL"),
 });
 
-export const CreateTradeInput = CreateTradeInputBase.superRefine((data, ctx) => {
-  if (data.currency_original === "COP" && data.fx_rate_to_usd === 1) {
-    ctx.addIssue({
-      code: "custom",
-      message: "Las operaciones en COP requieren una tasa de cambio válida.",
-      path: ["fx_rate_to_usd"],
-    });
-  }
-
-  if (data.trade_type !== "FEE" && data.quantity <= 0) {
-    ctx.addIssue({
-      code: "custom",
-      message: "La cantidad debe ser positiva.",
-      path: ["quantity"],
-    });
-  }
-});
+export const CreateTradeInput = CreateTradeInputBase
+  .refine(hasValidTradeFx, validTradeFxOptions)
+  .transform(normalizeTradeFx);
 
 export type CreateTradeInput = z.infer<typeof CreateTradeInput>;
 
@@ -59,24 +90,20 @@ export const TradeFormInput = z.object({
   broker_code: z.string().min(1, "Bróker requerido"),
   ticker: z.string().min(1, "Ticker requerido").transform((v) => v.toUpperCase()),
   quantity: z.number().positive(),
-  price_original: z.number().min(0),
+  price_original: nonNegativeDecimalInput,
   currency_original: z.enum(SUPPORTED_CURRENCIES),
-  commission_original: z.number().min(0).default(0),
-  fx_rate_to_usd: z.number().positive().default(1),
+  commission_original: nonNegativeDecimalInput.default(0),
+  fx_rate_to_usd: positiveDecimalInput.default(1),
   portfolio_id: z.string().uuid().optional(),
-}).superRefine((data, ctx) => {
-  if (data.currency_original === "COP" && data.fx_rate_to_usd === 1) {
-    ctx.addIssue({
-      code: "custom",
-      message: "Las operaciones en COP requieren una tasa de cambio válida.",
-      path: ["fx_rate_to_usd"],
-    });
-  }
-});
+}).refine(hasValidTradeFx, validTradeFxOptions).transform(normalizeTradeFx);
 
 export type TradeFormInput = z.infer<typeof TradeFormInput>;
 
-export const UpdateTradeInput = TradeInputFields.partial();
+export const UpdateTradeInput = TradeInputFields.extend({
+  price_original: nonNegativeDecimalInput,
+  commission_original: nonNegativeDecimalInput,
+  fx_rate_to_usd: positiveDecimalInput,
+}).partial();
 
 export type UpdateTradeInput = z.infer<typeof UpdateTradeInput>;
 

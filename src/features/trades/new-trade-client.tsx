@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import { TradeForm, type TradeFormValues } from "./trade-form";
 import { errors } from "@/lib/i18n/errors";
+import { TRADE_DECIMAL_SCALE } from "@/lib/validations/trades";
 
 export function NewTradeClient() {
   const router = useRouter();
@@ -23,16 +24,16 @@ export function NewTradeClient() {
           broker_code: data.broker_code,
           ticker: data.ticker,
           quantity: data.quantity,
-          price_original: data.price_original,
+          price_original: data.price_original.toFixed(TRADE_DECIMAL_SCALE),
           currency_original: data.currency_original,
-          commission_original: data.commission_original,
-          fx_rate_to_usd: data.fx_rate_to_usd,
+          commission_original: data.commission_original.toFixed(TRADE_DECIMAL_SCALE),
+          fx_rate_to_usd: data.fx_rate_to_usd.toFixed(TRADE_DECIMAL_SCALE),
         }),
       });
 
       if (!res.ok) {
         const json = await res.json().catch(() => null);
-        throw new Error(json?.error ?? "Error al guardar la operación");
+        throw new Error(json?.error?.details?.[0]?.message ?? json?.error?.message ?? "Error al guardar la operación");
       }
 
       router.push("/trades");

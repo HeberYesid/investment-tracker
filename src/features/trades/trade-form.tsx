@@ -9,8 +9,8 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { getTradeLabels } from "@/lib/i18n/trades";
 import { BROKER_SEEDS } from "@/lib/reference/brokers";
-import { TRADE_TYPES, SUPPORTED_CURRENCIES } from "@/lib/validations/trades";
-import type { LatestFxResponse } from "@/lib/validations/fx";
+import { TRADE_TYPES, SUPPORTED_CURRENCIES, hasValidTradeFx, isCopToUsdRate, normalizeTradeFx } from "@/lib/validations/trades";
+import { LatestFxResponse } from "@/lib/validations/fx";
 
 const labels = getTradeLabels();
 
@@ -24,15 +24,15 @@ export const tradeFormSchema = z
     price_original: z.coerce.number().min(0, labels.positiveNumber),
     currency_original: z.enum(SUPPORTED_CURRENCIES),
     commission_original: z.coerce.number().min(0),
-    fx_rate_to_usd: z.coerce.number().positive(labels.positiveNumber),
+    fx_rate_to_usd: z.coerce.number(),
   })
   .refine(
-    (data) => data.currency_original !== "COP" || data.fx_rate_to_usd !== 1,
+    hasValidTradeFx,
     {
       message: labels.copFxRateRequired,
       path: ["fx_rate_to_usd"],
     },
-  );
+  ).transform(normalizeTradeFx);
 
 export type TradeFormValues = z.infer<typeof tradeFormSchema>;
 
@@ -69,11 +69,12 @@ const inputClass =
   "h-11 w-full rounded-xl border border-border-subtle bg-surface px-3 text-sm text-text-primary placeholder:text-text-subtle focus:border-border-default focus:outline-none focus:ring-2 focus:ring-focus-ring";
 const labelClass = "block text-sm font-medium text-text-secondary";
 
-export function TradeForm({ initialData, onSubmit }: TradeFormProps) {
+export function TradeForm({ mode, initialData, onSubmit }: TradeFormProps) {
   const {
     register,
     handleSubmit,
     control,
+    getValues,
     setValue,
     formState: { errors, isSubmitting },
   } = useForm<TradeFormValues>({
@@ -140,18 +141,18 @@ export function TradeForm({ initialData, onSubmit }: TradeFormProps) {
         <label htmlFor="broker_code" className={labelClass}>
           {labels.broker}
         </label>
-        <select
-          id="broker_code"
-          {...register("broker_code")}
-          className={inputClass}
-        >
-          <option value="">Seleccionar bróker</option>
-          {BROKER_SEEDS.map((broker) => (
-            <option key={broker.code} value={broker.code}>
-              {broker.name}
-            </option>
-          ))}
-        </select>
+        {mode === "edit" ? (
+          <input id="broker_code" readOnly {...register("broker_code")} className={inputClass} />
+        ) : (
+          <select id="broker_code" {...register("broker_code")} className={inputClass}>
+            <option value="">{labels.selectBroker}</option>
+            {BROKER_SEEDS.map((broker) => (
+              <option key={broker.code} value={broker.code}>
+                {broker.name}
+              </option>
+            ))}
+          </select>
+        )}
         {errors.broker_code && (
           <p className="text-xs text-red-600 dark:text-red-400">
             {errors.broker_code.message}
@@ -166,6 +167,7 @@ export function TradeForm({ initialData, onSubmit }: TradeFormProps) {
         <input
           id="ticker"
           type="text"
+          readOnly={mode === "edit"}
           placeholder="AAPL, MSFT, PFBC..."
           {...register("ticker")}
           className={inputClass}
@@ -219,6 +221,7 @@ export function TradeForm({ initialData, onSubmit }: TradeFormProps) {
         control={control}
         register={register}
         errors={errors}
+        getValues={getValues}
         setValue={setValue}
       />
 
@@ -267,6 +270,7 @@ interface FxCurrencyFieldProps {
   control: Control<TradeFormValues>;
   register: ReturnType<typeof useForm<TradeFormValues>>["register"];
   errors: ReturnType<typeof useForm<TradeFormValues>>["formState"]["errors"];
+  getValues: ReturnType<typeof useForm<TradeFormValues>>["getValues"];
   setValue: ReturnType<typeof useForm<TradeFormValues>>["setValue"];
 }
 
@@ -274,50 +278,10 @@ function FxCurrencyField({
   control,
   register,
   errors,
+  getValues,
   setValue,
 }: FxCurrencyFieldProps) {
   const currency = useWatch({ control, name: "currency_original" });
-  const fxRateValue = useWatch({ control, name: "fx_rate_to_usd" });
-
-  const [fxRate, setFxRate] = useState<LatestFxResponse | null>(null);
-  const [fxLoading, setFxLoading] = useState(false);
-  const [fxError, setFxError] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    setFxLoading(true);
-    setFxError(false);
-    fetch("/api/v1/fx/latest?from=USD&to=COP")
-      .then((res) => (res.ok ? res.json() : Promise.reject(res)))
-      .then((data: LatestFxResponse) => {
-        if (cancelled) return;
-        setFxRate(data);
-        if (
-          currency === "COP" &&
-          fxRateValue === 1 &&
-          data.rate &&
-          data.rate > 0
-        ) {
-          setValue("fx_rate_to_usd", data.rate, { shouldDirty: false });
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setFxError(true);
-      })
-      .finally(() => {
-        if (!cancelled) setFxLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [currency, fxRateValue, setValue]);
-
-  const fxFreshness = (() => {
-    if (fxLoading) return "loading" as const;
-    if (fxError || !fxRate) return "missing" as const;
-    if (fxRate.rate === null) return "missing" as const;
-    return fxRate.isStale ? ("stale" as const) : ("fresh" as const);
-  })();
 
   return (
     <>
@@ -350,11 +314,7 @@ function FxCurrencyField({
             {...register("fx_rate_to_usd")}
             className={inputClass}
           />
-          <FxRateIndicator
-            status={fxFreshness}
-            observedAt={fxRate?.observedAt ?? null}
-            source={fxRate?.source ?? null}
-          />
+          <CopFxSuggestion getValues={getValues} setValue={setValue} />
           {errors.fx_rate_to_usd && (
             <p className="text-xs text-red-600 dark:text-red-400">
               {errors.fx_rate_to_usd.message}
@@ -364,6 +324,46 @@ function FxCurrencyField({
       )}
     </>
   );
+}
+
+function CopFxSuggestion({ getValues, setValue }: Pick<FxCurrencyFieldProps, "getValues" | "setValue">) {
+  const [shouldSuggest] = useState(() => Number(getValues("fx_rate_to_usd")) === 1);
+  const [quote, setQuote] = useState<LatestFxResponse | null>();
+
+  useEffect(() => {
+    if (!shouldSuggest) return;
+    const controller = new AbortController();
+
+    async function loadQuote() {
+      try {
+        const response = await fetch("/api/v1/fx/latest?from=COP&to=USD", { signal: controller.signal });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = LatestFxResponse.parse(await response.json());
+        if (controller.signal.aborted) return;
+        if (data.fromCurrency !== "COP" || data.toCurrency !== "USD" ||
+          data.rate === null || !isCopToUsdRate(data.rate)) {
+          setQuote(null);
+          return;
+        }
+        if (getValues("currency_original") === "COP" && getValues("fx_rate_to_usd") === 1) {
+          setValue("fx_rate_to_usd", data.rate, { shouldValidate: true });
+        }
+        setQuote(data);
+      } catch {
+        if (!controller.signal.aborted) setQuote(null);
+      }
+    }
+
+    void loadQuote();
+    return () => controller.abort();
+  }, [getValues, setValue, shouldSuggest]);
+
+  if (!shouldSuggest) return null;
+  return <FxRateIndicator
+    status={quote === undefined ? "loading" : quote === null ? "missing" : quote.isStale ? "stale" : "fresh"}
+    observedAt={quote?.observedAt ?? null}
+    source={quote?.source ?? null}
+  />;
 }
 
 interface FxRateIndicatorProps {

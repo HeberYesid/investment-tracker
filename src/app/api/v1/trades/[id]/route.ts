@@ -3,6 +3,7 @@ import { revalidatePath, revalidateTag } from "next/cache";
 import { requireApiUserWithPortfolio } from "@/lib/api/auth";
 import { getCurrentPortfolio } from "@/lib/supabase/auth";
 import {
+  TradeFxInput,
   UpdateTradeInput,
   normalizeTradeUsdValues,
   serializeTradeDTO,
@@ -13,6 +14,7 @@ const USD_AFFECTING_FIELDS = [
   "price_original",
   "quantity",
   "commission_original",
+  "currency_original",
   "fx_rate_to_usd",
   "trade_type",
 ] as const;
@@ -54,12 +56,18 @@ export async function PATCH(
     }
 
     const merged = { ...existing, ...input };
+    const fx = TradeFxInput.safeParse({
+      currency_original: merged.currency_original,
+      fx_rate_to_usd: Number(merged.fx_rate_to_usd),
+    });
+    if (!fx.success) return validationError(fx.error.issues);
+
     const needsRecompute = USD_AFFECTING_FIELDS.some(
       (f) => input[f] !== undefined
-    );
+    ) || Number(existing.fx_rate_to_usd) !== fx.data.fx_rate_to_usd;
 
     const usdValues = needsRecompute
-      ? normalizeTradeUsdValues(merged)
+      ? { ...normalizeTradeUsdValues({ ...merged, ...fx.data }), fx_rate_to_usd: fx.data.fx_rate_to_usd }
       : {};
 
     const { data: trade, error: updateError } = await supabase
