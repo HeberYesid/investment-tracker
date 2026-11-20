@@ -19,7 +19,7 @@ import {
 import { fetchYahooHistory, fetchYahooQuote } from "../_shared/yahoo.ts";
 import { invalidateCacheTag } from "../_shared/invalidate-cache.ts";
 
-type ActiveAssetRow = { asset_id: string; yahoo_symbol: string | null; ticker: string };
+type ActiveAssetRow = { asset_id: string; symbol: string };
 type BenchmarkAssetRow = { id: string; yahoo_symbol: string | null; ticker: string };
 
 const BENCHMARK_TICKER = "^GSPC";
@@ -113,23 +113,34 @@ async function backfillBenchmarkHistory(
 async function listActiveAssets(supabase: ReturnType<typeof getServiceClient>): Promise<ActiveAssetRow[]> {
   const { data: tradeAssets, error: tradeError } = await supabase
     .from("trades")
-    .select("asset_id, assets(yahoo_symbol, ticker)")
+    .select("asset_id, assets(yahoo_symbol, ticker, requires_verified_quote_symbol)")
     .is("deleted_at", null);
   if (tradeError) {
     throw new Error(`listActiveAssets: ${tradeError.message}`);
   }
-  type Row = { asset_id: string; assets: { yahoo_symbol: string | null; ticker: string } | { yahoo_symbol: string | null; ticker: string }[] | null };
+  type Asset = {
+    yahoo_symbol: string | null;
+    ticker: string;
+    requires_verified_quote_symbol: boolean;
+  };
+  type Row = {
+    asset_id: string;
+    assets: Asset | Asset[] | null;
+  };
   const seen = new Set<string>();
   const result: ActiveAssetRow[] = [];
   for (const row of (tradeAssets ?? []) as Row[]) {
     if (seen.has(row.asset_id)) continue;
     const asset = Array.isArray(row.assets) ? row.assets[0] : row.assets;
     if (!asset) continue;
+    const symbol = asset.requires_verified_quote_symbol
+      ? asset.yahoo_symbol?.trim()
+      : asset.yahoo_symbol ?? asset.ticker;
+    if (!symbol) continue;
     seen.add(row.asset_id);
     result.push({
       asset_id: row.asset_id,
-      yahoo_symbol: asset.yahoo_symbol,
-      ticker: asset.ticker,
+      symbol,
     });
   }
   return result;
@@ -197,7 +208,7 @@ Deno.serve(async (request: Request) => {
     };
     const jobs: SymbolJob[] = [];
     for (const asset of activeAssets) {
-      const symbol = asset.yahoo_symbol ?? asset.ticker;
+      const symbol = asset.symbol;
       if (!symbol) continue;
       jobs.push({ assetId: asset.asset_id, symbol, source: "YAHOO" });
     }

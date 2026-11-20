@@ -46,6 +46,7 @@ function createBuilder(): MockBuilder {
 
 const mockSupabase = {
   from: vi.fn().mockImplementation(() => createBuilder()),
+  rpc: vi.fn(),
   auth: {
     getUser: vi.fn().mockResolvedValue({
       data: { user: { id: "user-id-1" } },
@@ -80,7 +81,6 @@ vi.mock("@/lib/supabase/auth", () => ({
 
 import { GET, POST } from "@/app/api/v1/trades/route";
 import { PATCH, DELETE } from "@/app/api/v1/trades/[id]/route";
-
 import { POST as bulkDelete } from "@/app/api/v1/trades/bulk-delete/route";
 
 const validTradeInput = {
@@ -88,6 +88,7 @@ const validTradeInput = {
   trade_type: "BUY",
   broker_code: "ETORO",
   ticker: "AAPL",
+  asset_reference: { kind: "existing", asset_id: mockTrade.asset_id },
   quantity: 10,
   price_original: 100,
   currency_original: "USD",
@@ -97,6 +98,7 @@ const validTradeInput = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockSupabase.rpc.mockReset().mockResolvedValue({ data: [{ key: "manual", status: "resolved", asset_id: mockTrade.asset_id }], error: null });
   queuedResults.length = 0;
   builders.length = 0;
 });
@@ -104,7 +106,6 @@ beforeEach(() => {
 describe("POST /api/v1/trades", () => {
   it("returns 201 for a valid trade", async () => {
     queuedResults.push({ data: { id: mockTrade.broker_id }, error: null });
-    queuedResults.push({ data: { id: mockTrade.asset_id }, error: null });
     queuedResults.push({ data: mockTrade, error: null });
     queuedResults.push({ data: null, error: null });
 
@@ -119,6 +120,35 @@ describe("POST /api/v1/trades", () => {
 
     expect(response.status).toBe(201);
     expect(body).toEqual(serializeTradeDTO(mockTrade));
+    expect(mockSupabase.rpc).toHaveBeenCalledWith("resolve_asset_references", {
+      p_portfolio_id: mockTrade.portfolio_id, p_source: "MANUAL", p_import_id: null,
+      p_items: [{ key: "manual", ticker: "AAPL", decision: validTradeInput.asset_reference }],
+    });
+    expect(mockSupabase.from).not.toHaveBeenCalledWith("assets");
+  });
+
+  it("registra la compra con un alta explícita sin consultar perfiles", async () => {
+    queuedResults.push({ data: { id: mockTrade.broker_id }, error: null }, { data: mockTrade, error: null }, { data: null, error: null });
+    const asset_reference = { kind: "new", exchange: "BVC", currency: "COP", asset_type: "STOCK" };
+    const response = await POST(new NextRequest("http://localhost/api/v1/trades", {
+      method: "POST", body: JSON.stringify({ ...validTradeInput, asset_reference }),
+    }));
+    expect(response.status).toBe(201);
+    expect(mockSupabase.rpc).toHaveBeenCalledWith("resolve_asset_references", expect.objectContaining({
+      p_items: [{ key: "manual", ticker: "AAPL", decision: asset_reference }],
+    }));
+    expect(mockSupabase.from).not.toHaveBeenCalledWith("assets");
+  });
+
+  it.each([["needs_disambiguation", 422], ["42501", 403], ["XX000", 500]] as const)("no escribe operaciones ante resolución %s", async (reason, status) => {
+    queuedResults.push({ data: { id: mockTrade.broker_id }, error: null });
+    mockSupabase.rpc.mockResolvedValue(reason === "needs_disambiguation"
+      ? { data: [{ key: "manual", status: reason }], error: null }
+      : { error: { code: reason, message: "detalle interno" } });
+    const response = await POST(new NextRequest("http://localhost/api/v1/trades", { method: "POST", body: JSON.stringify(validTradeInput) }));
+    expect(response.status).toBe(status);
+    expect(await response.text()).not.toContain("detalle interno");
+    expect(mockSupabase.from.mock.calls).toEqual([["brokers"]]);
   });
 
   it("returns 422 for invalid data (missing required fields)", async () => {
@@ -149,7 +179,6 @@ describe("POST /api/v1/trades", () => {
 
   it("computes USD values correctly", async () => {
     queuedResults.push({ data: { id: mockTrade.broker_id }, error: null });
-    queuedResults.push({ data: { id: mockTrade.asset_id }, error: null });
     queuedResults.push({ data: mockTrade, error: null });
     queuedResults.push({ data: null, error: null });
 
@@ -161,7 +190,7 @@ describe("POST /api/v1/trades", () => {
 
     await POST(request);
 
-    const tradesBuilder = builders[2];
+    const tradesBuilder = builders[1];
     const insertedPayload = tradesBuilder.insert.mock.calls[0][0];
 
     expect(insertedPayload.price_usd).toBe(100);
@@ -171,7 +200,6 @@ describe("POST /api/v1/trades", () => {
 
   it("creates an audit event after trade creation", async () => {
     queuedResults.push({ data: { id: mockTrade.broker_id }, error: null });
-    queuedResults.push({ data: { id: mockTrade.asset_id }, error: null });
     queuedResults.push({ data: mockTrade, error: null });
     queuedResults.push({ data: null, error: null });
 
@@ -184,7 +212,7 @@ describe("POST /api/v1/trades", () => {
     await POST(request);
 
     expect(mockSupabase.from).toHaveBeenCalledWith("audit_events");
-    const auditBuilder = builders[3];
+    const auditBuilder = builders[2];
     const auditPayload = auditBuilder.insert.mock.calls[0][0];
 
     expect(auditPayload.entity_type).toBe("trade");

@@ -1,6 +1,7 @@
 export const tradeLabels = {
   es: {
     tradesTitle: "Operaciones",
+    selectBroker: "Seleccionar bróker",
     newTrade: "Nueva Operación",
     editTrade: "Editar Operación",
 

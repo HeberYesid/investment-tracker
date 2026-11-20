@@ -9,6 +9,8 @@ export const errors = {
   portfolioNotFound: "No se encontró un portafolio para el usuario.",
   brokerNotFound: "Bróker no encontrado",
   assetNotFound: "Activo no encontrado",
+  assetReferenceChoice: "Elige una referencia del catálogo o confirma el mercado, la moneda de cotización y el tipo del instrumento.",
+  assetReferenceRowsMismatch: "Las referencias deben corresponder a filas válidas de esta importación.",
   tradeNotFound: "Operación no encontrada",
   importNotFound: "Importación no encontrada",
   importAlreadyCommitted: "Esta importación ya fue confirmada.",

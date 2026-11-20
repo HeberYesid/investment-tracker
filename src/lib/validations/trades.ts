@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { AssetDecision, CatalogTicker } from "@/lib/validations/asset-catalog";
 
 export const TRADE_TYPES = [
   "BUY",
@@ -57,7 +58,8 @@ export const TradeFormInput = z.object({
   trade_date: z.string(),
   trade_type: z.enum(TRADE_TYPES),
   broker_code: z.string().min(1, "Bróker requerido"),
-  ticker: z.string().min(1, "Ticker requerido").transform((v) => v.toUpperCase()),
+  ticker: CatalogTicker,
+  asset_reference: AssetDecision.optional(),
   quantity: z.number().positive(),
   price_original: z.number().min(0),
   currency_original: z.enum(SUPPORTED_CURRENCIES),

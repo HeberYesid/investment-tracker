@@ -166,6 +166,21 @@
       ],
       "sdd": true,
       "status": "done"
+    },
+    {
+      "id": 12,
+      "name": "secure-shared-asset-catalog",
+      "title": "Alta de activos y metadatos del catálogo compartido",
+      "description": "Conservar la lectura y el alta de activos desde operaciones autorizadas, sin conceder a usuarios escritura global ni administración del catálogo.",
+      "acceptance": [
+        "Lectura de referencias preservada; los roles de navegador carecen de DML directo de catálogo aun si existen las políticas de 0012",
+        "Alta de referencia mínima desde compras e importaciones del activo por OWNER o EDITOR, sin sobrescritura; lotes e identidad resueltos sin ambigüedad",
+        "Enriquecimiento limitado a metadatos desde un flujo interno independiente de los roles de portafolio",
+        "Las nuevas referencias sin vínculo verificado pueden usarse en operaciones, pero se omiten en cotizaciones automáticas; el legado y el benchmark se conservan",
+        "Verificación local con datos sintéticos en PostgreSQL y Chrome; 0012 preservada y sin cambios remotos"
+      ],
+      "sdd": true,
+      "status": "done"
     }
   ]
 }

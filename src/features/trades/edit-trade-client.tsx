@@ -47,7 +47,7 @@ export function EditTradeClient({ trade }: EditTradeClientProps) {
 
       if (!res.ok) {
         const json = await res.json().catch(() => null);
-        throw new Error(json?.error ?? "Error al actualizar la operación");
+        throw new Error(json?.error?.details?.[0]?.message ?? json?.error?.message ?? "Error al actualizar la operación");
       }
 
       router.push("/trades");

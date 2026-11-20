@@ -39,7 +39,7 @@ export class XtbParser implements CsvBrokerParser {
         if (!validateTradeData({ ticker: normalizedTicker, quantity: detail.volume, price: detail.price })) continue;
 
         trades.push(
-          createTrade({
+          { ...createTrade({
             date,
             type: type === "Stock purchase" ? "BUY" : "SELL",
             ticker: normalizedTicker,
@@ -48,13 +48,13 @@ export class XtbParser implements CsvBrokerParser {
             currency: "USD",
             commission: 0,
             fxRate: 1,
-          })
+          }), source_symbol: ticker }
         );
       } else if (type === "Dividend") {
         if (!validateTradeData({ ticker: normalizedTicker, total: amount })) continue;
 
         trades.push(
-          createTrade({
+          { ...createTrade({
             date,
             type: "DIVIDEND",
             ticker: normalizedTicker,
@@ -63,14 +63,14 @@ export class XtbParser implements CsvBrokerParser {
             currency: "USD",
             commission: 0,
             fxRate: 1,
-          })
+          }), source_symbol: ticker }
         );
       } else if (type === "Withholding tax" || type === "SEC fee") {
         const feeAmount = Math.abs(amount);
         if (!normalizedTicker || feeAmount <= 0) continue;
 
         trades.push(
-          createTrade({
+          { ...createTrade({
             date,
             type: "FEE",
             ticker: normalizedTicker,
@@ -79,7 +79,7 @@ export class XtbParser implements CsvBrokerParser {
             currency: "USD",
             commission: roundMoney(feeAmount),
             fxRate: 1,
-          })
+          }), source_symbol: ticker }
         );
       }
     }

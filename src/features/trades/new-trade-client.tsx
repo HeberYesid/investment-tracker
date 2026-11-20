@@ -23,6 +23,7 @@ export function NewTradeClient({ portfolioId }: { portfolioId: string }) {
           trade_date: data.trade_date,
           broker_code: data.broker_code,
           ticker: data.ticker,
+          asset_reference: data.asset_reference,
           quantity: data.quantity,
           price_original: data.price_original,
           currency_original: data.currency_original,
@@ -33,7 +34,7 @@ export function NewTradeClient({ portfolioId }: { portfolioId: string }) {
 
       if (!res.ok) {
         const json = await res.json().catch(() => null);
-        throw new Error(json?.error ?? "Error al guardar la operación");
+        throw new Error(json?.error?.details?.[0]?.message ?? json?.error?.message ?? "Error al guardar la operación");
       }
 
       router.push("/trades");

@@ -3,25 +3,23 @@
 import { useState } from "react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 
-import { Button } from "@/components/ui/button";
 import { getDashboardLabels } from "@/lib/i18n/dashboard";
 import { getChartPalette } from "@/lib/theme/chart-palette";
 import { useTheme } from "@/lib/theme/theme-provider";
 import { useChartExport } from "@/lib/chart-export";
 import { ChartExportButton } from "@/components/ui/chart-export-button";
-import type {
-  AssetStaleness,
-  DistributionDimension,
+import {
+  type AssetStaleness,
+  type DistributionDimension,
   DistributionResponse,
 } from "@/lib/validations/dashboard";
-
-const labels = getDashboardLabels();
-
 const usdFormatter = new Intl.NumberFormat("es-CO", {
   style: "currency",
   currency: "USD",
   maximumFractionDigits: 0,
 });
+
+const labels = getDashboardLabels();
 
 interface DistributionChartProps {
   initial: DistributionResponse;
@@ -55,115 +53,24 @@ export function DistributionChart({ initial }: DistributionChartProps) {
   const { resolvedTheme } = useTheme();
   const palette = getChartPalette(resolvedTheme);
   const { containerRef, exporting, exportAsPng } = useChartExport("distribucion");
-  const [dim, setDim] = useState<DistributionDimension>(initial.dim);
   const [data, setData] = useState<DistributionResponse>(initial);
   const [loading, setLoading] = useState(false);
-  const [enriching, setEnriching] = useState(false);
-  const [enrichMessage, setEnrichMessage] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
 
   async function handleDimChange(next: DistributionDimension) {
-    if (next === dim) return;
-    setDim(next);
+    if (next === data.dim || loading) return;
     setLoading(true);
+    setFailed(false);
     try {
       const res = await fetch(`/api/v1/dashboard/distribution?dim=${next}`);
       if (!res.ok) throw new Error("error");
-      const json = (await res.json()) as DistributionResponse;
+      const json = DistributionResponse.parse(await res.json());
+      if (json.dim !== next) throw new Error("dim");
       setData(json);
     } catch {
-      // Keep previous data on error
+      setFailed(true);
     } finally {
       setLoading(false);
-    }
-  }
-
-  async function handleEnrich() {
-    if (enriching) return;
-    setEnriching(true);
-    setEnrichMessage(null);
-    try {
-      let totalSucceeded = 0;
-      let totalNotFound = 0;
-      let totalFailed = 0;
-      let nextOffset: number | null = 0;
-      let firstForbidden = false;
-      while (nextOffset !== null) {
-        const res = await fetch("/api/v1/admin/backfill-asset-metadata", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ limit: 10, offset: nextOffset ?? 0 }),
-        });
-        if (res.status === 403) {
-          firstForbidden = true;
-          break;
-        }
-        if (!res.ok) {
-          const body = (await res.json().catch(() => null)) as
-            | { error?: { message?: string } | string }
-            | null;
-          const message =
-            (typeof body?.error === "object" && body?.error?.message) ||
-            (typeof body?.error === "string" ? body.error : null) ||
-            "Error al enriquecer";
-          setEnrichMessage(message);
-          return;
-        }
-        const body = (await res.json()) as {
-          succeeded: number;
-          notFound: number;
-          failed: number;
-          nextOffset: number | null;
-        };
-        totalSucceeded += body.succeeded;
-        totalNotFound += body.notFound;
-        totalFailed += body.failed;
-        nextOffset = body.nextOffset;
-      }
-      if (firstForbidden) {
-        setEnrichMessage(labels.distributionEnrichForbidden);
-        return;
-      }
-      const totalMissed = totalNotFound + totalFailed;
-      if (totalSucceeded > 0 && totalMissed > 0) {
-        setEnrichMessage(
-          labels.distributionEnrichPartial
-            .replace("{succeeded}", String(totalSucceeded))
-            .replace("{failed}", String(totalMissed)),
-        );
-      } else if (totalSucceeded > 0) {
-        setEnrichMessage(
-          labels.distributionEnrichDone.replace(
-            "{succeeded}",
-            String(totalSucceeded),
-          ),
-        );
-      } else if (totalNotFound > 0) {
-        setEnrichMessage(
-          labels.distributionEnrichAllNotFound.replace(
-            "{total}",
-            String(totalNotFound),
-          ),
-        );
-      } else if (totalFailed > 0) {
-        setEnrichMessage(
-          labels.distributionEnrichPartial
-            .replace("{succeeded}", "0")
-            .replace("{failed}", String(totalFailed)),
-        );
-      } else {
-        setEnrichMessage(
-          labels.distributionEnrichDone.replace("{succeeded}", "0"),
-        );
-      }
-      const res = await fetch(`/api/v1/dashboard/distribution?dim=${dim}`);
-      if (res.ok) {
-        const json = (await res.json()) as DistributionResponse;
-        setData(json);
-      }
-    } catch (err) {
-      setEnrichMessage(err instanceof Error ? err.message : labels.errorLoading);
-    } finally {
-      setEnriching(false);
     }
   }
 
@@ -172,7 +79,7 @@ export function DistributionChart({ initial }: DistributionChartProps) {
       className="rounded-2xl bg-surface p-5 shadow-sm ring-1 ring-border-subtle"
       data-testid="distribution-chart"
     >
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-lg font-semibold text-text-primary">
           {labels.distributionTitle}
         </h2>
@@ -181,9 +88,11 @@ export function DistributionChart({ initial }: DistributionChartProps) {
             <button
               key={option}
               type="button"
+              aria-pressed={data.dim === option}
+              disabled={loading}
               onClick={() => handleDimChange(option)}
               className={`rounded-full px-3 py-1 font-semibold transition-colors ${
-                dim === option
+                data.dim === option
                   ? "bg-surface text-text-primary shadow-sm"
                   : "text-text-secondary hover:text-text-primary"
               }`}
@@ -197,45 +106,19 @@ export function DistributionChart({ initial }: DistributionChartProps) {
           onExport={exportAsPng}
         />
       </div>
+      {failed && <p role="alert" className="mt-2 text-sm text-text-secondary">{labels.distributionLoadError}</p>}
 
       {data.unclassified && (
-        <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <p
-            className="text-xs text-text-muted"
-            title={labels.distributionUnclassifiedTooltip}
-          >
-            ⓘ {labels.distributionUnclassifiedTooltip}
-          </p>
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={handleEnrich}
-            disabled={enriching}
-            data-testid="distribution-enrich-button"
-          >
-            {enriching
-              ? labels.distributionEnrichRunning
-              : labels.distributionEnrichButton}
-          </Button>
-        </div>
+        <p className="mt-2 text-xs text-text-muted" role="status">{labels.distributionUnclassifiedTooltip}</p>
       )}
 
-      {enrichMessage && (
-        <p
-          className="mt-2 text-xs text-text-secondary"
-          data-testid="distribution-enrich-message"
-        >
-          {enrichMessage}
-        </p>
-      )}
-
-      <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_1.4fr]">
+      <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_1.4fr]" aria-busy={loading}>
         <div className="h-56" ref={containerRef}>
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Tooltip
-                formatter={(value, name) => [
-                  usdFormatter.format(Number(value)),
+                formatter={(_value, name, item) => [
+                  usdFormatter.format(Number(item.payload?.valueUsd ?? 0)),
                   String(name),
                 ]}
                 contentStyle={{
@@ -316,7 +199,7 @@ export function DistributionChart({ initial }: DistributionChartProps) {
                   {slice.percent.toFixed(2)}%
                 </span>
                 <span className="font-mono text-xs text-text-muted">
-                  {usdFormatter.format(slice.valueUsd)}
+                   {usdFormatter.format(slice.valueUsd)}
                 </span>
               </div>
             </li>

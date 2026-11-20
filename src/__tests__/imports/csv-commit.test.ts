@@ -5,7 +5,6 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ParsedCsvTrade } from "@/lib/csv/types";
 
 const requireApiUserWithPortfolioMock = vi.fn();
-const getCurrentPortfolioMock = vi.fn();
 const revalidatePathMock = vi.fn();
 const revalidateTagMock = vi.fn();
 
@@ -16,34 +15,21 @@ vi.mock("@/lib/api/auth", () => ({
   ) => requireApiUserWithPortfolioMock(supabase, options),
 }));
 
-vi.mock("@/lib/supabase/auth", () => ({
-  getCurrentPortfolio: () => getCurrentPortfolioMock(),
-}));
-
 vi.mock("next/cache", () => ({
   revalidatePath: (...args: unknown[]) => revalidatePathMock(...args),
   revalidateTag: (...args: unknown[]) => revalidateTagMock(...args),
 }));
 
-vi.mock("@/lib/market-data/yahoo", () => ({
-  createYahooProvider: () => ({
-    fetchProfileWithCandidates: vi.fn(async () => ({
-      status: "ok",
-      profile: { ticker: "AAPL", sector: "Technology", country: "US" },
-    })),
-  }),
-}));
-
-vi.mock("@/lib/market-data/symbols", () => ({
-  candidateYahooSymbols: () => ["AAPL"],
-}));
-
 import { POST } from "@/app/api/v1/imports/csv/commit/route";
+import type { ReferenceItem } from "@/lib/asset-catalog/resolve-references";
 
 const IMPORT_ID = "11111111-1111-4111-8111-111111111111";
 const PORTFOLIO_ID = "22222222-2222-4222-8222-222222222222";
 const BROKER_ID = "33333333-3333-4333-8333-333333333333";
 const ASSET_ID = "44444444-4444-4444-8444-444444444444";
+const ALT_ASSET_ID = "55555555-5555-4555-8555-555555555555";
+const rowId = (i: number) => `00000000-0000-4000-8000-${String(i).padStart(12, "0")}`;
+const choices = (count: number) => Object.fromEntries(Array.from({ length: count }, (_, i) => [rowId(i), { kind: "existing", asset_id: ASSET_ID }]));
 
 function buildTrade(ticker: string, _i: number): ParsedCsvTrade {
   return {
@@ -67,12 +53,18 @@ interface CallRecord {
 interface SupabaseMockOptions {
   importRecord: Record<string, unknown> | null;
   validRows: Array<Record<string, unknown>>;
-  existingAssets: Array<{ id: string; ticker: string }>;
+  finalizedCount?: number;
+  failTradeBatch?: number;
 }
 
 function buildSupabaseMock(opts: SupabaseMockOptions) {
   const calls: CallRecord[] = [];
   const insertCalls: Array<{ table: string; payload: unknown[] }> = [];
+  let tradeBatches = 0;
+  const rpc = vi.fn(async (_name: string, { p_items }: { p_items: ReferenceItem[] }) => ({
+    error: null as { code: string; message?: string } | null,
+    data: p_items.map(({ key, decision }) => ({ key, status: "resolved", asset_id: decision?.kind === "existing" ? decision.asset_id : ALT_ASSET_ID })),
+  }));
 
   const from = (table: string) => {
     const chain: Record<string, unknown> = {};
@@ -93,15 +85,7 @@ function buildSupabaseMock(opts: SupabaseMockOptions) {
     chain.insert = vi.fn((payload: unknown) => {
       calls.push({ method: "insert", args: [payload], table });
       insertCalls.push({ table, payload: Array.isArray(payload) ? payload : [payload] });
-      if (table === "assets") {
-        return Promise.resolve({
-          data: (payload as Array<{ ticker: string }>).map((p) => ({
-            id: ASSET_ID,
-            ticker: p.ticker,
-          })),
-          error: null,
-        });
-      }
+      if (table === "trades" && ++tradeBatches === opts.failTradeBatch) return Promise.resolve({ error: { message: "lote rechazado" } });
       return Promise.resolve({ data: null, error: null });
     });
     Object.defineProperty(chain, "then", {
@@ -109,8 +93,8 @@ function buildSupabaseMock(opts: SupabaseMockOptions) {
         if (table === "csv_import_rows") {
           return resolve({ data: opts.validRows, error: null });
         }
-        if (table === "assets" && calls.some((c) => c.method === "in")) {
-          return resolve({ data: opts.existingAssets, error: null });
+        if (table === "csv_imports") {
+          return resolve({ data: null, error: null, count: opts.finalizedCount ?? 1 });
         }
         return resolve({ data: [], error: null });
       },
@@ -118,7 +102,7 @@ function buildSupabaseMock(opts: SupabaseMockOptions) {
     return chain;
   };
 
-  return { from, calls, insertCalls };
+  return { from, calls, insertCalls, rpc };
 }
 
 function buildRequest(body: unknown): NextRequest {
@@ -140,22 +124,19 @@ describe("POST /api/v1/imports/csv/commit", () => {
 
   beforeEach(() => {
     requireApiUserWithPortfolioMock.mockReset();
-    getCurrentPortfolioMock.mockReset();
     revalidatePathMock.mockReset();
     revalidateTagMock.mockReset();
     supabaseMock = buildSupabaseMock({
       importRecord: { id: IMPORT_ID, broker_id: BROKER_ID, status: "PREVIEWED" },
       validRows: [],
-      existingAssets: [{ id: ASSET_ID, ticker: "AAPL" }],
     });
-    supabase = { from: supabaseMock.from } as unknown as SupabaseClient;
+    supabase = supabaseMock as unknown as SupabaseClient;
     requireApiUserWithPortfolioMock.mockResolvedValue({
       user: { id: "u1" } as never,
       supabase,
       portfolio: PORTFOLIO,
       response: null,
     });
-    getCurrentPortfolioMock.mockResolvedValue(PORTFOLIO);
   });
 
   afterEach(() => {
@@ -164,6 +145,7 @@ describe("POST /api/v1/imports/csv/commit", () => {
 
   it("splits large imports into batches of 500 when inserting trades", async () => {
     const rows = Array.from({ length: 600 }, (_, i) => ({
+      id: rowId(i),
       row_number: i + 1,
       validation_status: "VALID",
       parsed_data_json: buildTrade("AAPL", i),
@@ -171,9 +153,8 @@ describe("POST /api/v1/imports/csv/commit", () => {
     supabaseMock = buildSupabaseMock({
       importRecord: { id: IMPORT_ID, broker_id: BROKER_ID, status: "PREVIEWED" },
       validRows: rows,
-      existingAssets: [{ id: ASSET_ID, ticker: "AAPL" }],
     });
-    supabase = { from: supabaseMock.from } as unknown as SupabaseClient;
+    supabase = supabaseMock as unknown as SupabaseClient;
     requireApiUserWithPortfolioMock.mockResolvedValue({
       user: { id: "u1" } as never,
       supabase,
@@ -181,7 +162,7 @@ describe("POST /api/v1/imports/csv/commit", () => {
       response: null,
     });
 
-    const response = await POST(buildRequest({ import_id: IMPORT_ID }));
+    const response = await POST(buildRequest({ import_id: IMPORT_ID, asset_references: choices(600) }));
 
     expect(response.status).toBe(200);
     const tradeInserts = supabaseMock.insertCalls.filter((c) => c.table === "trades");
@@ -191,10 +172,35 @@ describe("POST /api/v1/imports/csv/commit", () => {
     const body = await response.json();
     expect(body.imported).toBe(600);
     expect(body.status).toBe("COMMITTED");
+    expect(supabaseMock.rpc.mock.calls.map(([, args]) => args.p_items[0].row_ids?.length)).toEqual([500, 100]);
+    expect(supabaseMock.calls.some(({ table }) => table === "assets")).toBe(false);
+  });
+
+  it("no informa éxito ni audita una confirmación cuando la actualización no encontró el padre activo", async () => {
+    const db = buildSupabaseMock({
+      importRecord: { id: IMPORT_ID, broker_id: BROKER_ID, status: "PREVIEWED" },
+      validRows: [{ id: rowId(0), row_number: 1, parsed_data_json: buildTrade("AAPL", 0) }],
+      finalizedCount: 0,
+    });
+    requireApiUserWithPortfolioMock.mockResolvedValue({
+      user: { id: "u1" }, supabase: db, portfolio: PORTFOLIO, response: null,
+    });
+
+    const response = await POST(buildRequest({ import_id: IMPORT_ID, asset_references: choices(1) }));
+
+    expect(response.status).toBe(500);
+    expect(db.calls.filter(({ table, method }) => table === "csv_imports" && method === "eq")
+      .map(({ args }) => args)).toEqual([
+      ["id", IMPORT_ID], ["portfolio_id", PORTFOLIO_ID],
+      ["id", IMPORT_ID], ["portfolio_id", PORTFOLIO_ID],
+    ]);
+    expect(db.insertCalls.some(({ table }) => table === "audit_events")).toBe(false);
+    expect(revalidatePathMock).not.toHaveBeenCalled();
   });
 
   it("uses a single batch when trades fit under the 500 limit", async () => {
     const rows = Array.from({ length: 50 }, (_, i) => ({
+      id: rowId(i),
       row_number: i + 1,
       validation_status: "VALID",
       parsed_data_json: buildTrade("AAPL", i),
@@ -202,9 +208,8 @@ describe("POST /api/v1/imports/csv/commit", () => {
     supabaseMock = buildSupabaseMock({
       importRecord: { id: IMPORT_ID, broker_id: BROKER_ID, status: "PREVIEWED" },
       validRows: rows,
-      existingAssets: [{ id: ASSET_ID, ticker: "AAPL" }],
     });
-    supabase = { from: supabaseMock.from } as unknown as SupabaseClient;
+    supabase = supabaseMock as unknown as SupabaseClient;
     requireApiUserWithPortfolioMock.mockResolvedValue({
       user: { id: "u1" } as never,
       supabase,
@@ -212,7 +217,7 @@ describe("POST /api/v1/imports/csv/commit", () => {
       response: null,
     });
 
-    const response = await POST(buildRequest({ import_id: IMPORT_ID }));
+    const response = await POST(buildRequest({ import_id: IMPORT_ID, asset_references: choices(50) }));
     expect(response.status).toBe(200);
     const tradeInserts = supabaseMock.insertCalls.filter((c) => c.table === "trades");
     expect(tradeInserts).toHaveLength(1);
@@ -220,6 +225,50 @@ describe("POST /api/v1/imports/csv/commit", () => {
     expect(revalidatePathMock).toHaveBeenCalledWith("/");
     expect(revalidatePathMock).toHaveBeenCalledWith("/avanzado");
     expect(revalidateTagMock).toHaveBeenCalledWith("market-prices", "max");
+  });
+
+  it("mantiene los UUID por mercado y omite solo las filas ambiguas", async () => {
+    const db = buildSupabaseMock({
+      importRecord: { id: IMPORT_ID, broker_id: BROKER_ID, status: "PREVIEWED" },
+      validRows: Array.from({ length: 3 }, (_, i) => ({ id: rowId(i), row_number: i + 1, parsed_data_json: buildTrade("ALFA", i) })),
+    });
+    requireApiUserWithPortfolioMock.mockResolvedValue({ user: { id: "u1" }, supabase: db, portfolio: PORTFOLIO, response: null });
+    const response = await POST(buildRequest({ import_id: IMPORT_ID, asset_references: {
+      [rowId(0)]: { kind: "existing", asset_id: ASSET_ID },
+      [rowId(1)]: { kind: "new", exchange: "BVC", currency: "COP", asset_type: "STOCK" },
+    } }));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ import_id: IMPORT_ID, status: "COMMITTED", imported: 2, errors: [expect.stringMatching(/^Fila 3:/)] });
+    expect(db.insertCalls.find(({ table }) => table === "trades")?.payload).toEqual([
+      expect.objectContaining({ asset_id: ASSET_ID, portfolio_id: PORTFOLIO_ID }),
+      expect.objectContaining({ asset_id: ALT_ASSET_ID, portfolio_id: PORTFOLIO_ID }),
+    ]);
+  });
+
+  it.each([["42501", 403], ["XX000", 500]] as const)("no escribe trades si falla el resolver (%s)", async (code, status) => {
+    const db = buildSupabaseMock({
+      importRecord: { id: IMPORT_ID, broker_id: BROKER_ID, status: "PREVIEWED" },
+      validRows: [{ id: rowId(0), row_number: 1, parsed_data_json: buildTrade("ALFA", 0) }],
+    });
+    db.rpc.mockResolvedValue({ data: [], error: { code, message: "detalle interno" } });
+    requireApiUserWithPortfolioMock.mockResolvedValue({ user: { id: "u1" }, supabase: db, portfolio: PORTFOLIO, response: null });
+    const response = await POST(buildRequest({ import_id: IMPORT_ID, asset_references: choices(1) }));
+    expect(response.status).toBe(status);
+    expect(await response.text()).not.toContain("detalle interno");
+    expect(db.insertCalls).toEqual([]);
+  });
+
+  it.each([0, 501])("conserva el resultado completado para %s decisiones", async (count) => {
+    const db = buildSupabaseMock({
+      importRecord: { id: IMPORT_ID, broker_id: BROKER_ID, status: "PREVIEWED" },
+      validRows: Array.from({ length: count || 1 }, (_, i) => ({ id: rowId(i), row_number: i + 1, parsed_data_json: buildTrade("ALFA", i) })),
+      failTradeBatch: 2,
+    });
+    requireApiUserWithPortfolioMock.mockResolvedValue({ user: { id: "u1" }, supabase: db, portfolio: PORTFOLIO, response: null });
+    const response = await POST(buildRequest({ import_id: IMPORT_ID, asset_references: choices(count) }));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ import_id: IMPORT_ID, status: count ? "COMMITTED" : "FAILED",
+      imported: count ? 500 : 0, errors: [expect.stringMatching(count ? /^Lotes 501-501:/ : /^Fila 1:/)] });
   });
 
   it("returns 422 when import_id is not a valid uuid", async () => {
@@ -255,9 +304,8 @@ describe("POST /api/v1/imports/csv/commit", () => {
     supabaseMock = buildSupabaseMock({
       importRecord: { id: IMPORT_ID, broker_id: BROKER_ID, status: "COMMITTED" },
       validRows: [],
-      existingAssets: [],
     });
-    supabase = { from: supabaseMock.from } as unknown as SupabaseClient;
+    supabase = supabaseMock as unknown as SupabaseClient;
     requireApiUserWithPortfolioMock.mockResolvedValue({
       user: { id: "u1" } as never,
       supabase,

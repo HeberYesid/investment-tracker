@@ -3,16 +3,16 @@ import { revalidatePath, revalidateTag } from "next/cache";
 import { requireApiUserWithPortfolio } from "@/lib/api/auth";
 import { normalizeTradeUsdValues, type CreateTradeInput } from "@/lib/validations/trades";
 import type { ParsedCsvTrade } from "@/lib/csv/types";
-import { badRequest, serverError } from "@/lib/api/errors";
-import { createYahooProvider } from "@/lib/market-data/yahoo";
-import { candidateYahooSymbols } from "@/lib/market-data/symbols";
-import type { AssetProfile } from "@/lib/market-data/types";
+import { badRequest, forbidden, serverError } from "@/lib/api/errors";
+import { AssetResolutionError, resolveAssetReferences } from "@/lib/asset-catalog/resolve-references";
+import { planCsvAssetReferences } from "@/lib/asset-catalog/csv-references";
+import { AssetDecision, AssetId } from "@/lib/validations/asset-catalog";
 import { z } from "zod";
 import { errors as errorMessages } from "@/lib/i18n/errors";
-import { logger } from "@/lib/logger";
 
 const CommitBody = z.object({
   import_id: z.string().uuid(),
+  asset_references: z.record(AssetId, AssetDecision).optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -75,89 +75,24 @@ export async function POST(request: NextRequest) {
 
     const broker_id = importRecord.broker_id;
 
-    const tickerCurrency = new Map<string, string>();
-    for (const row of validRows) {
-      const parsedData = row.parsed_data_json as ParsedCsvTrade | null;
-      if (!parsedData) continue;
-      const upper = parsedData.ticker.toUpperCase();
-      if (!tickerCurrency.has(upper)) {
-        tickerCurrency.set(upper, parsedData.currency_original);
-      }
+    const decisions = new Map(Object.entries(parsed.data.asset_references ?? {}));
+    const rowIds = new Set(validRows.map(({ id }) => id));
+    if (Array.from(decisions.keys()).some((id) => !rowIds.has(id))) {
+      return badRequest(errorMessages.assetReferenceRowsMismatch);
     }
-    const uniqueTickers = Array.from(tickerCurrency.keys());
-
-    const assetIdByTicker = new Map<string, string>();
-    if (uniqueTickers.length > 0) {
-      const { data: existingAssets } = await supabase
-        .from("assets")
-        .select("id, ticker")
-        .in("ticker", uniqueTickers);
-      for (const row of existingAssets ?? []) {
-        if (row.ticker) assetIdByTicker.set(row.ticker as string, row.id as string);
-      }
-    }
-
-    const newTickers = uniqueTickers.filter(
-      (t) => !assetIdByTicker.has(t),
-    );
-    const profileByTicker = new Map<string, AssetProfile>();
-    if (newTickers.length > 0) {
-      const profileProvider = createYahooProvider();
-      const CONCURRENCY = 5;
-      try {
-        for (let i = 0; i < newTickers.length; i += CONCURRENCY) {
-          const slice = newTickers.slice(i, i + CONCURRENCY);
-          const profiles = await Promise.all(
-            slice.map(async (ticker) => {
-              try {
-                const candidates = candidateYahooSymbols({
-                  ticker,
-                  yahooSymbol: null,
-                  currency: tickerCurrency.get(ticker) ?? null,
-                });
-                const result =
-                  await profileProvider.fetchProfileWithCandidates(candidates);
-                return [ticker, result] as const;
-              } catch {
-                return [ticker, { status: "error" as const, message: "unknown" }] as const;
-              }
-            }),
-          );
-          for (const [ticker, result] of profiles) {
-            if (result.status === "ok") {
-              profileByTicker.set(ticker, result.profile);
-            }
-          }
-        }
-      } catch (err) {
-        logger.warn("csv-commit", "asset profile enrichment failed:", err);
-      }
-
-      const newAssetPayloads = newTickers.map((ticker) => {
-        const profile = profileByTicker.get(ticker);
-        const payload: Record<string, string> = {
-          ticker,
-          asset_type: "STOCK",
-          currency: tickerCurrency.get(ticker) ?? "USD",
-          name: ticker,
-        };
-        if (profile?.sector) payload.sector = profile.sector;
-        if (profile?.country) payload.country = profile.country;
-        return payload;
-      });
-
-      const { data: insertedAssets, error: insertAssetsError } = await supabase
-        .from("assets")
-        .insert(newAssetPayloads)
-        .select("id, ticker");
-
-      if (insertAssetsError) {
-        return serverError(
-          `Error al crear activos: ${insertAssetsError.message}`,
-        );
-      }
-      for (const row of insertedAssets ?? []) {
-        if (row.ticker) assetIdByTicker.set(row.ticker as string, row.id as string);
+    const { batches } = planCsvAssetReferences(validRows.flatMap((row) => {
+      const ticker = (row.parsed_data_json as ParsedCsvTrade | null)?.ticker;
+      return typeof ticker === "string" ? [{ id: row.id, ticker }] : [];
+    }), decisions);
+    const assetIdByRow = new Map<string, string>();
+    for (const batch of batches) {
+      const results = await resolveAssetReferences(supabase, {
+        portfolioId: portfolio.portfolioId, source: "CSV", importId: import_id,
+      }, batch);
+      const refs = new Map(results.flatMap((result) => result.status === "resolved" ? [[result.key, result.asset_id] as const] : []));
+      for (const { key, row_ids } of batch) {
+        const assetId = refs.get(key);
+        if (assetId) for (const id of row_ids ?? []) assetIdByRow.set(id, assetId);
       }
     }
 
@@ -166,14 +101,9 @@ export async function POST(request: NextRequest) {
 
     for (const row of validRows) {
       const parsedData = row.parsed_data_json as ParsedCsvTrade | null;
-      if (!parsedData) continue;
-
-      const ticker = parsedData.ticker.toUpperCase();
-      const asset_id = assetIdByTicker.get(ticker);
-      if (!asset_id) {
-        errors.push(
-          `Fila ${row.row_number}: No se pudo resolver el activo ${ticker}.`,
-        );
+      const asset_id = assetIdByRow.get(row.id);
+      if (!parsedData || !asset_id) {
+        errors.push(`Fila ${row.row_number}: ${errorMessages.assetReferenceChoice}`);
         continue;
       }
 
@@ -270,7 +200,8 @@ export async function POST(request: NextRequest) {
       },
       { status: 200 },
     );
-  } catch {
+  } catch (error) {
+    if (error instanceof AssetResolutionError && error.code === "42501") return forbidden();
     return serverError();
   }
 }
