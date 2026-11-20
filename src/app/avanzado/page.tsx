@@ -3,19 +3,16 @@ import { redirect } from "next/navigation";
 import { MainNavigation } from "@/components/layout/main-navigation";
 import { loadDashboardAggregate } from "@/lib/dashboard/aggregate";
 import { getDashboardLabels } from "@/lib/i18n/dashboard";
-import { getCurrentPortfolio } from "@/lib/supabase/auth";
-import { createUserSupabaseClient } from "@/lib/supabase/server";
+import { getPortfolioContext } from "@/lib/supabase/auth";
 import { AvanzadoPageClient } from "@/features/avanzado/avanzado-page-client";
 
 const labels = getDashboardLabels();
 
 export default async function AvanzadoPage() {
-  const portfolio = await getCurrentPortfolio();
-  if (!portfolio) {
-    redirect("/login");
-  }
-
-  const supabase = await createUserSupabaseClient();
+  const context = await getPortfolioContext();
+  if (context.kind === "anonymous") redirect("/login");
+  if (context.kind !== "active") redirect("/");
+  const { portfolio, supabase } = context;
   const aggregate = await loadDashboardAggregate(
     portfolio.portfolioId,
     supabase,

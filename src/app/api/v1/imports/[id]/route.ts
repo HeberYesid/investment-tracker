@@ -1,22 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireApiUser } from "@/lib/api/auth";
-import { getCurrentPortfolio } from "@/lib/supabase/auth";
+import { requireApiUserWithPortfolio } from "@/lib/api/auth";
 import { badRequest, notFound, serverError } from "@/lib/api/errors";
 
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const auth = await requireApiUser();
+  const auth = await requireApiUserWithPortfolio();
   if (auth.response) return auth.response;
-  const { supabase } = auth;
+  const { supabase, portfolio } = auth;
 
   try {
-    const portfolio = await getCurrentPortfolio();
-    if (!portfolio) {
-      return notFound("Portafolio no encontrado.");
-    }
-
     const { id } = await params;
 
     const { data: importRecord, error } = await supabase
@@ -32,8 +26,9 @@ export async function GET(
 
     const { data: rows, error: rowsError } = await supabase
       .from("csv_import_rows")
-      .select("*")
+      .select("*, csv_imports!inner(id)")
       .eq("import_id", id)
+      .eq("csv_imports.portfolio_id", portfolio.portfolioId)
       .order("row_number", { ascending: true });
 
     if (rowsError) {
@@ -57,19 +52,14 @@ export async function GET(
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const auth = await requireApiUser();
+  const auth = await requireApiUserWithPortfolio(undefined, { writeAccess: true, request });
   if (auth.response) return auth.response;
-  const { supabase } = auth;
+  const { supabase, portfolio } = auth;
 
   try {
-    const portfolio = await getCurrentPortfolio();
-    if (!portfolio) {
-      return notFound("Portafolio no encontrado.");
-    }
-
     const { id } = await params;
 
     const { data: importRecord, error } = await supabase
@@ -89,7 +79,14 @@ export async function DELETE(
       );
     }
 
-    await supabase.from("csv_imports").delete().eq("id", id);
+    const { data: deleted, error: deleteError } = await supabase.from("csv_imports")
+      .delete()
+      .eq("id", id)
+      .eq("portfolio_id", portfolio.portfolioId)
+      .neq("status", "COMMITTED")
+      .select("id");
+    if (deleteError) return serverError();
+    if (!deleted?.length) return notFound("Importación no encontrada.");
 
     return new NextResponse(null, { status: 204 });
   } catch {

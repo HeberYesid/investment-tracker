@@ -34,21 +34,14 @@ export const dashboardLabels = {
     dimBroker: "Br\u00f3ker",
     dimSector: "Sector",
     dimCountry: "Pa\u00eds",
+    distributionLoadError: "No se pudo cambiar la dimensión. Se muestran los datos anteriores.",
     distributionUnclassifiedTooltip:
-      "El detalle por sector/pa\u00eds se enriquece con datos de mercado cuando hay cotizaciones sincronizadas.",
+      "Faltan metadatos para esta dimensión en algunas posiciones.",
     unclassifiedLabel: "Sin clasificar",
     distributionStaleTooltip:
       "Cotizaci\u00f3n desactualizada (>2h). El valor puede no reflejar el precio actual.",
     distributionEstimatedTooltip:
       "Valor estimado a partir de tus operaciones. No hay precio de mercado disponible.",
-    distributionEnrichButton: "Enriquecer sectores y pa\u00edses",
-    distributionEnrichRunning: "Enriqueciendo...",
-    distributionEnrichDone: "Se enriquecieron {succeeded} activos.",
-    distributionEnrichPartial: "Se enriquecieron {succeeded} activos. {failed} no se pudieron clasificar.",
-    distributionEnrichAllNotFound:
-      "No se encontr\u00f3 perfil en Yahoo para ninguno de los {total} activos. Prob\u00e1 actualizar manualmente el campo yahoo_symbol en la tabla assets.",
-    distributionEnrichForbidden:
-      "Solo los propietarios pueden ejecutar el enriquecimiento.",
 
     returnsTitle: "Rentabilidad",
     returnsEmpty: "Sin datos de rentabilidad.",

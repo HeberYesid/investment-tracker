@@ -1,8 +1,11 @@
 import { cache } from "react";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import type { SupabaseClient, User } from "@supabase/supabase-js";
+
+import type { PortfolioRole } from "@/lib/csv/constants";
+import { PortfolioId, PortfolioMemberships } from "@/lib/validations/portfolios";
 import { createUserSupabaseClient } from "./server";
-import { isValidRole, type PortfolioRole } from "@/lib/csv/constants";
-import { logger } from "@/lib/logger";
 
 export type CurrentPortfolio = {
   portfolioId: string;
@@ -14,13 +17,17 @@ export type CurrentPortfolio = {
   };
 };
 
-export const getCurrentUser = cache(async () => {
+export const ACTIVE_PORTFOLIO_COOKIE = "it-active-portfolio";
+
+const getSession = cache(async () => {
   const supabase = await createUserSupabaseClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  return user;
+  return { user, supabase };
 });
+
+export const getCurrentUser = cache(async () => (await getSession()).user);
 
 export async function requireUser() {
   const user = await getCurrentUser();
@@ -30,47 +37,51 @@ export async function requireUser() {
   return user;
 }
 
-export const getCurrentPortfolio = cache(
-  async (): Promise<CurrentPortfolio | null> => {
-    const user = await getCurrentUser();
-    if (!user) return null;
+export async function listOwnPortfolios(supabase: SupabaseClient): Promise<CurrentPortfolio[]> {
+  const { data, error } = await supabase.rpc("list_my_portfolio_memberships");
+  const parsed = PortfolioMemberships.safeParse(data);
+  if (error || !parsed.success) throw new Error("No se pudieron resolver las membresías.");
 
-    const supabase = await createUserSupabaseClient();
-    const { data: member } = await supabase
-      .from("portfolio_members")
-      .select("portfolio_id, role, portfolios(id, name, base_currency)")
-      .eq("user_id", user.id)
-      .limit(1)
-      .maybeSingle();
+  return parsed.data.map(({ portfolio_id, role, name, base_currency }) => ({
+    portfolioId: portfolio_id,
+    role,
+    portfolio: { id: portfolio_id, name, base_currency },
+  }));
+}
 
-    if (!member) return null;
+export type PortfolioContext =
+  | { kind: "anonymous" }
+  | { kind: "error" }
+  | { kind: "no-membership"; user: User }
+  | { kind: "active"; user: User; supabase: SupabaseClient; portfolio: CurrentPortfolio; options: CurrentPortfolio[] };
 
-    if (!isValidRole(member.role)) {
-      logger.error("auth", `Invalid role for user ${user.id}: ${member.role}`);
-      return null;
-    }
+export async function resolvePortfolioContext(user: User, supabase: SupabaseClient): Promise<PortfolioContext> {
+  try {
+    const store = await cookies();
+    const [cookieUser, cookiePortfolio, extra] = store.get(ACTIVE_PORTFOLIO_COOKIE)?.value.split(":") ?? [];
+    const preferred = cookieUser === user.id && extra === undefined ? PortfolioId.safeParse(cookiePortfolio) : null;
+    const options = await listOwnPortfolios(supabase);
+    const portfolio = (preferred?.success ? options.find((option) => option.portfolioId === preferred.data) : undefined)
+      ?? options[0];
+    return portfolio ? { kind: "active", user, supabase, portfolio, options } : { kind: "no-membership", user };
+  } catch {
+    return { kind: "error" };
+  }
+}
 
-    const portfolio = Array.isArray(member.portfolios)
-      ? member.portfolios[0]
-      : member.portfolios;
-    if (!portfolio) return null;
+export const getPortfolioContext = cache(async (): Promise<PortfolioContext> => {
+  const { user, supabase } = await getSession();
+  return user ? resolvePortfolioContext(user, supabase) : { kind: "anonymous" };
+});
 
-    return {
-      portfolioId: member.portfolio_id,
-      role: member.role,
-      portfolio: {
-        id: portfolio.id,
-        name: portfolio.name,
-        base_currency: "USD",
-      },
-    };
-  },
-);
+export const getCurrentPortfolio = cache(async (): Promise<CurrentPortfolio | null> => {
+  const context = await getPortfolioContext();
+  return context.kind === "active" ? context.portfolio : null;
+});
 
 export async function requireCurrentPortfolio(): Promise<CurrentPortfolio> {
-  const portfolio = await getCurrentPortfolio();
-  if (!portfolio) {
-    redirect("/login");
-  }
-  return portfolio;
+  const context = await getPortfolioContext();
+  if (context.kind === "anonymous") redirect("/login");
+  if (context.kind !== "active") redirect("/");
+  return context.portfolio;
 }

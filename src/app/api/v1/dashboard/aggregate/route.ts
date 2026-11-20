@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { badRequest, serverError, validationError } from "@/lib/api/errors";
-import { requireApiUser } from "@/lib/api/auth";
-import { getCurrentPortfolio } from "@/lib/supabase/auth";
+import { serverError, validationError } from "@/lib/api/errors";
+import { requireApiUserWithPortfolio } from "@/lib/api/auth";
 import {
   loadDashboardAggregate,
   type DashboardAggregateScope,
@@ -55,17 +54,14 @@ const AggregateQuery = {
 };
 
 export async function GET(request: NextRequest) {
-  const auth = await requireApiUser();
+  const auth = await requireApiUserWithPortfolio();
   if (auth.response) return auth.response;
-  const { supabase } = auth;
+  const { supabase, portfolio } = auth;
 
   try {
     const params = Object.fromEntries(request.nextUrl.searchParams);
     const parsed = AggregateQuery.safeParse(params);
     if (!parsed.success) return validationError(parsed.error.issues);
-
-    const portfolio = await getCurrentPortfolio();
-    if (!portfolio) return badRequest("No se encontró un portafolio.");
 
     const aggregate = await loadDashboardAggregate(
       portfolio.portfolioId,
@@ -80,14 +76,8 @@ export async function GET(request: NextRequest) {
       },
     );
 
-    const response = NextResponse.json(aggregate);
-    response.headers.set(
-      "Cache-Control",
-      "private, s-maxage=30, stale-while-revalidate=60",
-    );
-    return response;
-  } catch (err) {
-    if (err instanceof Error) return badRequest(err.message);
+    return NextResponse.json(aggregate, { headers: { "Cache-Control": "private, no-store" } });
+  } catch {
     return serverError();
   }
 }

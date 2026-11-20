@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { TRADE_DECIMAL_SCALE, type TradeDTO } from "@/lib/validations/trades";
+import { EXPECTED_PORTFOLIO_HEADER } from "@/lib/portfolio-context";
 import { errors } from "@/lib/i18n/errors";
 import { getTradeLabels } from "@/lib/i18n/trades";
 
@@ -37,7 +38,7 @@ export function EditTradeClient({ trade }: EditTradeClientProps) {
     try {
       const res = await fetch(`/api/v1/trades/${trade.id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", [EXPECTED_PORTFOLIO_HEADER]: trade.portfolio_id },
         body: JSON.stringify({
           trade_type: data.trade_type,
           trade_date: data.trade_date,
@@ -51,7 +52,7 @@ export function EditTradeClient({ trade }: EditTradeClientProps) {
 
       if (!res.ok) {
         const json = await res.json().catch(() => null);
-        throw new Error(json?.error?.message ?? "Error al actualizar la operación");
+        throw new Error(json?.error?.details?.[0]?.message ?? json?.error?.message ?? "Error al actualizar la operación");
       }
 
       router.push("/trades");

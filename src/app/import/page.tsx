@@ -24,6 +24,7 @@ export default async function ImportPage() {
         </section>
 
         <ImportPageClient
+          key={portfolio.portfolioId}
           portfolioId={portfolio.portfolioId}
           readOnly={readOnly}
         />

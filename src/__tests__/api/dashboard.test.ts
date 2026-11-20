@@ -48,8 +48,7 @@ vi.mock("next/cache", () => ({
 }));
 
 vi.mock("@/lib/supabase/auth", () => ({
-  getCurrentPortfolio: () =>
-    Promise.resolve({
+  resolvePortfolioContext: async () => ({ kind: "active", portfolio: {
       portfolioId: "p1",
       role: "OWNER",
       portfolio: {
@@ -57,7 +56,7 @@ vi.mock("@/lib/supabase/auth", () => ({
         name: "Mi portafolio",
         base_currency: "USD",
       },
-    }),
+    } }),
 }));
 
 import { GET as summaryGET } from "@/app/api/v1/dashboard/summary/route";

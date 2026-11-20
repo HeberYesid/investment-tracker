@@ -6,8 +6,8 @@ import { StalePriceSyncTrigger } from "@/features/dashboard/stale-price-sync-tri
 import { getDashboardLabels } from "@/lib/i18n/dashboard";
 import { logger } from "@/lib/logger";
 import { evaluateFreshness, getMarketDataFreshness } from "@/lib/market-data/freshness";
-import { createUserSupabaseClient } from "@/lib/supabase/server";
-import { getCurrentPortfolio } from "@/lib/supabase/auth";
+import { getPortfolioContext } from "@/lib/supabase/auth";
+import { portfolioStrings } from "@/lib/i18n/portfolios";
 
 import { DashboardDataLoader } from "@/features/dashboard/dashboard-data-loader";
 
@@ -35,15 +35,14 @@ function DashboardSkeleton() {
 }
 
 export default async function Home() {
-  const portfolio = await getCurrentPortfolio();
+  const context = await getPortfolioContext();
   let shouldBackgroundSync = false;
   let canSync = false;
   let lastSyncFinishedAt: string | null = null;
 
-  if (portfolio) {
+  if (context.kind === "active") {
     try {
-      const supabase = await createUserSupabaseClient();
-      const freshness = await getMarketDataFreshness(supabase);
+      const freshness = await getMarketDataFreshness(context.supabase);
       if (freshness) {
         const evaluation = evaluateFreshness(freshness);
         shouldBackgroundSync = evaluation.shouldBackgroundSync;
@@ -53,7 +52,7 @@ export default async function Home() {
       logger.error("dashboard", "Failed to fetch market data freshness:", error);
     }
 
-    canSync = portfolio.role === "OWNER";
+    canSync = context.portfolio.role === "OWNER";
   }
 
   return (
@@ -66,7 +65,7 @@ export default async function Home() {
             <h1 className="text-3xl font-bold tracking-tight text-text-primary sm:text-4xl">
               {labels.pageTitle}
             </h1>
-            {portfolio && (
+            {context.kind === "active" && (
               <div className="flex items-center gap-3">
                 <SyncNowButton lastSyncedAt={lastSyncFinishedAt} />
               </div>
@@ -74,16 +73,22 @@ export default async function Home() {
           </div>
         </section>
 
-        {portfolio && (
+        {context.kind === "active" && (
           <StalePriceSyncTrigger
             shouldSync={shouldBackgroundSync}
             canSync={canSync}
           />
         )}
 
-        <Suspense fallback={<DashboardSkeleton />}>
-          <DashboardDataLoader />
-        </Suspense>
+        {context.kind === "active" || context.kind === "anonymous" ? (
+          <Suspense fallback={<DashboardSkeleton />}>
+            <DashboardDataLoader context={context} />
+          </Suspense>
+        ) : (
+          <p role="status" className="rounded-2xl bg-surface-muted p-4 text-text-secondary">
+            {context.kind === "no-membership" ? portfolioStrings.noMembership : portfolioStrings.membershipError}
+          </p>
+        )}
       </div>
     </main>
   );

@@ -2,25 +2,21 @@ import { NextRequest, NextResponse } from "next/server";
 
 // Deprecated: use GET /api/v1/dashboard/aggregate?scope=advanced for a single
 // consolidated payload. Kept for backwards compatibility.
-import { badRequest, serverError } from "@/lib/api/errors";
-import { requireApiUser } from "@/lib/api/auth";
-import { getCurrentPortfolio } from "@/lib/supabase/auth";
+import { serverError } from "@/lib/api/errors";
+import { requireApiUserWithPortfolio } from "@/lib/api/auth";
 import { loadDashboardData } from "@/lib/dashboard/loader";
 import { loadSnapshot } from "@/lib/dashboard/snapshot";
 
 export async function GET(_request: NextRequest) {
-  const auth = await requireApiUser();
+  const auth = await requireApiUserWithPortfolio();
   if (auth.response) return auth.response;
-  const { supabase } = auth;
+  const { supabase, portfolio } = auth;
 
   try {
-    const portfolio = await getCurrentPortfolio();
-    if (!portfolio) return badRequest("No se encontró un portafolio.");
     const data = await loadDashboardData(portfolio.portfolioId, supabase);
     const snapshot = await loadSnapshot(data, supabase);
     return NextResponse.json(snapshot);
-  } catch (err) {
-    if (err instanceof Error) return badRequest(err.message);
+  } catch {
     return serverError();
   }
 }

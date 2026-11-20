@@ -30,6 +30,7 @@ export default async function EditTradePage({ params }: EditTradePageProps) {
     .from("trades")
     .select("*, asset:assets(ticker), broker:brokers(code)")
     .eq("id", id)
+    .eq("portfolio_id", portfolio.portfolioId)
     .is("deleted_at", null)
     .single();
 

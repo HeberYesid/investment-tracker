@@ -28,6 +28,7 @@ function firstJoin<T>(value: T | T[] | null | undefined): T | null {
 
 export async function fetchTradesPage(
   supabase: SupabaseClient,
+  portfolioId: string,
   params: TradeListQuery,
 ): Promise<TradeListResult> {
   const {
@@ -59,6 +60,7 @@ export async function fetchTradesPage(
   let query = supabase
     .from("trades")
     .select("*, assets(ticker, name), brokers(name, code)", { count: "exact" })
+    .eq("portfolio_id", portfolioId)
     .is("deleted_at", null)
     .order("trade_date", { ascending: false })
     .order("created_at", { ascending: false });

@@ -12,6 +12,10 @@ import { BROKER_SEEDS } from "@/lib/reference/brokers";
 import { TRADE_TYPES, SUPPORTED_CURRENCIES, hasValidTradeFx, isCopToUsdRate, normalizeTradeFx } from "@/lib/validations/trades";
 import { LatestFxResponse } from "@/lib/validations/fx";
 
+import { AssetDecision, CatalogTicker, type CandidateGroup } from "@/lib/validations/asset-catalog";
+import { ReferenceChoice, ReferenceSearch } from "@/features/asset-catalog/reference-choice";
+import { errors as errorMessages } from "@/lib/i18n/errors";
+
 const labels = getTradeLabels();
 
 export const tradeFormSchema = z
@@ -20,6 +24,7 @@ export const tradeFormSchema = z
     trade_date: z.string().min(1, labels.required),
     broker_code: z.string().min(1, labels.required),
     ticker: z.string().min(1, labels.required),
+    asset_reference: AssetDecision.optional(),
     quantity: z.coerce.number().positive(labels.positiveNumber),
     price_original: z.coerce.number().min(0, labels.positiveNumber),
     currency_original: z.enum(SUPPORTED_CURRENCIES),
@@ -92,10 +97,19 @@ export function TradeForm({ mode, initialData, onSubmit }: TradeFormProps) {
       fx_rate_to_usd: initialData?.fx_rate_to_usd ?? 1,
     },
   });
+  const tickerValue = useWatch({ control, name: "ticker" });
+  const tickerField = register("ticker");
+  const ticker = CatalogTicker.safeParse(tickerValue);
+  const [references, setReferences] = useState<CandidateGroup[]>([]);
+  const [choiceError, setChoiceError] = useState(false);
+  const submit = handleSubmit((value) => {
+    if (mode === "create" && !value.asset_reference) { setChoiceError(true); return; }
+    return onSubmit(value);
+  });
 
   return (
     <form
-      onSubmit={handleSubmit(onSubmit)}
+      onSubmit={submit}
       className="space-y-5 rounded-3xl bg-surface p-5 shadow-sm ring-1 ring-border-subtle sm:p-6"
     >
       <div className="space-y-1.5">
@@ -169,7 +183,12 @@ export function TradeForm({ mode, initialData, onSubmit }: TradeFormProps) {
           type="text"
           readOnly={mode === "edit"}
           placeholder="AAPL, MSFT, PFBC..."
-          {...register("ticker")}
+          {...tickerField}
+          onChange={(event) => {
+            void tickerField.onChange(event);
+            setValue("asset_reference", undefined);
+            setChoiceError(false);
+          }}
           className={inputClass}
         />
         {errors.ticker && (
@@ -178,6 +197,13 @@ export function TradeForm({ mode, initialData, onSubmit }: TradeFormProps) {
           </p>
         )}
       </div>
+
+      {mode === "create" && ticker.success && <div className="space-y-2" key={tickerValue}>
+        <ReferenceSearch tickers={[ticker.data]} onLoad={setReferences} />
+        <ReferenceChoice group={references.find(({ ticker: key }) => key === ticker.data)} required
+          onChange={(decision) => { setValue("asset_reference", decision ?? undefined); setChoiceError(false); }} />
+        {choiceError && <p role="alert" className="text-sm text-red-600">{errorMessages.assetReferenceChoice}</p>}
+      </div>}
 
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">

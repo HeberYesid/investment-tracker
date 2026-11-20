@@ -4,10 +4,11 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { TradeForm, type TradeFormValues } from "./trade-form";
+import { EXPECTED_PORTFOLIO_HEADER } from "@/lib/portfolio-context";
 import { errors } from "@/lib/i18n/errors";
 import { TRADE_DECIMAL_SCALE } from "@/lib/validations/trades";
 
-export function NewTradeClient() {
+export function NewTradeClient({ portfolioId }: { portfolioId: string }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
 
@@ -17,12 +18,13 @@ export function NewTradeClient() {
     try {
       const res = await fetch("/api/v1/trades", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", [EXPECTED_PORTFOLIO_HEADER]: portfolioId },
         body: JSON.stringify({
           trade_type: data.trade_type,
           trade_date: data.trade_date,
           broker_code: data.broker_code,
           ticker: data.ticker,
+          asset_reference: data.asset_reference,
           quantity: data.quantity,
           price_original: data.price_original.toFixed(TRADE_DECIMAL_SCALE),
           currency_original: data.currency_original,

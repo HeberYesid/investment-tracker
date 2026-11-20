@@ -64,6 +64,7 @@ describe("XtbParser (XLSX real format)", () => {
     expect(lulu).toBeDefined();
     expect(lulu!.quantity).toBe(0.1188);
     expect(lulu!.price_original).toBe(252.39);
+    expect(lulu!.source_symbol).toBe("LULU.US");
   });
 
   it("parses Deckers purchase correctly", () => {

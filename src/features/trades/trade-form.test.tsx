@@ -40,9 +40,14 @@ describe("tasa de cambio del formulario de operaciones", () => {
     );
 
     fireEvent.change(rateInput, { target: { value: "0.00025" } });
+    fireEvent.change(screen.getByLabelText("Referencia del instrumento"), { target: { value: "new" } });
+    fireEvent.change(screen.getByLabelText("Mercado"), { target: { value: "BVC" } });
+    fireEvent.change(screen.getByLabelText("Moneda de cotización"), { target: { value: "COP" } });
+    fireEvent.change(screen.getByLabelText("Tipo de instrumento"), { target: { value: "STOCK" } });
     fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
     await waitFor(() => expect(submit.mock.calls[0]?.[0]).toMatchObject({
       currency_original: "COP", fx_rate_to_usd: 0.00025,
+      asset_reference: { kind: "new", exchange: "BVC", currency: "COP", asset_type: "STOCK" },
     }));
     expect(fetchFx).toHaveBeenCalledTimes(1);
   });

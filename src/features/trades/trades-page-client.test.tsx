@@ -55,7 +55,7 @@ afterEach(() => {
 describe("TradesPageClient role-aware UI", () => {
   it("renders the row's edit and delete buttons when canWrite is true", () => {
     render(
-      <TradesPageClient initialData={initialData} canWrite={true} />,
+      <TradesPageClient portfolioId="test-portfolio" initialData={initialData} canWrite={true} />,
     );
     expect(screen.getByText("Editar")).toBeInTheDocument();
     expect(screen.getByText("Eliminar")).toBeInTheDocument();
@@ -63,7 +63,7 @@ describe("TradesPageClient role-aware UI", () => {
 
   it("hides the row's edit and delete buttons when canWrite is false", () => {
     render(
-      <TradesPageClient initialData={initialData} canWrite={false} />,
+      <TradesPageClient portfolioId="test-portfolio" initialData={initialData} canWrite={false} />,
     );
     expect(screen.queryByText("Editar")).not.toBeInTheDocument();
     expect(screen.queryByText("Eliminar")).not.toBeInTheDocument();
@@ -73,7 +73,7 @@ describe("TradesPageClient role-aware UI", () => {
     mockUseSearchParams.mockReturnValue(new URLSearchParams("denied=write"));
 
     render(
-      <TradesPageClient initialData={initialData} canWrite={false} />,
+      <TradesPageClient portfolioId="test-portfolio" initialData={initialData} canWrite={false} />,
     );
 
     expect(screen.getByRole("status")).toHaveTextContent(
@@ -83,7 +83,7 @@ describe("TradesPageClient role-aware UI", () => {
 
   it("does not render the read-only toast by default", () => {
     render(
-      <TradesPageClient initialData={initialData} canWrite={false} />,
+      <TradesPageClient portfolioId="test-portfolio" initialData={initialData} canWrite={false} />,
     );
     expect(
       screen.queryByText(/no puedes crear ni editar operaciones/i),
@@ -92,7 +92,7 @@ describe("TradesPageClient role-aware UI", () => {
 
   it("expands the filter panel and still hides the row's edit and delete buttons when canWrite is false", async () => {
     render(
-      <TradesPageClient initialData={initialData} canWrite={false} />,
+      <TradesPageClient portfolioId="test-portfolio" initialData={initialData} canWrite={false} />,
     );
 
     fireEvent.click(screen.getByRole("button", { name: /filtros/i }));

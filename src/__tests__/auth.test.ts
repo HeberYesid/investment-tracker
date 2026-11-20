@@ -4,8 +4,10 @@ const mockSupabase = {
   auth: {
     getUser: vi.fn(),
   },
-  from: vi.fn(),
+  rpc: vi.fn(),
 };
+
+vi.mock("next/headers", () => ({ cookies: async () => ({ get: () => undefined }) }));
 
 vi.mock("@/lib/supabase/server", () => ({
   createUserSupabaseClient: () => Promise.resolve(mockSupabase),
@@ -43,30 +45,27 @@ describe("getCurrentUser", () => {
 
 describe("getCurrentPortfolio", () => {
   it("returns the user's only portfolio and OWNER role", async () => {
+    const id = "20000000-0000-4000-8000-000000000001";
     mockSupabase.auth.getUser.mockResolvedValueOnce({
       data: { user: { id: "u1" } },
       error: null,
     });
     const member = {
-      portfolio_id: "p1",
+      portfolio_id: id,
       role: "OWNER",
-      portfolios: { id: "p1", name: "Mi portafolio", base_currency: "USD" },
+      name: "Mi portafolio",
+      base_currency: "USD",
     };
-    const selectChain = {
-      eq: vi.fn().mockReturnThis(),
-      limit: vi.fn().mockReturnThis(),
-      maybeSingle: vi.fn().mockResolvedValueOnce({ data: member, error: null }),
-    };
-    mockSupabase.from.mockReturnValueOnce({ select: vi.fn().mockReturnValue(selectChain) });
+    mockSupabase.rpc.mockResolvedValueOnce({ data: [member], error: null });
 
     const result = await getCurrentPortfolio();
 
     expect(result).toEqual({
-      portfolioId: "p1",
+      portfolioId: id,
       role: "OWNER",
-      portfolio: { id: "p1", name: "Mi portafolio", base_currency: "USD" },
+      portfolio: { id, name: "Mi portafolio", base_currency: "USD" },
     });
-    expect(mockSupabase.from).toHaveBeenCalledWith("portfolio_members");
+    expect(mockSupabase.rpc).toHaveBeenCalledWith("list_my_portfolio_memberships");
   });
 
   it("returns null when the user has no portfolio membership", async () => {
@@ -74,12 +73,7 @@ describe("getCurrentPortfolio", () => {
       data: { user: { id: "u1" } },
       error: null,
     });
-    const selectChain = {
-      eq: vi.fn().mockReturnThis(),
-      limit: vi.fn().mockReturnThis(),
-      maybeSingle: vi.fn().mockResolvedValueOnce({ data: null, error: null }),
-    };
-    mockSupabase.from.mockReturnValueOnce({ select: vi.fn().mockReturnValue(selectChain) });
+    mockSupabase.rpc.mockResolvedValueOnce({ data: [], error: null });
 
     const result = await getCurrentPortfolio();
 
@@ -95,7 +89,7 @@ describe("getCurrentPortfolio", () => {
     const result = await getCurrentPortfolio();
 
     expect(result).toBeNull();
-    expect(mockSupabase.from).not.toHaveBeenCalled();
+    expect(mockSupabase.rpc).not.toHaveBeenCalled();
   });
 });
 
