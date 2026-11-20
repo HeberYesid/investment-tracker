@@ -151,6 +151,20 @@
         "Tests unit para AvanzadoPageClient (error, empty, ready, benchmark backfill)"
       ],
       "status": "done"
+    },
+    {
+      "id": 17,
+      "name": "fix-fee-quantity-consistency",
+      "title": "Cantidad coherente en comisiones independientes",
+      "description": "Exigir cantidad cero para FEE y positiva para los demás tipos en alta, edición parcial e importación, sin cambiar el libro ni reescribir datos históricos.",
+      "acceptance": [
+        "Alta manual y PATCH validan el par tipo/cantidad antes de escribir; cambios de tipo y correcciones del legado son explícitos (R1–R5)",
+        "Preview acepta cargos XTB identificables y explica los rechazados sin ampliar formatos ni inventar mapeos de otros brókeres (R6–R7, R11)",
+        "Commit revalida el preview persistido antes de resolver referencias o insertar, conserva éxito parcial y no corrige el JSON (R8)",
+        "La base conserva el legado y el libro aprobado sigue mostrando USD 18 realizados tras un cierre de USD 20 y un FEE posterior de USD 2 (R9–R10)"
+      ],
+      "sdd": true,
+      "status": "spec_ready"
     }
   ]
 }
