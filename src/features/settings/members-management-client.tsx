@@ -6,6 +6,7 @@ import { Loader2, Trash2, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getMemberLabels } from "@/lib/i18n/members";
 import { errors as errorMessages } from "@/lib/i18n/errors";
+import { EXPECTED_PORTFOLIO_HEADER } from "@/lib/portfolio-context";
 import { cn } from "@/lib/utils";
 import { InviteMemberInput, UpdateMemberRoleInput } from "@/lib/validations/members";
 import type { PortfolioRole } from "@/lib/csv/constants";
@@ -17,6 +18,7 @@ const labels = getMemberLabels();
 type MembersManagementClientProps = {
   initialMembers: Member[];
   currentUserId: string;
+  portfolioId: string;
 };
 
 type ActionState =
@@ -31,6 +33,7 @@ const labelClass = "block text-xs font-medium text-text-muted";
 export function MembersManagementClient({
   initialMembers,
   currentUserId,
+  portfolioId,
 }: MembersManagementClientProps) {
   const [members, setMembers] = useState<Member[]>(initialMembers);
   const [email, setEmail] = useState("");
@@ -62,18 +65,13 @@ export function MembersManagementClient({
       try {
         const res = await fetch("/api/v1/portfolio/members", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", [EXPECTED_PORTFOLIO_HEADER]: portfolioId },
           body: JSON.stringify(parsed.data),
         });
 
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
-          const message =
-            res.status === 404
-              ? labels.errorEmailNotFound
-              : res.status === 409
-                ? labels.errorMemberExists
-                : (err.error?.message ?? labels.errorLoadMembers);
+          const message = err.error?.message ?? labels.errorLoadMembers;
           setAction({ kind: "error", message });
           return;
         }
@@ -89,7 +87,7 @@ export function MembersManagementClient({
         setAdding(false);
       }
     },
-    [email, role],
+    [email, portfolioId, role],
   );
 
   const handleChangeRole = useCallback(
@@ -108,7 +106,7 @@ export function MembersManagementClient({
           `/api/v1/portfolio/members/${member.user_id}`,
           {
             method: "PATCH",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", [EXPECTED_PORTFOLIO_HEADER]: portfolioId },
             body: JSON.stringify(parsed.data),
           },
         );
@@ -133,7 +131,7 @@ export function MembersManagementClient({
         setBusyMemberId(null);
       }
     },
-    [],
+    [portfolioId],
   );
 
   const handleRemove = useCallback(async (member: Member) => {
@@ -146,7 +144,7 @@ export function MembersManagementClient({
     try {
       const res = await fetch(
         `/api/v1/portfolio/members/${member.user_id}`,
-        { method: "DELETE" },
+        { method: "DELETE", headers: { [EXPECTED_PORTFOLIO_HEADER]: portfolioId } },
       );
 
       if (!res.ok && res.status !== 204) {
@@ -164,7 +162,7 @@ export function MembersManagementClient({
     } finally {
       setBusyMemberId(null);
     }
-  }, []);
+  }, [portfolioId]);
 
   return (
     <div className="space-y-6">

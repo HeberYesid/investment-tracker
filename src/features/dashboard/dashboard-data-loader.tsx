@@ -1,15 +1,15 @@
 import { loadDashboardAggregate } from "@/lib/dashboard/aggregate";
 import { loadDemoDashboardAggregate } from "@/lib/dashboard/demo-loader";
-import { createUserSupabaseClient } from "@/lib/supabase/server";
-import { getCurrentPortfolio } from "@/lib/supabase/auth";
+import type { PortfolioContext } from "@/lib/supabase/auth";
 
 import { DashboardPageClient } from "./dashboard-page-client";
 
-export async function DashboardDataLoader() {
-  const portfolio = await getCurrentPortfolio();
+export async function DashboardDataLoader({ context }: {
+  context: Extract<PortfolioContext, { kind: "active" | "anonymous" }>;
+}) {
 
-  if (portfolio) {
-    const supabase = await createUserSupabaseClient();
+  if (context.kind === "active") {
+    const { portfolio, supabase } = context;
     const aggregate = await loadDashboardAggregate(
       portfolio.portfolioId,
       supabase,

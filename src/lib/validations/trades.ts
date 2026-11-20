@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { AssetDecision, CatalogTicker } from "@/lib/validations/asset-catalog";
 
 export const TRADE_TYPES = [
   "BUY",
@@ -57,7 +58,8 @@ export const TradeFormInput = z.object({
   trade_date: z.string(),
   trade_type: z.enum(TRADE_TYPES),
   broker_code: z.string().min(1, "Bróker requerido"),
-  ticker: z.string().min(1, "Ticker requerido").transform((v) => v.toUpperCase()),
+  ticker: CatalogTicker,
+  asset_reference: AssetDecision.optional(),
   quantity: z.number().positive(),
   price_original: z.number().min(0),
   currency_original: z.enum(SUPPORTED_CURRENCIES),
@@ -76,7 +78,18 @@ export const TradeFormInput = z.object({
 
 export type TradeFormInput = z.infer<typeof TradeFormInput>;
 
-export const UpdateTradeInput = TradeInputFields.partial();
+export const UpdateTradeInput = z.strictObject({
+  broker_id: TradeInputFields.shape.broker_id,
+  asset_id: TradeInputFields.shape.asset_id,
+  trade_date: TradeInputFields.shape.trade_date,
+  trade_type: TradeInputFields.shape.trade_type,
+  quantity: TradeInputFields.shape.quantity,
+  price_original: TradeInputFields.shape.price_original,
+  currency_original: TradeInputFields.shape.currency_original,
+  commission_original: TradeInputFields.shape.commission_original,
+  fx_rate_to_usd: TradeInputFields.shape.fx_rate_to_usd,
+  source: TradeInputFields.shape.source,
+}).partial();
 
 export type UpdateTradeInput = z.infer<typeof UpdateTradeInput>;
 

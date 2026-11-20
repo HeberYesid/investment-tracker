@@ -9,6 +9,8 @@ export const errors = {
   portfolioNotFound: "No se encontró un portafolio para el usuario.",
   brokerNotFound: "Bróker no encontrado",
   assetNotFound: "Activo no encontrado",
+  assetReferenceChoice: "Elige una referencia del catálogo o confirma el mercado, la moneda de cotización y el tipo del instrumento.",
+  assetReferenceRowsMismatch: "Las referencias deben corresponder a filas válidas de esta importación.",
   tradeNotFound: "Operación no encontrada",
   importNotFound: "Importación no encontrada",
   importAlreadyCommitted: "Esta importación ya fue confirmada.",
@@ -28,5 +30,7 @@ export const errors = {
   memberNotFound: "Miembro no encontrado en este portafolio.",
   memberAlreadyExists: "Ese usuario ya es miembro del portafolio.",
   lastOwnerGuard: "No puedes dejar el portafolio sin propietarios.",
+  memberConcurrentChange: "La membresía cambió durante la operación. Vuelve a intentarlo.",
+  stalePortfolio: "El portafolio activo cambió. Recarga la página antes de volver a intentarlo.",
   ownerRoleNotAssignable: "El rol OWNER no se asigna por la API; solo el trigger inicial lo crea.",
 } as const;

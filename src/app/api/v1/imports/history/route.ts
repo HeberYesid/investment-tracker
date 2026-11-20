@@ -1,19 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireApiUser } from "@/lib/api/auth";
-import { getCurrentPortfolio } from "@/lib/supabase/auth";
+import { requireApiUserWithPortfolio } from "@/lib/api/auth";
 import { serverError } from "@/lib/api/errors";
 
 export async function GET(_request: NextRequest) {
-  const auth = await requireApiUser();
+  const auth = await requireApiUserWithPortfolio();
   if (auth.response) return auth.response;
-  const { supabase } = auth;
+  const { supabase, portfolio } = auth;
 
   try {
-    const portfolio = await getCurrentPortfolio();
-    if (!portfolio) {
-      return NextResponse.json({ data: [] });
-    }
-
     const { data, error } = await supabase
       .from("csv_imports")
       .select("*, brokers(name, code)")

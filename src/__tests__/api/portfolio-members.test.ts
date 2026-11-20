@@ -1,384 +1,106 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { NextRequest } from "next/server";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-type MockBuilder = Record<string, unknown>;
-
-const queuedResults: { data: unknown; error: unknown }[] = [];
-const builders: MockBuilder[] = [];
-
-function createBuilder(): MockBuilder {
-  const builder: MockBuilder = {};
-  const chainMethods = [
-    "select",
-    "insert",
-    "update",
-    "delete",
-    "eq",
-    "is",
-    "order",
-    "range",
-    "single",
-    "maybeSingle",
-    "limit",
-    "in",
-  ];
-  for (const method of chainMethods) {
-    builder[method] = vi.fn().mockReturnValue(builder);
-  }
-  builder.then = vi.fn((resolve: (v: unknown) => void) =>
-    resolve(queuedResults.shift()),
-  );
-  builders.push(builder);
-  return builder;
-}
-
-const mockSupabase = {
-  from: vi.fn().mockImplementation(() => createBuilder()),
-  rpc: vi.fn(),
-  auth: {
-    getUser: vi.fn().mockResolvedValue({
-      data: { user: { id: "owner-id" } },
-      error: null,
-    }),
-  },
-};
+const { getUser, resolvePortfolioContext, rpc, from } = vi.hoisted(() => ({
+  getUser: vi.fn(), resolvePortfolioContext: vi.fn(), rpc: vi.fn(), from: vi.fn(),
+}));
 
 vi.mock("@/lib/supabase/server", () => ({
-  createUserSupabaseClient: () => Promise.resolve(mockSupabase),
-  createServiceSupabaseClient: () => mockSupabase,
+  createUserSupabaseClient: async () => ({ auth: { getUser }, rpc, from }),
 }));
-
-const mockGetCurrentPortfolio = vi.fn();
-vi.mock("@/lib/supabase/auth", () => ({
-  getCurrentPortfolio: () => mockGetCurrentPortfolio(),
-}));
+vi.mock("@/lib/supabase/auth", () => ({ resolvePortfolioContext }));
 
 import { GET, POST } from "@/app/api/v1/portfolio/members/route";
 import { PATCH, DELETE } from "@/app/api/v1/portfolio/members/[id]/route";
 
-const OWNER = {
-  portfolioId: "p1",
-  role: "OWNER",
-  portfolio: { id: "p1", name: "Mi portafolio", base_currency: "USD" as const },
-};
-const EDITOR = { ...OWNER, role: "EDITOR" as const };
-const VIEWER = { ...OWNER, role: "VIEWER" as const };
+const portfolioId = "20000000-0000-4000-8000-000000000001";
+const userId = "10000000-0000-4000-8000-000000000001";
+const memberId = "10000000-0000-4000-8000-000000000002";
+const row = { user_id: memberId, role: "VIEWER", created_at: "2026-01-01T00:00:00Z" };
+const withEmail = { ...row, email: "Viewer@example.test" };
+const invite = { email: " viewer@example.test ", role: "VIEWER" };
+const context = { params: Promise.resolve({ id: memberId }) };
+const url = "http://localhost/api/v1/portfolio/members";
+
+function request(method: string, body?: unknown, path = "") {
+  return new NextRequest(`${url}${path}`, { method, body: body === undefined ? undefined : JSON.stringify(body) });
+}
 
 beforeEach(() => {
-  vi.clearAllMocks();
-  queuedResults.length = 0;
-  builders.length = 0;
-  mockGetCurrentPortfolio.mockResolvedValue(OWNER);
+  vi.resetAllMocks();
+  getUser.mockResolvedValue({ data: { user: { id: userId } }, error: null });
+  resolvePortfolioContext.mockResolvedValue({ kind: "active", portfolio: { portfolioId, role: "OWNER" } });
 });
 
-afterEach(() => {
-  vi.clearAllMocks();
-});
-
-describe("GET /api/v1/portfolio/members", () => {
-  it("returns 401 when the user is not authenticated", async () => {
-    mockSupabase.auth.getUser.mockResolvedValueOnce({
-      data: { user: null },
-      error: null,
-    });
-    const request = new NextRequest(
-      "http://localhost/api/v1/portfolio/members",
-    );
-    void request;
-    const response = await GET();
-    expect(response.status).toBe(401);
+describe("administración de miembros", () => {
+  it("no consulta miembros sin una sesión autenticada", async () => {
+    getUser.mockResolvedValue({ data: { user: null }, error: null });
+    expect((await GET()).status).toBe(401);
+    expect(rpc).not.toHaveBeenCalled();
   });
 
-  it("returns 403 when the caller is not an OWNER", async () => {
-    mockGetCurrentPortfolio.mockResolvedValueOnce(EDITOR);
-    const response = await GET();
-    expect(response.status).toBe(403);
-    const body = await response.json();
-    expect(body.error.code).toBe("FORBIDDEN");
+  it.each(["EDITOR", "VIEWER"])("no llama a la proyección ni a la invitación para %s", async (role) => {
+    resolvePortfolioContext.mockResolvedValue({ kind: "active", portfolio: { portfolioId, role } });
+    expect((await GET()).status).toBe(403);
+    expect((await POST(request("POST", invite))).status).toBe(403);
+    expect((await PATCH(request("PATCH", { role: "OWNER" }, `/${memberId}`), context)).status).toBe(403);
+    expect((await DELETE(request("DELETE", undefined, `/${memberId}`), context)).status).toBe(403);
+    expect(rpc).not.toHaveBeenCalled();
   });
 
-  it("returns 403 when the caller is a VIEWER", async () => {
-    mockGetCurrentPortfolio.mockResolvedValueOnce(VIEWER);
-    const response = await GET();
-    expect(response.status).toBe(403);
-  });
-
-  it("returns 200 with the list of members for an OWNER", async () => {
-    queuedResults.push({
-      data: [
-        {
-          user_id: "u1",
-          role: "OWNER",
-          created_at: "2024-01-01T00:00:00Z",
-        },
-        {
-          user_id: "u2",
-          role: "EDITOR",
-          created_at: "2024-01-02T00:00:00Z",
-        },
-      ],
-      error: null,
-    });
+  it("proyecta únicamente los miembros del activo con correo actual o null", async () => {
+    const listed = [withEmail, { ...row, user_id: userId, email: null, role: "OWNER" }];
+    rpc.mockResolvedValue({ data: listed, error: null });
     const response = await GET();
     expect(response.status).toBe(200);
-    const body = await response.json();
-    expect(body.data).toHaveLength(2);
-    expect(body.data[0].user_id).toBe("u1");
-    expect(body.data[1].role).toBe("EDITOR");
-  });
-});
-
-describe("POST /api/v1/portfolio/members", () => {
-  it("returns 403 when the caller is not an OWNER", async () => {
-    mockGetCurrentPortfolio.mockResolvedValueOnce(EDITOR);
-    const request = new NextRequest(
-      "http://localhost/api/v1/portfolio/members",
-      {
-        method: "POST",
-        body: JSON.stringify({ email: "x@y.com", role: "EDITOR" }),
-        headers: { "Content-Type": "application/json" },
-      },
-    );
-    const response = await POST(request);
-    expect(response.status).toBe(403);
+    expect(await response.json()).toEqual({ data: listed });
+    expect(rpc.mock.calls).toEqual([["list_portfolio_members", { p_portfolio_id: portfolioId }]]);
+    expect(from).not.toHaveBeenCalled();
   });
 
-  it("returns 422 when the role is OWNER (not assignable via API)", async () => {
-    const request = new NextRequest(
-      "http://localhost/api/v1/portfolio/members",
-      {
-        method: "POST",
-        body: JSON.stringify({ email: "x@y.com", role: "OWNER" }),
-        headers: { "Content-Type": "application/json" },
-      },
-    );
-    const response = await POST(request);
-    expect(response.status).toBe(422);
-  });
-
-  it("returns 404 when find_user_by_email returns null", async () => {
-    mockSupabase.rpc.mockResolvedValueOnce({ data: null, error: null });
-    const request = new NextRequest(
-      "http://localhost/api/v1/portfolio/members",
-      {
-        method: "POST",
-        body: JSON.stringify({ email: "missing@example.com", role: "EDITOR" }),
-        headers: { "Content-Type": "application/json" },
-      },
-    );
-    const response = await POST(request);
-    expect(response.status).toBe(404);
-    const body = await response.json();
-    expect(body.error.message).toContain("inicie sesión");
-  });
-
-  it("returns 409 when the user is already a member", async () => {
-    // find_user_by_email resolves with a user id
-    mockSupabase.rpc.mockResolvedValueOnce({
-      data: "existing-user-id",
-      error: null,
-    });
-    // findMemberById resolves with a row
-    queuedResults.push({
-      data: {
-        user_id: "existing-user-id",
-        role: "EDITOR",
-        created_at: "2024-01-01T00:00:00Z",
-      },
-      error: null,
-    });
-
-    const request = new NextRequest(
-      "http://localhost/api/v1/portfolio/members",
-      {
-        method: "POST",
-        body: JSON.stringify({ email: "x@y.com", role: "EDITOR" }),
-        headers: { "Content-Type": "application/json" },
-      },
-    );
-    const response = await POST(request);
-    expect(response.status).toBe(409);
-  });
-
-  it("returns 201 when the member is added", async () => {
-    mockSupabase.rpc.mockResolvedValueOnce({
-      data: "new-user-id",
-      error: null,
-    });
-    queuedResults.push({ data: null, error: null }); // findMemberById (maybeSingle)
-    queuedResults.push({
-      data: {
-        user_id: "new-user-id",
-        role: "EDITOR",
-        created_at: "2024-01-01T00:00:00Z",
-      },
-      error: null,
-    });
-
-    const request = new NextRequest(
-      "http://localhost/api/v1/portfolio/members",
-      {
-        method: "POST",
-        body: JSON.stringify({ email: "new@example.com", role: "EDITOR" }),
-        headers: { "Content-Type": "application/json" },
-      },
-    );
-    const response = await POST(request);
+  it("invita en una sola RPC y devuelve el correo actual", async () => {
+    rpc.mockResolvedValue({ data: withEmail, error: null });
+    const response = await POST(request("POST", invite));
     expect(response.status).toBe(201);
-    const body = await response.json();
-    expect(body.data.user_id).toBe("new-user-id");
-    expect(body.data.email).toBe("new@example.com");
-  });
-});
-
-describe("PATCH /api/v1/portfolio/members/:id", () => {
-  const memberId = "11111111-1111-1111-1111-111111111111";
-
-  it("returns 403 when the caller is not an OWNER", async () => {
-    mockGetCurrentPortfolio.mockResolvedValueOnce(EDITOR);
-    const request = new NextRequest(
-      `http://localhost/api/v1/portfolio/members/${memberId}`,
-      {
-        method: "PATCH",
-        body: JSON.stringify({ role: "VIEWER" }),
-        headers: { "Content-Type": "application/json" },
-      },
-    );
-    const response = await PATCH(request, {
-      params: Promise.resolve({ id: memberId }),
-    });
-    expect(response.status).toBe(403);
+    expect(await response.json()).toEqual({ data: withEmail });
+    expect(rpc.mock.calls).toEqual([["invite_portfolio_member", {
+      p_portfolio_id: portfolioId, p_email: "viewer@example.test", p_role: "VIEWER",
+    }]]);
+    expect(from).not.toHaveBeenCalled();
   });
 
-  it("returns 404 when the member does not exist", async () => {
-    queuedResults.push({ data: null, error: null }); // maybeSingle -> null
-    const request = new NextRequest(
-      `http://localhost/api/v1/portfolio/members/${memberId}`,
-      {
-        method: "PATCH",
-        body: JSON.stringify({ role: "VIEWER" }),
-        headers: { "Content-Type": "application/json" },
-      },
-    );
-    const response = await PATCH(request, {
-      params: Promise.resolve({ id: memberId }),
-    });
-    expect(response.status).toBe(404);
+  it.each([
+    ["P0002", 404, "NOT_FOUND"], ["23505", 409, "CONFLICT"], ["PM002", 500, "INTERNAL_ERROR"],
+    ["42501", 403, "FORBIDDEN"], ["40001", 409, "CONFLICT"], ["40P01", 409, "CONFLICT"],
+  ])("traduce el error de invitación %s a %s sin exponer su detalle", async (code, status, httpCode) => {
+    rpc.mockResolvedValue({ data: null, error: { code, message: "detalle interno" } });
+    const response = await POST(request("POST", invite));
+    expect(response.status).toBe(status);
+    expect(await response.json()).toMatchObject({ error: { code: httpCode, message: expect.not.stringContaining("detalle interno") } });
   });
 
-  it("returns 409 when demoting the last OWNER", async () => {
-    queuedResults.push({
-      data: {
-        user_id: memberId,
-        role: "OWNER",
-        created_at: "2024-01-01T00:00:00Z",
-      },
-      error: null,
-    });
-    mockSupabase.rpc.mockResolvedValueOnce({ data: 1, error: null }); // count = 1
-    const request = new NextRequest(
-      `http://localhost/api/v1/portfolio/members/${memberId}`,
-      {
-        method: "PATCH",
-        body: JSON.stringify({ role: "VIEWER" }),
-        headers: { "Content-Type": "application/json" },
-      },
-    );
-    const response = await PATCH(request, {
-      params: Promise.resolve({ id: memberId }),
-    });
-    expect(response.status).toBe(409);
+  it("rechaza invitar como OWNER y valida el ID de destino", async () => {
+    expect((await POST(request("POST", { ...invite, role: "OWNER" }))).status).toBe(422);
+    expect((await DELETE(request("DELETE"), { params: Promise.resolve({ id: "inválido" }) })).status).toBe(422);
+    expect(rpc).not.toHaveBeenCalled();
   });
 
-  it("returns 200 when changing role with multiple owners", async () => {
-    queuedResults.push({
-      data: {
-        user_id: memberId,
-        role: "OWNER",
-        created_at: "2024-01-01T00:00:00Z",
-      },
-      error: null,
-    });
-    mockSupabase.rpc.mockResolvedValueOnce({ data: 2, error: null });
-    queuedResults.push({
-      data: {
-        user_id: memberId,
-        role: "EDITOR",
-        created_at: "2024-01-01T00:00:00Z",
-      },
-      error: null,
-    });
-
-    const request = new NextRequest(
-      `http://localhost/api/v1/portfolio/members/${memberId}`,
-      {
-        method: "PATCH",
-        body: JSON.stringify({ role: "EDITOR" }),
-        headers: { "Content-Type": "application/json" },
-      },
-    );
-    const response = await PATCH(request, {
-      params: Promise.resolve({ id: memberId }),
-    });
-    expect(response.status).toBe(200);
-    const body = await response.json();
-    expect(body.data.role).toBe("EDITOR");
-  });
-});
-
-describe("DELETE /api/v1/portfolio/members/:id", () => {
-  const memberId = "22222222-2222-2222-2222-222222222222";
-
-  it("returns 403 when the caller is not an OWNER", async () => {
-    mockGetCurrentPortfolio.mockResolvedValueOnce(EDITOR);
-    const request = new NextRequest(
-      `http://localhost/api/v1/portfolio/members/${memberId}`,
-      { method: "DELETE" },
-    );
-    const response = await DELETE(request, {
-      params: Promise.resolve({ id: memberId }),
-    });
-    expect(response.status).toBe(403);
+  it("promueve a OWNER y elimina por el ID de usuario del portafolio activo", async () => {
+    const promoted = { ...row, role: "OWNER" };
+    rpc.mockResolvedValueOnce({ data: promoted, error: null }).mockResolvedValueOnce({ data: null, error: null });
+    const changed = await PATCH(request("PATCH", { role: "OWNER" }, `/${memberId}`), context);
+    expect(changed.status).toBe(200);
+    expect(await changed.json()).toEqual({ data: promoted });
+    expect((await DELETE(request("DELETE", undefined, `/${memberId}`), context)).status).toBe(204);
+    expect(rpc.mock.calls).toEqual([
+      ["change_portfolio_member_role", { p_portfolio_id: portfolioId, p_user_id: memberId, p_role: "OWNER" }],
+      ["remove_portfolio_member", { p_portfolio_id: portfolioId, p_user_id: memberId }],
+    ]);
   });
 
-  it("returns 204 when removing a VIEWER", async () => {
-    queuedResults.push({
-      data: {
-        user_id: memberId,
-        role: "VIEWER",
-        created_at: "2024-01-01T00:00:00Z",
-      },
-      error: null,
-    });
-    queuedResults.push({ data: null, error: null }); // delete
-
-    const request = new NextRequest(
-      `http://localhost/api/v1/portfolio/members/${memberId}`,
-      { method: "DELETE" },
-    );
-    const response = await DELETE(request, {
-      params: Promise.resolve({ id: memberId }),
-    });
-    expect(response.status).toBe(204);
-  });
-
-  it("returns 409 when removing the last OWNER", async () => {
-    queuedResults.push({
-      data: {
-        user_id: memberId,
-        role: "OWNER",
-        created_at: "2024-01-01T00:00:00Z",
-      },
-      error: null,
-    });
-    mockSupabase.rpc.mockResolvedValueOnce({ data: 1, error: null });
-    const request = new NextRequest(
-      `http://localhost/api/v1/portfolio/members/${memberId}`,
-      { method: "DELETE" },
-    );
-    const response = await DELETE(request, {
-      params: Promise.resolve({ id: memberId }),
-    });
-    expect(response.status).toBe(409);
+  it.each([["PM001", 409], ["P0002", 404]])("distingue resultado %s en cambios de rol y bajas", async (code, status) => {
+    rpc.mockResolvedValue({ data: null, error: { code, message: "detalle interno" } });
+    expect((await PATCH(request("PATCH", { role: "VIEWER" }, `/${memberId}`), context)).status).toBe(status);
+    expect((await DELETE(request("DELETE", undefined, `/${memberId}`), context)).status).toBe(status);
   });
 });

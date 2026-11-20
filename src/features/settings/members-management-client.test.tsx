@@ -41,6 +41,7 @@ describe("MembersManagementClient", () => {
       <MembersManagementClient
         initialMembers={[ownerMember, editorMember]}
         currentUserId="owner-id"
+        portfolioId="test-portfolio"
       />,
     );
 
@@ -70,6 +71,7 @@ describe("MembersManagementClient", () => {
       <MembersManagementClient
         initialMembers={[ownerMember]}
         currentUserId="owner-id"
+        portfolioId="test-portfolio"
       />,
     );
 
@@ -81,7 +83,7 @@ describe("MembersManagementClient", () => {
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
         "/api/v1/portfolio/members",
-        expect.objectContaining({ method: "POST" }),
+        expect.objectContaining({ method: "POST", headers: expect.objectContaining({ "X-Expected-Portfolio-Id": "test-portfolio" }) }),
       );
     });
 
@@ -94,7 +96,7 @@ describe("MembersManagementClient", () => {
     const fetchMock = vi.mocked(globalThis.fetch);
     fetchMock.mockResolvedValueOnce(
       new Response(
-        JSON.stringify({ error: { code: "NOT_FOUND", message: "x" } }),
+        JSON.stringify({ error: { code: "NOT_FOUND", message: "Pídele que inicie sesión primero." } }),
         { status: 404, headers: { "Content-Type": "application/json" } },
       ),
     );
@@ -103,6 +105,7 @@ describe("MembersManagementClient", () => {
       <MembersManagementClient
         initialMembers={[ownerMember]}
         currentUserId="owner-id"
+        portfolioId="test-portfolio"
       />,
     );
 
@@ -133,6 +136,7 @@ describe("MembersManagementClient", () => {
       <MembersManagementClient
         initialMembers={[ownerMember, editorMember]}
         currentUserId="owner-id"
+        portfolioId="test-portfolio"
       />,
     );
 
@@ -157,6 +161,7 @@ describe("MembersManagementClient", () => {
       <MembersManagementClient
         initialMembers={[ownerMember, editorMember]}
         currentUserId="owner-id"
+        portfolioId="test-portfolio"
       />,
     );
 
@@ -185,6 +190,7 @@ describe("MembersManagementClient", () => {
       <MembersManagementClient
         initialMembers={[ownerMember, viewerMember]}
         currentUserId="owner-id"
+        portfolioId="test-portfolio"
       />,
     );
 

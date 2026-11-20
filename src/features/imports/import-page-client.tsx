@@ -1,15 +1,20 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { Loader2, Upload, FileText, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { getImportLabels } from "@/lib/i18n/imports";
 import { BROKER_SEEDS, type BrokerCode } from "@/lib/reference/brokers";
 import { errors } from "@/lib/i18n/errors";
+import { EXPECTED_PORTFOLIO_HEADER } from "@/lib/portfolio-context";
 import { ImportHistory } from "./import-history";
+import { ReferenceChoice, ReferenceSearch } from "@/features/asset-catalog/reference-choice";
+import { catalogLabels } from "@/lib/i18n/asset-catalog";
+import { CatalogTicker, normalizeCatalogTicker, type AssetDecision, type CandidateGroup } from "@/lib/validations/asset-catalog";
 
 type RowPreview = {
+  id: string;
   row_number: number;
   valid: boolean;
   error: string | null;
@@ -17,6 +22,7 @@ type RowPreview = {
     trade_date: string;
     trade_type: string;
     ticker: string;
+    source_symbol?: string;
     quantity: number;
     price_original: number;
     currency_original: string;
@@ -54,6 +60,82 @@ type ImportState =
 
 const labels = getImportLabels();
 
+function sourceGroup(row: RowPreview) {
+  return row.parsed?.source_symbol ? JSON.stringify([normalizeCatalogTicker(row.parsed.ticker), row.parsed.source_symbol]) : null;
+}
+
+function CsvAssetChoices({ rows, onChange }: { rows: RowPreview[]; onChange: (decisions: Record<string, AssetDecision>) => void }) {
+  const validRows = useMemo(() => rows.filter((row) => row.valid && row.parsed && CatalogTicker.safeParse(row.parsed.ticker).success), [rows]);
+  const groups = useMemo(() => {
+    const map = new Map<string, RowPreview[]>();
+    for (const row of validRows) {
+      const key = sourceGroup(row);
+      if (!key) continue;
+      const entries = map.get(key) ?? [];
+      entries.push(row);
+      map.set(key, entries);
+    }
+    return map;
+  }, [validRows]);
+  const [candidates, setCandidates] = useState<CandidateGroup[]>([]);
+  const candidatesByTicker = useMemo(() => new Map(candidates.map((group) => [group.ticker, group])), [candidates]);
+  const [manual, setManual] = useState<Partial<Record<string, AssetDecision | null>>>({});
+  const [draft, setDraft] = useState<Record<string, AssetDecision>>({});
+  const [confirmed, setConfirmed] = useState<Record<string, AssetDecision>>({});
+
+  function sync(rowsById: typeof manual, byGroup: Record<string, AssetDecision>) {
+    const next: Record<string, AssetDecision> = {};
+    for (const row of validRows) {
+      const group = sourceGroup(row);
+      const individual = rowsById[row.id];
+      const decision = individual === undefined && group ? byGroup[group] : individual;
+      if (decision) next[row.id] = decision;
+    }
+    onChange(next);
+  }
+
+  function choose(rowId: string, decision: AssetDecision | null | undefined) {
+    const next = { ...manual };
+    if (decision !== undefined) next[rowId] = decision;
+    else delete next[rowId];
+    setManual(next);
+    sync(next, confirmed);
+  }
+
+  return <section className="mt-5 space-y-3" aria-label={catalogLabels.csvLegend}>
+    <h3 className="font-semibold">{catalogLabels.csvLegend}</h3>
+    <p className="text-sm text-text-secondary">{catalogLabels.csvHelp}</p>
+    <ReferenceSearch tickers={validRows.map(({ parsed }) => normalizeCatalogTicker(parsed!.ticker))} onLoad={setCandidates} />
+    {[...groups].filter(([, groupedRows]) => groupedRows.length > 1).map(([key, [row]]) => <div className="space-y-2" key={key}>
+      <ReferenceChoice legend={catalogLabels.csvGroup.replace("{symbol}", row.parsed!.source_symbol!)}
+        group={candidatesByTicker.get(normalizeCatalogTicker(row.parsed!.ticker))}
+        onChange={(decision) => {
+          const next = { ...draft };
+          if (decision) next[key] = decision;
+          else delete next[key];
+          setDraft(next);
+          if (confirmed[key]) { const rest = { ...confirmed }; delete rest[key]; setConfirmed(rest); sync(manual, rest); }
+        }} />
+      <Button type="button" variant="secondary" disabled={!draft[key]} onClick={() => {
+        const next = { ...confirmed, [key]: draft[key] };
+        setConfirmed(next);
+        sync(manual, next);
+      }}>{catalogLabels.csvUseGroup}</Button>
+    </div>)}
+    {validRows.map((row) => {
+      const ticker = normalizeCatalogTicker(row.parsed!.ticker);
+      const groupDecision = confirmed[sourceGroup(row) ?? ""];
+      return <div className="space-y-1" key={row.id}>
+        <ReferenceChoice legend={catalogLabels.csvRow.replace("{row}", String(row.row_number)).replace("{ticker}", ticker)}
+          emptyLabel={groupDecision ? catalogLabels.csvUseConfirmedGroup : undefined}
+          group={candidatesByTicker.get(ticker)} onChange={(decision) => choose(row.id, decision)} />
+        {manual[row.id] === undefined && groupDecision && <p role="status" className="text-sm text-text-secondary">{catalogLabels.csvFromGroup}</p>}
+        {manual[row.id] === null && <p role="status" className="text-sm text-text-secondary">{catalogLabels.csvIncompleteRow}</p>}
+      </div>;
+    })}
+  </section>;
+}
+
 function todayIso(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -70,7 +152,7 @@ const inputClass =
   "h-11 w-full rounded-xl border border-border-subtle bg-surface px-3 text-sm text-text-primary placeholder:text-text-subtle focus:border-border-default focus:outline-none focus:ring-2 focus:ring-focus-ring";
 
 export function ImportPageClient({
-  portfolioId: _portfolioId,
+  portfolioId,
   readOnly,
 }: {
   portfolioId: string;
@@ -79,7 +161,7 @@ export function ImportPageClient({
   if (readOnly) {
     return <ReadOnlyImportView />;
   }
-  return <ImportWizard />;
+  return <ImportWizard portfolioId={portfolioId} />;
 }
 
 function ReadOnlyImportView() {
@@ -101,10 +183,11 @@ function ReadOnlyImportView() {
   );
 }
 
-function ImportWizard() {
+function ImportWizard({ portfolioId }: { portfolioId: string }) {
   const [state, setState] = useState<ImportState>({ step: "select" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [assetReferences, setAssetReferences] = useState<Record<string, AssetDecision>>({});
 
   const handleBrokerSelect = useCallback((brokerCode: BrokerCode) => {
     setState({
@@ -149,6 +232,7 @@ function ImportWizard() {
 
       const res = await fetch("/api/v1/imports/csv/preview", {
         method: "POST",
+        headers: { [EXPECTED_PORTFOLIO_HEADER]: portfolioId },
         body: formData,
       });
 
@@ -162,10 +246,11 @@ function ImportWizard() {
               )
               .join("; ")
           : "";
-        throw new Error(details || err.error || "Error al analizar el archivo");
+        throw new Error(details || (typeof err.error === "string" ? err.error : err.error?.message) || "Error al analizar el archivo");
       }
 
       const preview: PreviewResult = await res.json();
+      setAssetReferences({});
       setState({
         step: "preview",
         brokerCode: state.brokerCode,
@@ -176,7 +261,7 @@ function ImportWizard() {
     } finally {
       setLoading(false);
     }
-  }, [state]);
+  }, [portfolioId, state]);
 
   const handleCommit = useCallback(async () => {
     if (state.step !== "preview") return;
@@ -187,9 +272,10 @@ function ImportWizard() {
     try {
       const res = await fetch("/api/v1/imports/csv/commit", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", [EXPECTED_PORTFOLIO_HEADER]: portfolioId },
         body: JSON.stringify({
           import_id: state.preview.import.id,
+          asset_references: assetReferences,
         }),
       });
 
@@ -204,7 +290,7 @@ function ImportWizard() {
               .join("; ")
           : "";
         throw new Error(
-          details || err.error || "Error al confirmar la importación",
+          details || (typeof err.error === "string" ? err.error : err.error?.message) || "Error al confirmar la importación",
         );
       }
 
@@ -219,7 +305,7 @@ function ImportWizard() {
     } finally {
       setLoading(false);
     }
-  }, [state]);
+  }, [assetReferences, portfolioId, state]);
 
   const handleReset = useCallback(() => {
     setState({ step: "select" });
@@ -522,7 +608,8 @@ function ImportWizard() {
 
           {/* Commit button */}
           {state.preview.summary.valid > 0 && (
-            <div className="mt-5 flex gap-3">
+            <div className="mt-5 space-y-3">
+              <CsvAssetChoices rows={state.preview.rows} onChange={setAssetReferences} />
               <Button
                 onClick={handleCommit}
                 disabled={loading}

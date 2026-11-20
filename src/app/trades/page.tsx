@@ -28,7 +28,7 @@ export default async function TradesPage() {
     min_total_usd: SMALL_TRADE_THRESHOLD_USD,
   });
 
-  const initialData = await fetchTradesPage(supabase, initialQuery);
+  const initialData = await fetchTradesPage(supabase, portfolio.portfolioId, initialQuery);
 
   return (
     <main className="min-h-screen bg-background text-text-primary">
@@ -51,7 +51,7 @@ export default async function TradesPage() {
           </div>
         </section>
 
-        <TradesPageClient initialData={initialData} canWrite={canWrite} />
+        <TradesPageClient key={portfolio.portfolioId} portfolioId={portfolio.portfolioId} initialData={initialData} canWrite={canWrite} />
       </div>
     </main>
   );

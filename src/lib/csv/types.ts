@@ -4,6 +4,7 @@ export type ParsedCsvTrade = {
   trade_date: string;
   trade_type: "BUY" | "SELL" | "DIVIDEND" | "FEE" | "TRANSFER_IN" | "TRANSFER_OUT";
   ticker: string;
+  source_symbol?: string;
   quantity: number;
   price_original: number;
   currency_original: "USD" | "COP";

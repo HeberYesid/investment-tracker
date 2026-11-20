@@ -3,24 +3,21 @@ import { NextRequest, NextResponse } from "next/server";
 import { aggregateHoldings } from "@/lib/calculations/holdings";
 import { groupByDimension } from "@/lib/calculations/distribution";
 import { badRequest, serverError, validationError } from "@/lib/api/errors";
-import { requireApiUser } from "@/lib/api/auth";
-import { getCurrentPortfolio } from "@/lib/supabase/auth";
+import { requireApiUserWithPortfolio } from "@/lib/api/auth";
 import { loadDashboardData } from "@/lib/dashboard/loader";
 import { computeAssetStaleness } from "@/lib/dashboard/snapshot";
 import { DistributionQuery } from "@/lib/validations/dashboard";
 
 export async function GET(request: NextRequest) {
-  const auth = await requireApiUser();
+  const auth = await requireApiUserWithPortfolio();
   if (auth.response) return auth.response;
-  const { supabase } = auth;
+  const { supabase, portfolio } = auth;
 
   try {
     const params = Object.fromEntries(request.nextUrl.searchParams);
     const parsed = DistributionQuery.safeParse(params);
     if (!parsed.success) return validationError(parsed.error.issues);
 
-    const portfolio = await getCurrentPortfolio();
-    if (!portfolio) return badRequest("No se encontró un portafolio.");
     if (
       parsed.data.portfolio_id &&
       parsed.data.portfolio_id !== portfolio.portfolioId

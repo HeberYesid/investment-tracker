@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { randomUUID } from "node:crypto";
 import { requireApiUserWithPortfolio } from "@/lib/api/auth";
-import { getCurrentPortfolio } from "@/lib/supabase/auth";
 import { getCsvParser } from "@/lib/csv/registry";
 import { validateParsedRows } from "@/lib/csv/validation";
 import type { BrokerCode } from "@/lib/reference/brokers";
@@ -19,16 +19,11 @@ const uuidRegex =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function POST(request: NextRequest) {
-  const auth = await requireApiUserWithPortfolio(undefined, { writeAccess: true });
+  const auth = await requireApiUserWithPortfolio(undefined, { writeAccess: true, request });
   if (auth.response) return auth.response;
-  const { supabase } = auth;
+  const { supabase, portfolio } = auth;
 
   try {
-    const portfolio = await getCurrentPortfolio();
-    if (!portfolio) {
-      return badRequest("No se encontró un portafolio para el usuario.");
-    }
-
     const formData = await request.formData();
 
     const file = formData.get("file");
@@ -143,6 +138,7 @@ export async function POST(request: NextRequest) {
     }
 
     const rowInserts = validations.map((v) => ({
+      id: randomUUID(),
       import_id: importRecord.id,
       row_number: v.rowNumber,
       raw_data_json: v.raw,
@@ -164,7 +160,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         import: importRecord,
-        rows: validations.map((v) => ({
+        rows: validations.map((v, index) => ({
+          id: rowInserts[index].id,
           row_number: v.rowNumber,
           valid: v.valid,
           error: v.error,

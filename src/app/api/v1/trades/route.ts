@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath, revalidateTag } from "next/cache";
-import { requireApiUser, requireApiUserWithPortfolio } from "@/lib/api/auth";
-import { getCurrentPortfolio } from "@/lib/supabase/auth";
+import { requireApiUserWithPortfolio } from "@/lib/api/auth";
 import {
   TradeFormInput,
   TradeListQuery,
@@ -9,16 +8,15 @@ import {
   serializeTradeDTO,
 } from "@/lib/validations/trades";
 import type { CreateTradeInput } from "@/lib/validations/trades";
-import { badRequest, validationError, serverError } from "@/lib/api/errors";
+import { badRequest, forbidden, validationError, serverError } from "@/lib/api/errors";
 import { fetchTradesPage } from "@/lib/trades/queries";
-import { createYahooProvider } from "@/lib/market-data/yahoo";
-import { candidateYahooSymbols } from "@/lib/market-data/symbols";
-import { logger } from "@/lib/logger";
+import { AssetResolutionError, resolveAssetReferences } from "@/lib/asset-catalog/resolve-references";
+import { errors } from "@/lib/i18n/errors";
 
 export async function GET(request: NextRequest) {
-  const auth = await requireApiUser();
+  const auth = await requireApiUserWithPortfolio();
   if (auth.response) return auth.response;
-  const { supabase } = auth;
+  const { supabase, portfolio } = auth;
 
   try {
     const searchParams = Object.fromEntries(request.nextUrl.searchParams);
@@ -28,7 +26,7 @@ export async function GET(request: NextRequest) {
       return validationError(parsed.error.issues);
     }
 
-    const result = await fetchTradesPage(supabase, parsed.data);
+    const result = await fetchTradesPage(supabase, portfolio.portfolioId, parsed.data);
 
     return NextResponse.json(result);
   } catch (err) {
@@ -40,9 +38,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const auth = await requireApiUserWithPortfolio(undefined, { writeAccess: true });
+  const auth = await requireApiUserWithPortfolio(undefined, { writeAccess: true, request });
   if (auth.response) return auth.response;
-  const { supabase, user } = auth;
+  const { supabase, user, portfolio } = auth;
 
   try {
     const body = await request.json();
@@ -53,11 +51,6 @@ export async function POST(request: NextRequest) {
     }
 
     const input = parsed.data;
-    const portfolio = await getCurrentPortfolio();
-    if (!portfolio) {
-      return badRequest("No se encontró un portafolio para el usuario.");
-    }
-
     const { data: broker, error: brokerError } = await supabase
       .from("brokers")
       .select("id")
@@ -68,63 +61,13 @@ export async function POST(request: NextRequest) {
       return badRequest("Bróker no encontrado: " + input.broker_code);
     }
 
-    const { data: existingAsset } = await supabase
-      .from("assets")
-      .select("id")
-      .eq("ticker", input.ticker)
-      .limit(1)
-      .maybeSingle();
-
-    let asset_id: string;
-    let newlyCreatedAsset = false;
-    if (existingAsset) {
-      asset_id = existingAsset.id;
-    } else {
-      const { data: newAsset, error: assetError } = await supabase
-        .from("assets")
-        .insert({
-          ticker: input.ticker,
-          asset_type: "STOCK",
-          currency: input.currency_original,
-          name: input.ticker,
-        })
-        .select("id")
-        .single();
-
-      if (assetError || !newAsset) {
-        return badRequest("No se pudo crear el activo: " + input.ticker);
-      }
-      asset_id = newAsset.id;
-      newlyCreatedAsset = true;
+    const [reference] = await resolveAssetReferences(supabase, {
+      portfolioId: portfolio.portfolioId, source: "MANUAL", importId: null,
+    }, [{ key: "manual", ticker: input.ticker, ...(input.asset_reference && { decision: input.asset_reference }) }]);
+    if (reference?.status !== "resolved") {
+      return validationError([{ path: ["asset_reference"], message: errors.assetReferenceChoice }]);
     }
-
-    if (newlyCreatedAsset) {
-      const profileProvider = createYahooProvider();
-      try {
-        const candidates = candidateYahooSymbols({
-          ticker: input.ticker,
-          yahooSymbol: null,
-          currency: input.currency_original,
-        });
-        const result = await profileProvider.fetchProfileWithCandidates(
-          candidates,
-        );
-        if (result.status === "ok") {
-          const updates: Record<string, string> = {};
-          if (result.profile.sector) updates.sector = result.profile.sector;
-          if (result.profile.country) updates.country = result.profile.country;
-          if (Object.keys(updates).length > 0) {
-            await supabase.from("assets").update(updates).eq("id", asset_id);
-          }
-        }
-      } catch (err) {
-        logger.warn(
-          "trades",
-          `Failed to enrich asset metadata for ${input.ticker}:`,
-          err,
-        );
-      }
-    }
+    const { asset_id } = reference;
 
     const tradeInput: CreateTradeInput = {
       ...input,
@@ -172,7 +115,8 @@ export async function POST(request: NextRequest) {
     revalidateTag("market-prices", "max");
 
     return NextResponse.json(serializeTradeDTO(trade), { status: 201 });
-  } catch {
+  } catch (error) {
+    if (error instanceof AssetResolutionError && error.code === "42501") return forbidden();
     return serverError();
   }
 }

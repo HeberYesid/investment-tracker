@@ -37,7 +37,7 @@ export default async function NewTradePage() {
           </h1>
         </section>
 
-        <NewTradeClient />
+        <NewTradeClient key={portfolio.portfolioId} portfolioId={portfolio.portfolioId} />
       </div>
     </main>
   );

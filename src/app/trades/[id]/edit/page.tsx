@@ -7,7 +7,7 @@ import { MainNavigation } from "@/components/layout/main-navigation";
 import { getTradeLabels } from "@/lib/i18n/trades";
 import { createUserSupabaseClient } from "@/lib/supabase/server";
 import { requireCurrentPortfolio } from "@/lib/supabase/auth";
-import { TradeDTO } from "@/lib/validations/trades";
+import { TradeDTO, serializeTradeDTO } from "@/lib/validations/trades";
 
 import { EditTradeClient } from "@/features/trades/edit-trade-client";
 
@@ -28,8 +28,9 @@ export default async function EditTradePage({ params }: EditTradePageProps) {
 
   const { data, error } = await supabase
     .from("trades")
-    .select("*")
+    .select("*, asset:assets(ticker), broker:brokers(code)")
     .eq("id", id)
+    .eq("portfolio_id", portfolio.portfolioId)
     .is("deleted_at", null)
     .single();
 
@@ -37,7 +38,13 @@ export default async function EditTradePage({ params }: EditTradePageProps) {
     notFound();
   }
 
-  const trade = TradeDTO.parse(data);
+  const asset = Array.isArray(data.asset) ? data.asset[0] : data.asset;
+  const broker = Array.isArray(data.broker) ? data.broker[0] : data.broker;
+  const trade = TradeDTO.parse(serializeTradeDTO({
+    ...data,
+    ticker: asset?.ticker,
+    broker_code: broker?.code,
+  }));
 
   return (
     <main className="min-h-screen bg-background text-text-primary">

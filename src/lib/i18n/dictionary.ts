@@ -5,6 +5,11 @@ export type NavigationLabel = {
   label: string;
 };
 
+export const navigationStrings = {
+  name: "Navegación principal",
+  brand: "Investment Tracker",
+} as const;
+
 const navigationLabels: Record<Locale, NavigationLabel[]> = {
   es: [
     { href: "/", label: "Resumen" },

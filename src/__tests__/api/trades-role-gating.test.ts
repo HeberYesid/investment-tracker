@@ -51,7 +51,7 @@ vi.mock("next/cache", () => ({
 
 const mockGetCurrentPortfolio = vi.fn();
 vi.mock("@/lib/supabase/auth", () => ({
-  getCurrentPortfolio: () => mockGetCurrentPortfolio(),
+  resolvePortfolioContext: async () => ({ kind: "active", portfolio: await mockGetCurrentPortfolio() }),
 }));
 
 import { GET, POST } from "@/app/api/v1/trades/route";
