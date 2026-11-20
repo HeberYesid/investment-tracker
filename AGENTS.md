@@ -14,11 +14,37 @@
 3. Lee `feature_list.json`. Toda feature nueva (`"sdd": true`) pasa por
    **Spec Driven Development con Openspec** — ver `docs/specs.md` y §4 de este archivo.
 4. Lee `docs/specs.md` antes de tocar cualquier spec o feature `sdd: true`.
+5. Revisa `git status --short` antes de editar. Preserva los cambios ajenos y no
+   cambies el estado de una feature que no forma parte de la solicitud.
+
+### Entorno y comandos
+
+- Usa Node.js 22 o superior (Node.js 24 es la versión verificada en este entorno).
+- Usa la versión de pnpm indicada en `package.json#packageManager` (actualmente 11.5.2).
+- Instala dependencias con `pnpm install --frozen-lockfile` antes de la primera ejecución.
+- `node init.mjs` comprueba el arnés, specs, secretos y tests unitarios; **no** ejecuta
+  lint, typecheck, build ni E2E. Para cambios de código, consulta `docs/verification.md`.
+- Si pnpm intenta reinstalar dependencias al ejecutar scripts y falla por ausencia
+  de TTY, no autorices un borrado automático de `node_modules`. Si la instalación
+  existente está disponible, puedes ejecutar la comprobación sin autoinstalación
+  con una variable temporal en PowerShell:
+
+  ```powershell
+  $env:PNPM_CONFIG_VERIFY_DEPS_BEFORE_RUN = 'false'
+  node init.mjs
+  Remove-Item Env:PNPM_CONFIG_VERIFY_DEPS_BEFORE_RUN
+  ```
+
+  Esto no repara ni verifica la instalación; los tests deben pasar igualmente.
+  No persistas esta opción en la configuración del proyecto.
 
 ## 2. Mapa del repositorio
 
 | Archivo / carpeta            | Qué contiene                                                                | Cuándo leerlo |
 |------------------------------|-----------------------------------------------------------------------------|---------------|
+| `README.md`                  | Instalación, configuración, comandos y estado funcional                    | Para incorporar colaboradores o cambiar el setup |
+| `package.json`               | Versiones y scripts actuales                                               | Antes de documentar versiones o comandos |
+| `docs/agentic-engineering-loop.md` | Metodología adaptativa para desarrollar con agentes de IA              | Para definir o revisar el proceso de trabajo con agentes |
 | `feature_list.json`          | Lista de features con estado (`pending` / `spec_ready` / `in_progress` / `done` / `blocked`) | Siempre, al empezar |
 | `progress/current.md`        | Estado de la sesión actual                                                  | Siempre, al empezar |
 | `progress/history.md`        | Bitácora append-only de sesiones anteriores                                 | Si necesitas contexto histórico |
@@ -30,7 +56,7 @@
 | `CHECKPOINTS.md`             | Criterios objetivos de "estado final correcto"                              | Para auto-evaluarte |
 | `.opencode/commands/`        | Definiciones de subagentes (`leader`, `spec-author`, `implementer`, `reviewer`) y comandos de orquestación | Si orquestas trabajo |
 | `src/`                       | Código de la aplicación                                                     | Para implementar |
-| `tests/`                     | Tests automáticos (Vitest unit + Playwright e2e)                            | Para verificar |
+| `src/**/*.test.*`, `src/__tests__/`, `tests/` | Tests automáticos (Vitest unit + Playwright e2e)              | Para verificar |
 
 ### Guías de contexto por capa
 
@@ -51,12 +77,17 @@
 - **No saltes la puerta de aprobación humana.** El leader detiene el flujo
   en `spec_ready` y espera.
 - **Documenta lo que haces** en `progress/current.md` mientras trabajas, no al final.
-- **Deja el repositorio limpio** antes de cerrar la sesión (ver §5).
+- **No añadas residuos** antes de cerrar la sesión (ver §5). No limpies cambios ajenos.
 - **Si no sabes algo, busca en `docs/`** antes de inventarlo.
 
 ### Convenciones técnicas globales
 
-- **Stack**: Next.js 15 App Router + React 19 + Supabase + pnpm.
+- **Stack**: Next.js 16 App Router + React 19 + TypeScript 6 + Supabase + pnpm.
+  Versiones exactas en `package.json`; dependencias resueltas en `pnpm-lock.yaml`.
+  Las referencias históricas a versiones en specs no sustituyen estos archivos.
+- **Sesión y rutas protegidas**: entrada en `src/proxy.ts`, con lógica de sesión
+  en `src/lib/supabase/middleware.ts`. La home `/` es pública; no documentarla
+  como una ruta que siempre requiere autenticación.
 - **Restricción**: USD 0/mes (Vercel Hobby + Supabase Free únicamente). Sin servicios pagos.
 - **i18n**: strings en español en `src/lib/i18n/*.ts`. Sin copy hardcodeado en componentes.
 - **Tailwind v4**: config via `@theme` en `src/app/globals.css`. **No existe `tailwind.config.*`**.
@@ -74,17 +105,42 @@
 
 `SUPABASE_SERVICE_ROLE_KEY` → nunca como `NEXT_PUBLIC_*`, nunca en client components.
 
+El callback de autenticación (`src/app/auth/callback/route.ts`) usa
+`createServerClient` con cookies escritas en la respuesta de redirección.
+Conserva ese patrón: no lo reemplaces por el cliente genérico sin comprobar
+que la respuesta devuelta conserva las cookies de sesión.
+
 ### Routing de tareas
 
 | Tipo | Acción |
 |------|--------|
-| Trivial (typo, 1 línea) o bug aislado | Resolver directo o subagente (`code-reviewer`, `tdd-guide`) |
-| Harness/config change | Subagente `harness-optimizer` directo |
+| Documentación, typo o bug aislado | Resolver directamente dentro del alcance solicitado |
+| Harness/config change | Revisar instrucciones y herramientas disponibles antes de cambiar |
 | Feature no trivial (>1 sesión) | **OpenSpec primero** (skill `openspec-propose`) |
+
+Los nombres de rol del flujo SDD no garantizan que exista un subagente con ese
+nombre. Si falta un rol o una herramienta obligatoria, informa del bloqueo;
+no omitas la revisión ni la aprobación humana.
+
+### Requisitos y decisiones de diseño
+
+- `feature_list.json` es la referencia de alcance, aceptación y estado actual.
+- Para SDD, los requisitos `R<n>` viven en `proposal.md`, las decisiones en
+  `design.md` y la ejecución en `tasks.md`; consulta también
+  `openspec/changes/archive/` para cambios archivados.
+- Registra contexto, decisión, alternativas descartadas y consecuencias en el
+  `design.md` correspondiente. Para decisiones transversales, actualiza
+  `docs/architecture.md`. Un ADR corto es una opción, no una carpeta existente
+  ni un reemplazo de la aprobación del spec.
+- No dupliques requisitos o decisiones en README: enlaza su fuente y distingue
+  lo implementado, lo propuesto y lo pendiente.
 
 ### Sync de mercado
 
 - Providers: Yahoo Finance (precios + S&P 500 benchmark) y open.er-api.com (USD/COP). Sin API keys.
+- Stooq y la resiliencia adicional forman parte del cambio
+  `market-data-resilience-and-disclosure`, todavía `in_progress` según
+  `feature_list.json`. No presentarlos como completados sin verificación.
 - Lectura: dashboard y form de trades leen `market_prices` y `fx_rates` cacheados, **nunca** llaman providers on-read.
 - `pg_cron`: `sync-prices-30m` (cada 30 min), `sync-fx-rates-daily` (06:00 UTC).
 - Botón `Sincronizar ahora` en `BenchmarkChart` es **solo dev** (gate `NODE_ENV !== 'production'`).
@@ -113,10 +169,13 @@ pending → [spec-author] → spec_ready → ⏸ HUMANO → in_progress → [imp
 Antes de terminar:
 
 1. Ejecuta `node init.mjs` — todo verde.
-2. Si la tarea está acabada: marca `status: "done"` en `feature_list.json`.
-3. Mueve el resumen de `progress/current.md` al final de `progress/history.md`
+2. Si acabaste la feature correspondiente y pasó su revisión: marca su
+   `status: "done"` en `feature_list.json`. Una corrección documental no cierra
+   automáticamente una feature en curso.
+3. Mueve el resumen de tu sesión de `progress/current.md` al final de `progress/history.md`
    con formato: `<!-- SESIÓN: YYYY-MM-DD | Feature: <name> | Agente: <agent> | Resultado: <done|blocked|paused> -->`.
-4. Vacía `progress/current.md` dejando solo la plantilla.
+4. Si no quedan pendientes ni trabajo de otra sesión, deja `progress/current.md`
+   con la plantilla. No borres contexto de trabajo ajeno o aún activo.
 5. No dejes archivos temporales, ni `console.log` de debug, ni TODOs sin contexto.
 
 ## 6. Si te bloqueas
@@ -126,3 +185,13 @@ Antes de terminar:
   documenta el bloqueo en `progress/current.md` y para la sesión.
 - Si estás en fase SDD y el spec tiene contradicciones, marca la feature como
   `blocked` en `feature_list.json` e indica la razón en `progress/current.md`.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+## This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->
