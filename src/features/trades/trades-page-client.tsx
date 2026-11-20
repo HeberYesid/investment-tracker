@@ -4,6 +4,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { getTradeLabels } from "@/lib/i18n/trades";
+import { errors } from "@/lib/i18n/errors";
+import { EXPECTED_PORTFOLIO_HEADER } from "@/lib/portfolio-context";
 import type { TradeListResult } from "@/lib/trades/queries";
 import type { TradeDTO, TradeListQuery } from "@/lib/validations/trades";
 
@@ -17,9 +19,11 @@ const SMALL_TRADE_THRESHOLD_USD = 1;
 export function TradesPageClient({
   initialData,
   canWrite,
+  portfolioId,
 }: {
   initialData: TradeListResult;
   canWrite: boolean;
+  portfolioId: string;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -106,14 +110,15 @@ export function TradesPageClient({
     if (!confirm("Estas seguro de eliminar esta operacion?")) return;
 
     try {
-      const res = await fetch(`/api/v1/trades/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/v1/trades/${id}`, { method: "DELETE", headers: { [EXPECTED_PORTFOLIO_HEADER]: portfolioId } });
+      if (res.status === 409) { setError(errors.stalePortfolio); return; }
       if (!res.ok) throw new Error("Error al eliminar");
       setTrades((prev) => prev.filter((t) => t.id !== id));
       setTotal((prev) => Math.max(0, prev - 1));
     } catch {
       alert("Error al eliminar la operacion");
     }
-  }, []);
+  }, [portfolioId]);
 
   const handleSelect = useCallback((id: string, checked: boolean) => {
     setSelectedIds((prev) => {
@@ -132,9 +137,10 @@ export function TradesPageClient({
     try {
       const res = await fetch("/api/v1/trades/bulk-delete", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", [EXPECTED_PORTFOLIO_HEADER]: portfolioId },
         body: JSON.stringify({ ids: Array.from(selectedIds) }),
       });
+      if (res.status === 409) { setError(errors.stalePortfolio); return; }
       if (!res.ok) throw new Error("Error al eliminar");
       const json = (await res.json()) as { deleted: number };
       setTrades((prev) => prev.filter((t) => !selectedIds.has(t.id)));
@@ -145,7 +151,7 @@ export function TradesPageClient({
     } finally {
       setBulkDeleting(false);
     }
-  }, [selectedIds]);
+  }, [portfolioId, selectedIds]);
 
   const handleSelectAll = useCallback(() => {
     if (selectedIds.size === trades.length) {

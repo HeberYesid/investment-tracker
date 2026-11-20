@@ -76,8 +76,7 @@ vi.mock("next/cache", () => ({
 }));
 
 vi.mock("@/lib/supabase/auth", () => ({
-  getCurrentPortfolio: () =>
-    Promise.resolve({
+  resolvePortfolioContext: async () => ({ kind: "active", portfolio: {
       portfolioId: "550e8400-e29b-41d4-a716-446655440000",
       role: "OWNER",
       portfolio: {
@@ -85,7 +84,7 @@ vi.mock("@/lib/supabase/auth", () => ({
         name: "Mi portafolio",
         base_currency: "USD",
       },
-    }),
+    } }),
 }));
 
 import { POST } from "@/app/api/v1/trades/route";

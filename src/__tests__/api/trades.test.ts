@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
 import { NextRequest } from "next/server";
 
-import { serializeTradeDTO } from "@/lib/validations/trades";
+import { serializeTradeDTO, UpdateTradeInput } from "@/lib/validations/trades";
 
 const mockTrade = {
   id: "550e8400-e29b-41d4-a716-446655440003",
@@ -33,7 +33,7 @@ const builders: MockBuilder[] = [];
 function createBuilder(): MockBuilder {
   const builder: MockBuilder = {};
   const chainMethods = [
-    "select", "insert", "update", "eq", "is",
+    "select", "insert", "update", "eq", "is", "in",
     "order", "range", "single", "maybeSingle", "limit", "gte", "lte",
   ];
   for (const method of chainMethods) {
@@ -67,8 +67,7 @@ vi.mock("next/cache", () => ({
 }));
 
 vi.mock("@/lib/supabase/auth", () => ({
-  getCurrentPortfolio: () =>
-    Promise.resolve({
+  resolvePortfolioContext: async () => ({ kind: "active", portfolio: {
       portfolioId: "550e8400-e29b-41d4-a716-446655440000",
       role: "OWNER",
       portfolio: {
@@ -76,11 +75,13 @@ vi.mock("@/lib/supabase/auth", () => ({
         name: "Mi portafolio",
         base_currency: "USD",
       },
-    }),
+    } }),
 }));
 
 import { GET, POST } from "@/app/api/v1/trades/route";
 import { PATCH, DELETE } from "@/app/api/v1/trades/[id]/route";
+
+import { POST as bulkDelete } from "@/app/api/v1/trades/bulk-delete/route";
 
 const validTradeInput = {
   trade_date: "2024-01-15",
@@ -194,6 +195,14 @@ describe("POST /api/v1/trades", () => {
 });
 
 describe("GET /api/v1/trades", () => {
+  it("acota el listado y el conteo al portafolio activo antes de paginar", async () => {
+    queuedResults.push({ data: [mockTrade], count: 1, error: null });
+    const response = await GET(new NextRequest("http://localhost/api/v1/trades?limit=1"));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ data: [{ id: mockTrade.id }], meta: { total: 1 } });
+    expect(builders[0].eq).toHaveBeenCalledWith("portfolio_id", mockTrade.portfolio_id);
+    expect(builders[0].eq.mock.invocationCallOrder[0]).toBeLessThan(builders[0].range.mock.invocationCallOrder[0]);
+  });
   it("returns a paginated list of trades with ticker and broker", async () => {
     queuedResults.push({
       data: [
@@ -235,8 +244,44 @@ describe("GET /api/v1/trades", () => {
   });
 });
 
+it("el lote excluye IDs de otro portafolio y cuenta solo las filas escritas", async () => {
+  const outsideId = "550e8400-e29b-41d4-a716-446655440009";
+  queuedResults.push({ data: [mockTrade], error: null });
+  queuedResults.push({ data: [{ id: mockTrade.id }], error: null });
+  queuedResults.push({ data: null, error: null });
+  const response = await bulkDelete(new NextRequest("http://localhost/api/v1/trades/bulk-delete", {
+    method: "POST", body: JSON.stringify({ ids: [mockTrade.id, outsideId] }),
+  }));
+  expect(response.status).toBe(200);
+  expect(await response.json()).toEqual({ deleted: 1 });
+  expect(builders[0].eq).toHaveBeenCalledWith("portfolio_id", mockTrade.portfolio_id);
+  expect(builders[1].eq).toHaveBeenCalledWith("portfolio_id", mockTrade.portfolio_id);
+  expect(builders[1].in).toHaveBeenCalledWith("id", [mockTrade.id]);
+});
+
 describe("PATCH /api/v1/trades/:id", () => {
   const tradeId = "550e8400-e29b-41d4-a716-446655440003";
+
+  it("no declara el portafolio como campo editable", () => {
+    expect(UpdateTradeInput.shape).not.toHaveProperty("portfolio_id");
+    const result = UpdateTradeInput.safeParse({ portfolio_id: mockTrade.portfolio_id, quantity: 20 });
+    expect(result.success).toBe(false);
+    expect(result.error?.issues).toEqual([
+      expect.objectContaining({ code: "unrecognized_keys", keys: ["portfolio_id"] }),
+    ]);
+  });
+
+  it("rechaza el campo de solo lectura antes de consultar o escribir", async () => {
+    const request = new NextRequest(`http://localhost/api/v1/trades/${tradeId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ portfolio_id: mockTrade.portfolio_id, quantity: 20 }),
+    });
+
+    const response = await PATCH(request, { params: Promise.resolve({ id: tradeId }) });
+
+    expect(response.status).toBe(422);
+    expect(builders).toHaveLength(0);
+  });
 
   it("returns 200 for a valid partial update", async () => {
     const updatedTrade = { ...mockTrade, quantity: 20, updated_at: expect.any(String) };
@@ -255,6 +300,12 @@ describe("PATCH /api/v1/trades/:id", () => {
 
     expect(response.status).toBe(200);
     expect(body.quantity).toBe(20);
+    expect(body.portfolio_id).toBe(mockTrade.portfolio_id);
+    expect(builders[1].update.mock.calls[0][0]).not.toHaveProperty("portfolio_id");
+    expect(builders[1].eq).toHaveBeenCalledWith("portfolio_id", mockTrade.portfolio_id);
+    expect(builders[2].insert).toHaveBeenCalledWith(expect.objectContaining({
+      portfolio_id: mockTrade.portfolio_id, action: "UPDATE",
+    }));
   });
 
   it("returns 404 for a non-existent trade", async () => {
@@ -305,7 +356,7 @@ describe("DELETE /api/v1/trades/:id", () => {
 
   it("returns 204 and sets deleted_at", async () => {
     queuedResults.push({ data: mockTrade, error: null });
-    queuedResults.push({ data: null, error: null });
+    queuedResults.push({ data: { id: mockTrade.id }, error: null });
     queuedResults.push({ data: null, error: null });
 
     const request = new NextRequest(`http://localhost/api/v1/trades/${tradeId}`, {
@@ -319,6 +370,7 @@ describe("DELETE /api/v1/trades/:id", () => {
     const deleteBuilder = builders[1];
     const updatePayload = deleteBuilder.update.mock.calls[0][0];
     expect(updatePayload.deleted_at).toBeDefined();
+    expect(deleteBuilder.eq).toHaveBeenCalledWith("portfolio_id", mockTrade.portfolio_id);
   });
 
   it("returns 404 for a non-existent trade", async () => {
@@ -335,7 +387,7 @@ describe("DELETE /api/v1/trades/:id", () => {
 
   it("creates an audit event after deletion", async () => {
     queuedResults.push({ data: mockTrade, error: null });
-    queuedResults.push({ data: null, error: null });
+    queuedResults.push({ data: { id: mockTrade.id }, error: null });
     queuedResults.push({ data: null, error: null });
 
     const request = new NextRequest(`http://localhost/api/v1/trades/${tradeId}`, {

@@ -28,5 +28,7 @@ export const errors = {
   memberNotFound: "Miembro no encontrado en este portafolio.",
   memberAlreadyExists: "Ese usuario ya es miembro del portafolio.",
   lastOwnerGuard: "No puedes dejar el portafolio sin propietarios.",
+  memberConcurrentChange: "La membresía cambió durante la operación. Vuelve a intentarlo.",
+  stalePortfolio: "El portafolio activo cambió. Recarga la página antes de volver a intentarlo.",
   ownerRoleNotAssignable: "El rol OWNER no se asigna por la API; solo el trigger inicial lo crea.",
 } as const;

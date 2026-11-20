@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import type { TradeDTO } from "@/lib/validations/trades";
+import { EXPECTED_PORTFOLIO_HEADER } from "@/lib/portfolio-context";
 import { errors } from "@/lib/i18n/errors";
 
 import { TradeForm, type TradeFormValues } from "./trade-form";
@@ -32,7 +33,7 @@ export function EditTradeClient({ trade }: EditTradeClientProps) {
     try {
       const res = await fetch(`/api/v1/trades/${trade.id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", [EXPECTED_PORTFOLIO_HEADER]: trade.portfolio_id },
         body: JSON.stringify({
           trade_type: data.trade_type,
           trade_date: data.trade_date,

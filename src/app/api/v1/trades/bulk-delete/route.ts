@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { requireApiUserWithPortfolio } from "@/lib/api/auth";
-import { getCurrentPortfolio } from "@/lib/supabase/auth";
 import { serverError, validationError } from "@/lib/api/errors";
 import { z } from "zod";
 
@@ -10,16 +9,11 @@ const bulkDeleteSchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
-  const auth = await requireApiUserWithPortfolio(undefined, { writeAccess: true });
+  const auth = await requireApiUserWithPortfolio(undefined, { writeAccess: true, request });
   if (auth.response) return auth.response;
-  const { supabase, user } = auth;
+  const { supabase, user, portfolio } = auth;
 
   try {
-    const portfolio = await getCurrentPortfolio();
-    if (!portfolio) {
-      return serverError();
-    }
-
     const body = await request.json().catch(() => null);
     const parsed = bulkDeleteSchema.safeParse(body);
     if (!parsed.success) {
@@ -28,23 +22,34 @@ export async function POST(request: NextRequest) {
 
     const { ids } = parsed.data;
 
-    const { data: existing } = await supabase
+    const { data: existing, error: fetchError } = await supabase
       .from("trades")
       .select("id, portfolio_id")
       .in("id", ids)
       .eq("portfolio_id", portfolio.portfolioId)
       .is("deleted_at", null);
 
+    if (fetchError) return serverError();
+
+    let deleted = 0;
     if (existing && existing.length > 0) {
       const now = new Date().toISOString();
 
-      await supabase
+      const { data: updated, error: updateError } = await supabase
         .from("trades")
         .update({ deleted_at: now })
-        .in("id", existing.map((t) => t.id));
+        .in("id", existing.map((t) => t.id))
+        .eq("portfolio_id", portfolio.portfolioId)
+        .is("deleted_at", null)
+        .select("id");
 
-      await supabase.from("audit_events").insert(
-        existing.map((t) => ({
+      if (updateError) return serverError();
+      const deletedIds = new Set((updated ?? []).map((trade) => trade.id));
+      const affected = existing.filter((trade) => deletedIds.has(trade.id));
+      deleted = affected.length;
+
+      if (deleted > 0) await supabase.from("audit_events").insert(
+        affected.map((t) => ({
           actor_user_id: user.id,
           portfolio_id: t.portfolio_id,
           entity_type: "trade",
@@ -59,7 +64,7 @@ export async function POST(request: NextRequest) {
     revalidatePath("/avanzado");
     revalidateTag("market-prices", "max");
 
-    return NextResponse.json({ deleted: existing?.length ?? 0 });
+    return NextResponse.json({ deleted });
   } catch {
     return serverError();
   }

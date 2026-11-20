@@ -151,6 +151,21 @@
         "Tests unit para AvanzadoPageClient (error, empty, ready, benchmark backfill)"
       ],
       "status": "done"
+    },
+    {
+      "id": 11,
+      "name": "secure-portfolio-memberships",
+      "title": "Membresías, portafolio activo y protección del último OWNER",
+      "description": "Resolver el portafolio activo desde la membresía vigente y acotar listados, invitaciones y cambios de rol al portafolio autorizado, sin dejar portafolios sin propietario.",
+      "acceptance": [
+        "Resolución de membresías propias para OWNER, EDITOR y VIEWER sin abrir el listado administrativo",
+        "Selección de portafolio verificada en servidor y lecturas y mutaciones acotadas a ese portafolio",
+        "Invitación acotada al OWNER del portafolio, sin consultas independientes al directorio de usuarios",
+        "Protección transaccional del último OWNER y validación con dos sesiones Postgres distintas",
+        "Verificación de roles y selección en Chrome con datos locales sintéticos"
+      ],
+      "sdd": true,
+      "status": "done"
     }
   ]
 }

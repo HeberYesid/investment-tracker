@@ -15,6 +15,10 @@ export async function updateSession(request: NextRequest) {
 
   let response = NextResponse.next({ request });
 
+  if (request.method === "POST" && request.nextUrl.pathname === "/api/v1/admin/cache/invalidate") {
+    return response;
+  }
+
   if (!supabaseUrl || !publishableKey) {
     if (isPublicPath(request.nextUrl.pathname)) {
       return response;

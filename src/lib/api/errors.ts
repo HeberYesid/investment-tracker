@@ -22,6 +22,13 @@ export function notFound(message: string, details?: unknown) {
   );
 }
 
+export function conflict(message: string) {
+  return NextResponse.json<ErrorResponse>(
+    { error: { code: "CONFLICT", message } },
+    { status: 409 },
+  );
+}
+
 export function validationError(errors: unknown) {
   return NextResponse.json<ErrorResponse>(
     { error: { code: "VALIDATION_ERROR", message: "Error de validación", details: errors } },

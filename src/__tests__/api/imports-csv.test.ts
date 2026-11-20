@@ -12,15 +12,16 @@ vi.mock("@/lib/supabase/server", () => ({
   createUserSupabaseClient: () => Promise.resolve(mockSupabase),
 }));
 
+const mockGetCurrentPortfolio = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/supabase/auth", () => ({
-  getCurrentPortfolio: vi.fn(),
+  resolvePortfolioContext: async () => {
+    const portfolio = await mockGetCurrentPortfolio();
+    return portfolio ? { kind: "active", portfolio } : { kind: "no-membership" };
+  },
 }));
 
 import { POST as previewPost } from "@/app/api/v1/imports/csv/preview/route";
 import { POST as commitPost } from "@/app/api/v1/imports/csv/commit/route";
-import { getCurrentPortfolio } from "@/lib/supabase/auth";
-
-const mockGetCurrentPortfolio = getCurrentPortfolio as ReturnType<typeof vi.fn>;
 
 type MultipartField =
   | { name: string; value: string }

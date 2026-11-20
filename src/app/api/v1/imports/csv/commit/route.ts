@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { requireApiUserWithPortfolio } from "@/lib/api/auth";
-import { getCurrentPortfolio } from "@/lib/supabase/auth";
 import { normalizeTradeUsdValues, type CreateTradeInput } from "@/lib/validations/trades";
 import type { ParsedCsvTrade } from "@/lib/csv/types";
 import { badRequest, serverError } from "@/lib/api/errors";
@@ -17,9 +16,9 @@ const CommitBody = z.object({
 });
 
 export async function POST(request: NextRequest) {
-  const auth = await requireApiUserWithPortfolio(undefined, { writeAccess: true });
+  const auth = await requireApiUserWithPortfolio(undefined, { writeAccess: true, request });
   if (auth.response) return auth.response;
-  const { supabase } = auth;
+  const { supabase, portfolio } = auth;
 
   try {
     const body = await request.json();
@@ -33,11 +32,6 @@ export async function POST(request: NextRequest) {
     }
 
     const { import_id } = parsed.data;
-    const portfolio = await getCurrentPortfolio();
-    if (!portfolio) {
-      return badRequest("No se encontró un portafolio para el usuario.");
-    }
-
     const { data: importRecord, error: importError } = await supabase
       .from("csv_imports")
       .select("*")
@@ -64,8 +58,9 @@ export async function POST(request: NextRequest) {
 
     const { data: validRows, error: rowsError } = await supabase
       .from("csv_import_rows")
-      .select("*")
+      .select("*, csv_imports!inner(id)")
       .eq("import_id", import_id)
+      .eq("csv_imports.portfolio_id", portfolio.portfolioId)
       .eq("validation_status", "VALID");
 
     if (rowsError) {
@@ -240,10 +235,13 @@ export async function POST(request: NextRequest) {
     }
 
     const finalStatus = importedCount > 0 ? "COMMITTED" : "FAILED";
-    await supabase
+    const { error: finalizeError, count: finalized } = await supabase
       .from("csv_imports")
-      .update({ status: finalStatus })
-      .eq("id", import_id);
+      .update({ status: finalStatus }, { count: "exact" })
+      .eq("id", import_id)
+      .eq("portfolio_id", portfolio.portfolioId);
+
+    if (finalizeError || finalized === 0) return serverError();
 
     await supabase.from("audit_events").insert({
       actor_user_id: auth.user.id,

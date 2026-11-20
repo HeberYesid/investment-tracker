@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath, revalidateTag } from "next/cache";
-import { requireApiUser, requireApiUserWithPortfolio } from "@/lib/api/auth";
-import { getCurrentPortfolio } from "@/lib/supabase/auth";
+import { requireApiUserWithPortfolio } from "@/lib/api/auth";
 import {
   TradeFormInput,
   TradeListQuery,
@@ -16,9 +15,9 @@ import { candidateYahooSymbols } from "@/lib/market-data/symbols";
 import { logger } from "@/lib/logger";
 
 export async function GET(request: NextRequest) {
-  const auth = await requireApiUser();
+  const auth = await requireApiUserWithPortfolio();
   if (auth.response) return auth.response;
-  const { supabase } = auth;
+  const { supabase, portfolio } = auth;
 
   try {
     const searchParams = Object.fromEntries(request.nextUrl.searchParams);
@@ -28,7 +27,7 @@ export async function GET(request: NextRequest) {
       return validationError(parsed.error.issues);
     }
 
-    const result = await fetchTradesPage(supabase, parsed.data);
+    const result = await fetchTradesPage(supabase, portfolio.portfolioId, parsed.data);
 
     return NextResponse.json(result);
   } catch (err) {
@@ -40,9 +39,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const auth = await requireApiUserWithPortfolio(undefined, { writeAccess: true });
+  const auth = await requireApiUserWithPortfolio(undefined, { writeAccess: true, request });
   if (auth.response) return auth.response;
-  const { supabase, user } = auth;
+  const { supabase, user, portfolio } = auth;
 
   try {
     const body = await request.json();
@@ -53,11 +52,6 @@ export async function POST(request: NextRequest) {
     }
 
     const input = parsed.data;
-    const portfolio = await getCurrentPortfolio();
-    if (!portfolio) {
-      return badRequest("No se encontró un portafolio para el usuario.");
-    }
-
     const { data: broker, error: brokerError } = await supabase
       .from("brokers")
       .select("id")

@@ -1,134 +1,44 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 import { requireApiUserWithPortfolio } from "@/lib/api/auth";
-import {
-  forbidden,
-  notFound,
-  serverError,
-  validationError,
-} from "@/lib/api/errors";
-import {
-  countPortfolioOwners,
-  findMemberById,
-  removeMember,
-  updateMemberRole,
-} from "@/lib/api/portfolio-members";
-import { errors as errorMessages } from "@/lib/i18n/errors";
+import { forbidden, validationError } from "@/lib/api/errors";
+import { membershipErrorResponse, removeMember, updateMemberRole } from "@/lib/api/portfolio-members";
+import { errors } from "@/lib/i18n/errors";
 import { UpdateMemberRoleInput } from "@/lib/validations/members";
+import { PortfolioId } from "@/lib/validations/portfolios";
 
-const uuidRegex =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+type MemberRouteContext = { params: Promise<{ id: string }> };
 
-function isUuid(value: string): boolean {
-  return uuidRegex.test(value);
-}
-
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
-  const auth = await requireApiUserWithPortfolio();
+export async function PATCH(request: NextRequest, { params }: MemberRouteContext) {
+  const auth = await requireApiUserWithPortfolio(undefined, { request });
   if (auth.response) return auth.response;
-  const { supabase, portfolio } = auth;
+  if (auth.portfolio.role !== "OWNER") return forbidden(errors.forbidden);
 
-  if (portfolio.role !== "OWNER") {
-    return forbidden(errorMessages.forbidden);
-  }
-
-  const { id: memberId } = await params;
-  if (!isUuid(memberId)) {
-    return notFound(errorMessages.memberNotFound);
-  }
-
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return validationError([{ path: ["body"], message: "Cuerpo JSON inválido." }]);
-  }
-  const parsed = UpdateMemberRoleInput.safeParse(body);
-  if (!parsed.success) {
-    return validationError(parsed.error.issues);
-  }
-
-  const { role } = parsed.data;
+  const id = PortfolioId.safeParse((await params).id);
+  if (!id.success) return validationError(id.error.issues);
+  const input = UpdateMemberRoleInput.safeParse(await request.json().catch(() => null));
+  if (!input.success) return validationError(input.error.issues);
 
   try {
-    const existing = await findMemberById(supabase, portfolio.portfolioId, memberId);
-    if (!existing) {
-      return notFound(errorMessages.memberNotFound);
-    }
-
-    // "Last OWNER" guard: if we are about to demote an OWNER, make sure
-    // at least one OWNER would remain. We delegate the count to the
-    // SECURITY DEFINER function for consistency, and rely on the
-    // serialized PATCH semantics to avoid a TOCTOU race in practice.
-    if (existing.role === "OWNER" && role !== "OWNER") {
-      const ownerCount = await countPortfolioOwners(supabase, portfolio.portfolioId);
-      if (ownerCount <= 1) {
-        return NextResponse.json(
-          { error: { code: "CONFLICT", message: errorMessages.lastOwnerGuard } },
-          { status: 409 },
-        );
-      }
-    }
-
-    const updated = await updateMemberRole(
-      supabase,
-      portfolio.portfolioId,
-      memberId,
-      role,
-    );
-    if (!updated) {
-      return serverError();
-    }
-
-    return NextResponse.json({ data: updated });
-  } catch {
-    return serverError();
+    const data = await updateMemberRole(auth.supabase, auth.portfolio.portfolioId, id.data, input.data.role);
+    return NextResponse.json({ data });
+  } catch (error) {
+    return membershipErrorResponse(error);
   }
 }
 
-export async function DELETE(
-  _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
-  const auth = await requireApiUserWithPortfolio();
+export async function DELETE(request: NextRequest, { params }: MemberRouteContext) {
+  const auth = await requireApiUserWithPortfolio(undefined, { request });
   if (auth.response) return auth.response;
-  const { supabase, portfolio } = auth;
+  if (auth.portfolio.role !== "OWNER") return forbidden(errors.forbidden);
 
-  if (portfolio.role !== "OWNER") {
-    return forbidden(errorMessages.forbidden);
-  }
-
-  const { id: memberId } = await params;
-  if (!isUuid(memberId)) {
-    return notFound(errorMessages.memberNotFound);
-  }
+  const id = PortfolioId.safeParse((await params).id);
+  if (!id.success) return validationError(id.error.issues);
 
   try {
-    const existing = await findMemberById(supabase, portfolio.portfolioId, memberId);
-    if (!existing) {
-      return notFound(errorMessages.memberNotFound);
-    }
-
-    if (existing.role === "OWNER") {
-      const ownerCount = await countPortfolioOwners(supabase, portfolio.portfolioId);
-      if (ownerCount <= 1) {
-        return NextResponse.json(
-          { error: { code: "CONFLICT", message: errorMessages.lastOwnerGuard } },
-          { status: 409 },
-        );
-      }
-    }
-
-    const removed = await removeMember(supabase, portfolio.portfolioId, memberId);
-    if (!removed) {
-      return serverError();
-    }
-
+    await removeMember(auth.supabase, auth.portfolio.portfolioId, id.data);
     return new NextResponse(null, { status: 204 });
-  } catch {
-    return serverError();
+  } catch (error) {
+    return membershipErrorResponse(error);
   }
 }

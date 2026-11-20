@@ -1,9 +1,10 @@
 import { type NextResponse } from "next/server";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { createUserSupabaseClient } from "@/lib/supabase/server";
-import { getCurrentPortfolio, type CurrentPortfolio } from "@/lib/supabase/auth";
-import { unauthorized, badRequest, forbidden } from "@/lib/api/errors";
+import { resolvePortfolioContext, type CurrentPortfolio } from "@/lib/supabase/auth";
+import { unauthorized, badRequest, forbidden, serverError, conflict } from "@/lib/api/errors";
 import { errors } from "@/lib/i18n/errors";
+import { EXPECTED_PORTFOLIO_HEADER } from "@/lib/portfolio-context";
 
 export type AuthedRequest = {
   user: User;
@@ -20,6 +21,7 @@ export type MaybeAuthedWithPortfolio =
 
 export type RequirePortfolioOptions = {
   writeAccess?: boolean;
+  request?: Pick<Request, "headers">;
 };
 
 export async function requireApiUser(): Promise<MaybeAuthedRequest> {
@@ -42,16 +44,21 @@ export async function requireApiUserWithPortfolio(
     return { user: null, supabase: null, portfolio: null, response: auth.response };
   }
 
-  const portfolio = await getCurrentPortfolio();
-  if (!portfolio) {
+  const context = await resolvePortfolioContext(auth.user, auth.supabase);
+  if (context.kind !== "active") {
     return {
       user: null,
       supabase: null,
       portfolio: null,
-      response: badRequest(errors.portfolioNotFound),
+      response: context.kind === "no-membership" ? badRequest(errors.portfolioNotFound) : serverError(),
     };
   }
 
+  const { portfolio } = context;
+  const expected = options.request?.headers.get(EXPECTED_PORTFOLIO_HEADER);
+  if (expected != null && expected.toLowerCase() !== portfolio.portfolioId) {
+    return { user: null, supabase: null, portfolio: null, response: conflict(errors.stalePortfolio) };
+  }
   if (options.writeAccess && portfolio.role === "VIEWER") {
     return {
       user: null,

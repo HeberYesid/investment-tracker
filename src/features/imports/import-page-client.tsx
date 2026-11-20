@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { getImportLabels } from "@/lib/i18n/imports";
 import { BROKER_SEEDS, type BrokerCode } from "@/lib/reference/brokers";
 import { errors } from "@/lib/i18n/errors";
+import { EXPECTED_PORTFOLIO_HEADER } from "@/lib/portfolio-context";
 import { ImportHistory } from "./import-history";
 
 type RowPreview = {
@@ -70,7 +71,7 @@ const inputClass =
   "h-11 w-full rounded-xl border border-border-subtle bg-surface px-3 text-sm text-text-primary placeholder:text-text-subtle focus:border-border-default focus:outline-none focus:ring-2 focus:ring-focus-ring";
 
 export function ImportPageClient({
-  portfolioId: _portfolioId,
+  portfolioId,
   readOnly,
 }: {
   portfolioId: string;
@@ -79,7 +80,7 @@ export function ImportPageClient({
   if (readOnly) {
     return <ReadOnlyImportView />;
   }
-  return <ImportWizard />;
+  return <ImportWizard portfolioId={portfolioId} />;
 }
 
 function ReadOnlyImportView() {
@@ -101,7 +102,7 @@ function ReadOnlyImportView() {
   );
 }
 
-function ImportWizard() {
+function ImportWizard({ portfolioId }: { portfolioId: string }) {
   const [state, setState] = useState<ImportState>({ step: "select" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -149,6 +150,7 @@ function ImportWizard() {
 
       const res = await fetch("/api/v1/imports/csv/preview", {
         method: "POST",
+        headers: { [EXPECTED_PORTFOLIO_HEADER]: portfolioId },
         body: formData,
       });
 
@@ -176,7 +178,7 @@ function ImportWizard() {
     } finally {
       setLoading(false);
     }
-  }, [state]);
+  }, [portfolioId, state]);
 
   const handleCommit = useCallback(async () => {
     if (state.step !== "preview") return;
@@ -187,7 +189,7 @@ function ImportWizard() {
     try {
       const res = await fetch("/api/v1/imports/csv/commit", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", [EXPECTED_PORTFOLIO_HEADER]: portfolioId },
         body: JSON.stringify({
           import_id: state.preview.import.id,
         }),
@@ -219,7 +221,7 @@ function ImportWizard() {
     } finally {
       setLoading(false);
     }
-  }, [state]);
+  }, [portfolioId, state]);
 
   const handleReset = useCallback(() => {
     setState({ step: "select" });
