@@ -44,7 +44,7 @@ El plan es: (1) añadir un segundo provider detrás del mismo interfaz con fallb
 
 ### D3. La fuente efectiva se persiste en `market_prices.source`
 
-- **Choice**: La columna `market_prices.source` (`supabase/migrations/0004_market_data_sync.sql`) admite hoy `'YAHOO' | 'BENCHMARK'`. La migración `0006_market_prices_source.sql` amplía el CHECK para añadir `'STOOQ'`. La Edge Function escribe el provider que efectivamente respondió.
+- **Choice**: Conservar `market_prices.source` como `text not null` (`supabase/migrations/0001_foundation.sql`), sin añadir un `CHECK`. La Edge Function escribe la fuente efectiva; la prueba PGlite conserva también `PRICE_HISTORY` y `BENCHMARK_HISTORY`.
 - **Rationale**: Visibilidad para debugging y para el tooltip del glyph `⏱` (mostrar "Fuente: Yahoo · 14 jun 18:32" o "Fuente: Stooq"). Sin esta información el usuario no puede entender de dónde viene el dato.
 - **Alternatives**: (a) Añadir columna `provider` separada — duplica info, peor para queries. (b) No persistir la fuente — el tooltip queda genérico ("fuente desconocida") y se pierde valor de debugging.
 
@@ -98,7 +98,7 @@ El plan es: (1) añadir un segundo provider detrás del mismo interfaz con fallb
 - **[Risk] Coste Edge Function se duplica en el peor caso** → Mitigation: el composite añade a lo sumo 1 call por símbolo cuando Yahoo falla. En el peor caso (todo Yahoo caído) pasamos de ~43K a ~86K invocaciones/mes. Sigue dentro del free tier (500K/mes). Documentado en la sección Costos del proposal.
 - **[Risk] El endpoint `/sync-status` revela info del portafolio del usuario** → Mitigation: el endpoint devuelve solo agregados del último run global (no per-portfolio). El `failedAssetCount` es global, no per-usuario. La razón categorizada tampoco filtra símbolos. La privacidad por portafolio sigue garantizada por las RLS de `trades` y `portfolio_members`.
 - **[Risk] El cliente asume la cadencia del cron** → Mitigation: la cadencia está centralizada en el cálculo server-side (`lastAttemptAt + 30 min`), no en el cliente. Si la cadencia cambia, el cálculo cambia; el cliente no se entera.
-- **[Risk] `market_prices.source` es enum en la DB pero el cliente asume tipos** → Mitigation: la nueva validación Zod en `src/lib/validations/dashboard.ts` y el `CHECK` de Postgres se mantienen en sync. Si alguien añade un valor nuevo, ambos lados rompen a la vez.
+- **[Risk] El cliente puede asumir un conjunto de fuentes más estrecho que la DB** → Mitigation: comprobar la compatibilidad de las fuentes existentes en PGlite y validar el contrato de presentación por separado.
 - **[Risk] Mostrar "Sincronización en cola" cuando no es cierto** → Mitigation: `nextRunEstimate` se calcula honestamente desde `lastAttemptAt`. Si el último run fue hace 28 min, dice "próxima sync en ~2 min". Si el último run fue hace 5 min, dice "próxima sync en ~25 min". No se simula una promesa que el cron no puede cumplir.
 - **[Trade-off] El banner es más largo ahora** → Acceptable: la información extra (tiempo relativo, razón) es exactamente lo que el usuario pidió. El copy es compacto (3 líneas máx). Tono ámbar/naranja sigue distinguiendo "stale" de "estimated" y de "fresh".
 - **[Trade-off] Stooq no documenta API** → Documentado; Stooq es un sitio público con scraping-friendly CSV. Si en el futuro cierra el endpoint, el composite degrada a Yahoo solo sin cambios fuera de `stooq.ts`.
@@ -112,16 +112,13 @@ El plan es: (1) añadir un segundo provider detrás del mismo interfaz con fallb
    ```bash
    supabase functions deploy sync-prices
    ```
-5. Aplicar la migración nueva contra el proyecto:
-   ```bash
-   supabase db push  # aplica 0006_market_prices_source.sql
-   ```
+5. Confirmar la compatibilidad de fuentes con la prueba PGlite. No se requiere migración.
 6. Verificar post-deploy:
    - `select source, count(*) from market_prices group by source;` debe mostrar las tres fuentes en uso.
    - `GET /api/v1/market-data/sync-status` debe devolver el nuevo payload con todos los campos.
    - Visitar el dashboard, simular un dato viejo (insertar manualmente una fila con `observed_at` de hace 3 h), refrescar — el banner debe mostrar "Última actualización: hace 3 h" y la razón categorizada.
 7. Rollout feature flag: no es necesario; el banner enriquecido es backward-compatible (los campos nuevos son opcionales en la respuesta, los componentes existentes los ignoran si faltan).
-8. Rollback: si Stooq causa problemas, basta con quitar `stooq` del array en `createCompositeProvider([yahoo])` y re-deployar la Edge Function. La migración del CHECK es aditiva (no rompe filas existentes) y se puede dejar.
+8. Rollback: volver a la revisión anterior de la Edge Function. Las cotizaciones ya guardadas se conservan; no hay migración que revertir.
 
 ## Open Questions
 

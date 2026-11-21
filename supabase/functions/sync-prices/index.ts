@@ -16,10 +16,11 @@ import {
   recordRunStart,
   recordRunSuccess,
 } from "../_shared/record-sync-run.ts";
-import { fetchYahooHistory, fetchYahooQuote } from "../_shared/yahoo.ts";
+import { fetchYahooHistory } from "../_shared/yahoo.ts";
+import { fetchPriceWithFallback } from "../_shared/price-fallback.ts";
 import { invalidateCacheTag } from "../_shared/invalidate-cache.ts";
 
-type ActiveAssetRow = { asset_id: string; symbol: string };
+type ActiveAssetRow = { asset_id: string; symbol: string; allowStooq: boolean };
 type BenchmarkAssetRow = { id: string; yahoo_symbol: string | null; ticker: string };
 
 const BENCHMARK_TICKER = "^GSPC";
@@ -113,7 +114,7 @@ async function backfillBenchmarkHistory(
 async function listActiveAssets(supabase: ReturnType<typeof getServiceClient>): Promise<ActiveAssetRow[]> {
   const { data: tradeAssets, error: tradeError } = await supabase
     .from("trades")
-    .select("asset_id, assets(yahoo_symbol, ticker, requires_verified_quote_symbol)")
+    .select("asset_id, assets(yahoo_symbol, ticker, currency, asset_type, exchange, requires_verified_quote_symbol)")
     .is("deleted_at", null);
   if (tradeError) {
     throw new Error(`listActiveAssets: ${tradeError.message}`);
@@ -121,6 +122,9 @@ async function listActiveAssets(supabase: ReturnType<typeof getServiceClient>): 
   type Asset = {
     yahoo_symbol: string | null;
     ticker: string;
+    currency: string;
+    asset_type: string;
+    exchange: string | null;
     requires_verified_quote_symbol: boolean;
   };
   type Row = {
@@ -141,6 +145,9 @@ async function listActiveAssets(supabase: ReturnType<typeof getServiceClient>): 
     result.push({
       asset_id: row.asset_id,
       symbol,
+      allowStooq: asset.currency === "USD" &&
+        (asset.asset_type === "STOCK" || asset.asset_type === "ETF") &&
+        (asset.exchange === "NASDAQ" || asset.exchange === "NYSE"),
     });
   }
   return result;
@@ -204,20 +211,21 @@ Deno.serve(async (request: Request) => {
     type SymbolJob = {
       assetId: string;
       symbol: string;
-      source: "YAHOO" | "BENCHMARK";
+      isBenchmark: boolean;
+      allowStooq: boolean;
     };
     const jobs: SymbolJob[] = [];
     for (const asset of activeAssets) {
       const symbol = asset.symbol;
       if (!symbol) continue;
-      jobs.push({ assetId: asset.asset_id, symbol, source: "YAHOO" });
+      jobs.push({ assetId: asset.asset_id, symbol, isBenchmark: false, allowStooq: asset.allowStooq });
     }
     if (benchmark) {
       const symbol = benchmark.yahoo_symbol ?? benchmark.ticker;
       if (symbol) {
         // Avoid double-syncing ^GSPC if it is also a holding.
         if (!jobs.some((j) => j.symbol === symbol)) {
-          jobs.push({ assetId: benchmark.id, symbol, source: "BENCHMARK" });
+          jobs.push({ assetId: benchmark.id, symbol, isBenchmark: true, allowStooq: false });
         }
       }
     }
@@ -227,7 +235,7 @@ Deno.serve(async (request: Request) => {
     const errors: Array<{ symbol: string; message: string }> = [];
 
     for (const job of jobs) {
-      const result = await fetchYahooQuote(job.symbol);
+      const result = await fetchPriceWithFallback(job.symbol, job.allowStooq);
       if (!result.ok) {
         errors.push({ symbol: job.symbol, message: result.error.message });
         continue;
@@ -257,7 +265,7 @@ Deno.serve(async (request: Request) => {
         price: quote.priceUsd,
         price_usd: priceUsd,
         currency,
-        source: job.source,
+        source: job.isBenchmark ? "BENCHMARK" : result.source,
         observed_at: quote.observedAt,
         delayed_until: delayedUntil,
       });

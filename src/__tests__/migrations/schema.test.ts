@@ -499,6 +499,28 @@ describe("0005 sync settings migration", () => {
   });
 });
 
+it("conserva las fuentes históricas y admite STOOQ sin una migración nueva", async () => {
+  const db = await applyMigrations();
+  await db.exec(`
+    insert into public.assets (id, ticker, asset_type, currency)
+    values ('44444444-4444-4444-4444-444444444444', 'AAPL', 'STOCK', 'USD');
+
+    insert into public.market_prices (asset_id, price, currency, price_usd, source, observed_at)
+    select '44444444-4444-4444-4444-444444444444', 100, 'USD', 100, source,
+      timestamptz '2026-06-17 00:00:00+00' + position * interval '1 hour'
+    from unnest(array['YAHOO', 'BENCHMARK', 'PRICE_HISTORY', 'BENCHMARK_HISTORY', 'STOOQ'])
+      with ordinality as sources(source, position);
+  `);
+  const result = await db.query<{ source: string }>(`
+    select source from public.market_prices
+    where asset_id = '44444444-4444-4444-4444-444444444444'
+    order by observed_at;
+  `);
+  expect(result.rows.map(({ source }) => source)).toEqual([
+    "YAHOO", "BENCHMARK", "PRICE_HISTORY", "BENCHMARK_HISTORY", "STOOQ",
+  ]);
+});
+
 describe("0007 performance indexes migration", () => {
   const performanceSql = readFileSync(performanceIndexesPath, "utf8");
 

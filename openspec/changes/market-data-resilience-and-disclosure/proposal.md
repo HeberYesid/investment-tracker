@@ -11,7 +11,7 @@ El dashboard ya muestra el banner "Precio desactualizado" cuando una cotización
 - Banner de "Precio desactualizado" se enriquece: muestra tiempo relativo desde la última sync, próxima estimada, y razón de la obsolescencia ("Mercado cerrado", "Proveedor no devolvió precio", "Sincronización en cola"). Solo se muestra cuando hay impacto real sobre los precios del portafolio del usuario — nunca por un fallo aislado en un símbolo que el usuario no tiene.
 - Nuevo helper de i18n `formatRelativeEs(iso, now)` en `src/lib/i18n/dates.ts` ("hace 5 min", "hace 2 h 14 min", "ayer 18:00").
 - `DistributionChart`: el tooltip del glyph `⏱` muestra el timestamp absoluto y la fuente del dato (`Fuente: Yahoo · 14 jun 18:32`).
-- Migración nueva `0006_market_prices_source.sql` que amplía el CHECK de `market_prices.source` para aceptar `'STOOQ'`. No se añade tabla nueva.
+- `market_prices.source` ya admite `'STOOQ'`; se verifica la compatibilidad sin cambiar el esquema ni restringir las fuentes históricas.
 - `market_sync_runs` **sigue siendo service-role-only** (privacidad — no exponer qué símbolos sincroniza el sistema). La salud agregada que ve el usuario se sirve desde el nuevo endpoint, que lee de `market_sync_runs` con service role pero solo expone campos agregados.
 - Crypto queda explícitamente fuera de este change (no se añade CoinGecko, Stooq no se usa para tickers cripto de Trii).
 
@@ -30,10 +30,10 @@ reintentar automáticamente con Stooq antes de reportar el fallo del símbolo.
 MIENTRAS se persiste un precio en `market_prices`, el sistema DEBE registrar
 qué proveedor lo obtuvo (`YAHOO`, `STOOQ` o `BENCHMARK`) en la columna `source`.
 
-### R4 — Migración amplía CHECK de source
-El sistema DEBE crear la migración `0006_market_prices_source.sql` que amplíe
-el CHECK de `market_prices.source` para aceptar `'STOOQ'`. Las filas existentes
-con `'YAHOO'` y `'BENCHMARK'` DEBEN seguir siendo válidas.
+### R4 — Compatibilidad de fuentes de precios
+El sistema DEBE admitir `'STOOQ'` en `market_prices.source` sin cambiar el esquema.
+Las fuentes existentes `'YAHOO'`, `'BENCHMARK'`, `'PRICE_HISTORY'` y
+`'BENCHMARK_HISTORY'` DEBEN seguir siendo válidas.
 
 ### R5 — Stooq CSV parsing con Zod
 SI Stooq devuelve un CSV malformado ENTONCES el sistema DEBE rechazar la
@@ -101,7 +101,7 @@ El sistema NO DEBE exponer la tabla `market_sync_runs` al cliente. El endpoint
 
 ## Impact
 
-- **DB**: nueva migración `supabase/migrations/0006_market_prices_source.sql` que altera el CHECK de `market_prices.source` para añadir `'STOOQ'`. Smoke test PGlite debe seguir pasando (cambio aditivo, no destructivo).
+- **DB**: sin migración nueva. Una prueba en PGlite verifica la escritura y lectura de `'STOOQ'` y de las fuentes existentes.
 - **Edge Function**: `supabase/functions/sync-prices/index.ts` sustituye el call directo a `fetchYahooQuote` por el composite. Lógica de fallback y log de métricas por proveedor en `market_sync_runs.error` (formato: `"stooq_fallback=N,yahoo_ok=M"`).
 - **Lógica de mercado**: nuevos archivos `src/lib/market-data/stooq.ts` y `src/lib/market-data/composite.ts`. Ampliación de `src/lib/market-data/registry.ts` y `src/lib/market-data/config.ts` (User-Agent, timeout). Tests unitarios nuevos.
 - **API**: nuevo `src/app/api/v1/market-data/sync-status/route.ts` (GET, user-scoped, lee `market_sync_runs` con service role y devuelve solo agregados). Costo cero en invocaciones Edge.

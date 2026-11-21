@@ -42,7 +42,7 @@ The system MUST expose a `StooqProvider` in `src/lib/market-data/stooq.ts` that 
 
 ### Requirement: market_prices source includes Stooq
 
-The system MUST persist the effective price provider on every `market_prices` row. The `source` column MUST accept the value `'STOOQ'` in addition to the existing `'YAHOO'` and `'BENCHMARK'`. The Edge Function `sync-prices` MUST set `source` to the value returned by the composite (i.e. `'YAHOO'` if the composite got the quote from Yahoo, `'STOOQ'` if it fell back to Stooq, `'BENCHMARK'` for the S&P 500 row). Existing rows MUST remain valid after the migration.
+The system MUST persist the effective price provider on every `market_prices` row. The `source` column MUST accept `'STOOQ'` without a schema change and preserve `'YAHOO'`, `'BENCHMARK'`, `'PRICE_HISTORY'`, and `'BENCHMARK_HISTORY'`. The Edge Function `sync-prices` MUST set `source` to the value returned by the composite (i.e. `'YAHOO'` if the composite got the quote from Yahoo, `'STOOQ'` if it fell back to Stooq, `'BENCHMARK'` for the S&P 500 row).
 
 #### Scenario: Composite used Yahoo
 - **WHEN** the Edge Function inserts a `market_prices` row after the composite resolved from Yahoo
@@ -52,6 +52,6 @@ The system MUST persist the effective price provider on every `market_prices` ro
 - **WHEN** the Edge Function inserts a `market_prices` row after the composite resolved from Stooq
 - **THEN** the row's `source` column equals `'STOOQ'`
 
-#### Scenario: Migration accepts the new value
-- **WHEN** the migration `0006_market_prices_source.sql` is applied to a Supabase project that already has rows with `source = 'YAHOO'` and `source = 'BENCHMARK'`
-- **THEN** the migration completes without error and the `CHECK` constraint on `source` accepts `'STOOQ'` on subsequent inserts
+#### Scenario: Existing schema accepts all five sources
+- **WHEN** a test inserts rows with `STOOQ`, `YAHOO`, `BENCHMARK`, `PRICE_HISTORY`, and `BENCHMARK_HISTORY` into the existing schema
+- **THEN** all five values can be read back unchanged

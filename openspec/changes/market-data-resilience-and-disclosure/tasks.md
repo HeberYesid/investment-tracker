@@ -1,7 +1,7 @@
-## 1. Database migration
+## 1. Compatibilidad de la base de datos
 
-- [ ] 1.1 Create `supabase/migrations/0006_market_prices_source.sql` that drops the existing `CHECK` on `market_prices.source` and recreates it to allow `'YAHOO'`, `'STOOQ'`, `'BENCHMARK'`. Cubre: R3, R4.
-- [ ] 1.2 Extend `src/supabase/migrations/schema.test.ts` to assert the new CHECK accepts `'STOOQ'` and that pre-existing rows with `'YAHOO'` and `'BENCHMARK'` are still valid after the migration runs against PGlite. Cubre: R4.
+- [x] 1.1 Confirmar que el esquema vigente admite `STOOQ` sin una migración nueva. Cubre: R4.
+- [x] 1.2 En `src/__tests__/migrations/schema.test.ts`, comprobar en PGlite que se pueden guardar y recuperar `STOOQ`, `YAHOO`, `BENCHMARK`, `PRICE_HISTORY` y `BENCHMARK_HISTORY`. Cubre: R4.
 
 ## 2. Stooq provider
 
@@ -28,7 +28,7 @@
 ## 5. Edge Function
 
 - [ ] 5.1 Update `supabase/functions/sync-prices/index.ts` to import the composite from a shared module (e.g. `supabase/functions/_shared/composite.ts`) constructed once per run, and to call `fetchQuotesWithBreakdown` so the per-provider counts land in `market_sync_runs.error` as `"yahoo_ok=N,stooq_fallback=M"` (only when the run is `SUCCESS`). Cubre: R2, R7, R8.
-- [ ] 5.2 Pass the composite's resolved `source` value (`'YAHOO'`, `'STOOQ'`, `'BENCHMARK'`) to the `market_prices` insert so the row records the effective provider. Cubre: R3.
+- [x] 5.2 Pass the composite's resolved `source` value (`'YAHOO'`, `'STOOQ'`, `'BENCHMARK'`) to the `market_prices` insert so the row records the effective provider. Cubre: R3.
 - [ ] 5.3 Update `supabase/functions/_shared/yahoo.ts` if needed so the Deno side can import the composite (mirror the Node-side logic without adding new Deno dependencies). Cubre: R1, R2.
 - [ ] 5.4 Smoke test the Edge Function locally with `supabase functions serve sync-prices` against a fixture that includes one Yahoo-failing symbol to confirm the breakdown string and the `source = 'STOOQ'` row. Cubre: R2, R7, R8.
 
@@ -66,5 +66,5 @@
 
 ## 10. Documentation
 
-- [ ] 10.1 Update `README.md` (or the relevant `docs/investment-tracker/phases/*.md`) to mention: Stooq as fallback provider, the new `/api/v1/market-data/sync-status` endpoint, the enriched banner copy, and the migration `0006_market_prices_source.sql`. Cubre: — (documentación, sin R asociado).
+- [ ] 10.1 Documentar en `README.md` o `docs/phases/05-market-data-fx.md` el fallback Stooq, el endpoint `sync-status`, el aviso ampliado y la compatibilidad de fuentes sin migración nueva. Cubre: — (documentación, sin R asociado).
 - [ ] 10.2 Update `src/lib/market-data/README.md` (if it exists) or add inline JSDoc to `src/lib/market-data/composite.ts` explaining the order of providers and how to add a new one. Cubre: — (documentación, sin R asociado).
