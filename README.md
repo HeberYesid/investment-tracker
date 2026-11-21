@@ -4,13 +4,19 @@ Mobile-first web application for tracking investments across eToro, XTB, Trii, a
 
 ## Getting Started
 
-Install dependencies and run the development server:
+Usa Node.js 22 o superior y pnpm 11.5.2 (`package.json`). Desde la raíz, instala las dependencias del lockfile:
+
+```bash
+pnpm install --frozen-lockfile
+```
+
+Para probar el inicio de sesión y guardar datos, completa la sección **Environment**, aplica las migraciones de `supabase/migrations/` en orden a tu proyecto Supabase y configura Auth según la sección **Authentication**. Luego inicia el servidor:
 
 ```bash
 pnpm dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Abre [http://127.0.0.1:3000](http://127.0.0.1:3000) si usas el `NEXT_PUBLIC_SITE_URL` del ejemplo. Mantén el mismo origen en el navegador, la variable y la configuración de Auth.
 
 ## Environment
 
@@ -40,7 +46,7 @@ Phase 4 wires up Supabase Auth with magic-link sign-in. The flow is:
 1. User visits `/login` and submits an email.
 2. Supabase sends a magic link with a `redirectTo` pointing at `${NEXT_PUBLIC_SITE_URL}/auth/callback?next=...`.
 3. The callback route exchanges the code for a session, sets the auth cookies, and redirects.
-4. A Next.js middleware (`src/middleware.ts`) protects every other route: unauthenticated page requests redirect to `/login`, unauthenticated API requests return `401 { error: { code: "UNAUTHORIZED", ... } }`.
+4. `src/proxy.ts` delega el control de sesión en `src/lib/supabase/middleware.ts`. La portada `/` es pública; las páginas protegidas redirigen a `/login` si no hay sesión y las API protegidas devuelven `401`.
 5. On signup, a Postgres trigger creates a row in `public.profiles`, a default portfolio named `Mi portafolio`, and an `OWNER` row in `public.portfolio_members` for the new user.
 
 To enable Auth in your Supabase project (one-time, manual):
