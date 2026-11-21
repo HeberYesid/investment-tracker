@@ -6,29 +6,29 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  quality:
-    name: Lint · TypeCheck · Test · Build
+  static-and-unit:
+    name: Lint · TypeCheck · Vitest
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
-    env:
-      NEXT_PUBLIC_SUPABASE_URL: "https://ci-dummy.supabase.co"
-      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "ci-dummy-key"
-      NEXT_PUBLIC_SITE_URL: "http://127.0.0.1:3000"
-
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - uses: pnpm/action-setup@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: "24"
           cache: "pnpm"
 
       - run: pnpm install --frozen-lockfile
@@ -39,4 +39,35 @@ jobs:
 
       - run: pnpm test:run
 
-      - run: pnpm build
+      - run: node --test scripts/ci-e2e/verify-report.test.mjs
+
+  production-e2e:
+    name: Production Build · Critical E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "pnpm"
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: Test critical flows against a disposable Supabase stack
+        run: npm exec --yes --package=supabase@3.2.0 -- node scripts/ci-e2e/run.mjs
+
+  quality:
+    name: Lint · TypeCheck · Test · Build
+    if: ${{ always() }}
+    needs: [static-and-unit, production-e2e]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Require both suites to finish successfully
+        env:
+          STATIC_RESULT: ${{ needs.static-and-unit.result }}
+          E2E_RESULT: ${{ needs.production-e2e.result }}
+        run: test "$STATIC_RESULT" = success && test "$E2E_RESULT" = success

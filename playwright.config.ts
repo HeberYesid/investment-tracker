@@ -5,17 +5,20 @@ const port = 3100;
 
 export default defineConfig({
   testDir: "./tests/e2e",
+  forbidOnly: isCI,
+  retries: 0,
+  workers: isCI ? 1 : undefined,
   webServer: {
     command: isCI
       ? `pnpm exec next start --hostname 127.0.0.1 --port ${port}`
       : `pnpm exec next dev --hostname 127.0.0.1 --port ${port}`,
-    url: `http://127.0.0.1:${port}`,
-    reuseExistingServer: !isCI,
+    url: `http://127.0.0.1:${port}/login`,
+    reuseExistingServer: false,
     timeout: 180_000,
   },
   use: {
     baseURL: `http://127.0.0.1:${port}`,
-    trace: "on-first-retry",
+    trace: "off",
   },
   projects: [
     {

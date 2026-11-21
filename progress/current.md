@@ -1,5 +1,13 @@
 # Sesion actual
 
+## Piloto de CI/CD — 2026-11-21
+
+- OpenSpec `add-cicd-pilot`: aprobación humana recibida; preparación, pruebas, workflow y guía disponibles localmente, aún sin evidencia E2E completa.
+- Bloqueo reproducido al arrancar Supabase CLI local sobre PostgreSQL 17 con las migraciones versionadas: `0015_secure_shared_asset_catalog.sql`, SQLSTATE `42501`; el ejecutor de migraciones no puede asumir el rol propietario para transferir la función. No se modificaron migraciones, permisos de la aplicación ni destinos remotos.
+- Antes de declarar P1 hecho: acordar un método de bootstrap local que respete el contrato de migración y aislamiento, ejecutar el runner completo, demostrar la regresión en un PR autorizado y ensayar la recuperación en entorno autorizado.
+
+## Contexto histórico conservado
+
 - **Feature en curso:** _bugfix: sesion no persiste tras magic link (callback) + gating demo_
 - **Inicio:** 2026-07-23
 - **Agente:** opencode

@@ -195,6 +195,20 @@
       ],
       "sdd": true,
       "status": "spec_ready"
+    },
+    {
+      "id": 18,
+      "name": "add-cicd-pilot",
+      "title": "Piloto de CI/CD con flujos críticos verificables",
+      "description": "Probar el build de producción contra Supabase efímero y ensayar una entrega recuperable únicamente en un entorno autorizado.",
+      "acceptance": [
+        "Build con Auth, PostgreSQL y correo efímeros, sin secretos de producción (R1)",
+        "Portada pública y protección de rutas web y API anónimas (R2)",
+        "CSV confirmado con importe y operación verificables; reconfirmar el mismo ID no altera los datos (R3–R4)",
+        "El check funcional bloquea una regresión y el ensayo registra la recuperación por revisión (R5–R6)"
+      ],
+      "sdd": true,
+      "status": "blocked"
     }
   ]
 }
