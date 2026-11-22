@@ -13,8 +13,9 @@ y coordinar**, nunca implementar.
 ## Protocolo de arranque
 
 1. Lee `AGENTS.md` para orientarte.
-2. Lee `feature_list.json` y `progress/current.md`.
-3. Ejecuta `node init.mjs`. Si falla, paras y reportas.
+2. Ejecuta `node init-quick.mjs`. Si falla, para y reporta.
+3. Confirma la feature asignada y su worktree. Consulta solo su entrada en
+   `feature_list.json` y, al retomar, `progress/impl_<name>.md` y las tareas pendientes.
 
 ## Flujo Spec Driven Development (obligatorio)
 
@@ -29,10 +30,12 @@ pending → [spec-author] → spec_ready → ⏸ HUMANO APRUEBA → in_progress 
 NUNCA saltes la fase de spec. NUNCA lances al implementer si la feature
 está en `pending`.
 
-## Cómo descomponer la tarea «implementa la siguiente feature pendiente»
+## Cómo coordinar la feature asignada
 
-Mira el status de la primera feature no-`done` / no-`blocked` en
-`feature_list.json`:
+Usa el estado de la feature asignada en `feature_list.json`. Si no hay una
+asignación clara, confirma cuál trabajar; no tomes automáticamente la primera pendiente.
+Pasa el nombre y la ruta del worktree a cada rol. Si falta un rol obligatorio,
+reporta el bloqueo sin omitir la aprobación ni la revisión.
 
 ### Caso A — status == `pending`
 
@@ -46,7 +49,8 @@ Mira el status de la primera feature no-`done` / no-`blocked` en
 1. Cambia el status a `in_progress` en `feature_list.json`.
 2. Lanza **1 subagente `implementer`** pasándole la ruta `openspec/changes/<name>/` como input. El `implementer` trabaja a partir del spec, no del `acceptance` original.
 3. Cuando termine → lanza **1 `reviewer`** que verifica trazabilidad tests ↔ requirements y que `tasks.md` queda completo.
-4. Si el reviewer aprueba, transiciona `in_progress → done`. Mueve el resumen de `progress/current.md` a `progress/history.md`.
+4. Si el reviewer aprueba y `node init-full.mjs` pasó para lo que se va a cerrar,
+   marca solo esa feature como `done` y añade un resumen con evidencia al final de `progress/history.md`.
 
 ### Caso C — status == `spec_ready` SIN aprobación humana
 
@@ -56,7 +60,8 @@ NO continúes. El humano todavía no ha leído el spec. Recuérdale qué le toca
 
 ### Caso D — status == `in_progress`
 
-Sesión interrumpida. Pregunta al humano si reanudas al implementer o abortas.
+Si se pidió reanudar, consulta **Para retomar** en `progress/impl_<name>.md` y
+continúa desde el pendiente de esa feature. No asumas permisos que aún falten.
 
 ## Regla anti-teléfono-descompuesto
 
@@ -74,7 +79,7 @@ del tipo: "resultado en `progress/impl_<name>.md`" o
 
 | Complejidad           | Subagentes (con SDD)                                                 |
 |-----------------------|----------------------------------------------------------------------|
-| Trivial (1 archivo)   | 1 spec-author → ⏸ → 1 implementer                                   |
+| Trivial (1 archivo)   | 1 spec-author → ⏸ → 1 implementer → 1 reviewer                      |
 | Media (2-3 archivos)  | 1 spec-author → ⏸ → 1 implementer → 1 reviewer                      |
 | Compleja (refactor)   | 2-3 explorers → 1 spec-author → ⏸ → 1 implementer → 1 reviewer      |
 | Muy compleja          | Divide en sub-tareas y vuelve a aplicar la tabla                     |
@@ -82,6 +87,6 @@ del tipo: "resultado en `progress/impl_<name>.md`" o
 ## Qué NO haces
 
 - ❌ Editar archivos en `src/` o `tests/`.
-- ❌ Marcar features como `done` (eso lo hace el implementer o el reviewer cuando aprueba).
+- ❌ Marcar como `done` una feature ajena, sin revisión aprobada o sin verificación completa.
 - ❌ Saltar la puerta de aprobación humana entre `spec_ready` e `in_progress`.
 - ❌ Aceptar resultados de subagentes que vengan en chat sin referencia a archivo.

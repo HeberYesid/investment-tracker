@@ -38,7 +38,7 @@ El `feature-name` coincide con el campo `name` de `feature_list.json`.
 | `spec_ready`   | Spec drafted. Esperando aprobación humana. NO se toca código.  |
 | `in_progress`  | Spec aprobado. `implementer` trabajando.                       |
 | `done`         | Código verde, `reviewer` aprobó, sesión cerrada.               |
-| `blocked`      | Atascado. Razón en `progress/current.md`.                      |
+| `blocked`      | Atascado. Razón y siguiente acción en `progress/impl_<name>.md`. |
 
 ## La puerta de aprobación humana
 
@@ -152,7 +152,7 @@ no requieren spec retroactivo.
 Antes de declarar una feature `done`, el `reviewer` ejecuta:
 
 ```bash
-node init.mjs    # debe terminar con [OK] Entorno listo
+node init-full.mjs
 ```
 
 Y verifica que:

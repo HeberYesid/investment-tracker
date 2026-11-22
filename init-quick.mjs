@@ -19,7 +19,6 @@ const C = { red: "\x1b[0;31m", green: "\x1b[0;32m", yellow: "\x1b[0;33m", nc: "\
 const BASE_FILES = [
   "AGENTS.md",
   "feature_list.json",
-  "progress/current.md",
   "docs/architecture.md",
   "docs/conventions.md",
   "docs/verification.md",
@@ -114,13 +113,6 @@ export function checkFeatureList() {
 
   const issues = [];
   const validStatuses = new Set(data.rules?.valid_status ?? DEFAULT_STATUSES);
-
-  const inProgress = data.features.filter((f) => f.status === "in_progress");
-  if (inProgress.length > 1) {
-    issues.push(
-      fail(`Hay ${inProgress.length} features en in_progress (máximo 1): ${inProgress.map((f) => f.name).join(", ")}`),
-    );
-  }
 
   for (const f of data.features) {
     if (!validStatuses.has(f.status)) {

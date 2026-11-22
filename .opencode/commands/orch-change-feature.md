@@ -23,15 +23,15 @@ Sigue el flujo SDD del proyecto: `pending → spec_ready → ⏸ humano → in_p
 
 ## Pipeline
 
-1. **Detectar el estado** de la feature en `feature_list.json`.
+1. **Arranque:** ejecuta `node init-quick.mjs`; confirma la feature y el worktree asignados, y consulta solo su entrada en `feature_list.json`.
 2. **Ruta según estado:**
    - `pending` / no existe → Lanzar `spec-author` para crear/actualizar `openspec/changes/<name>/` con los nuevos requirements EARS.
    - `spec_ready` → **PARAR.** "Spec listo en `openspec/changes/<name>/`. Revísalo y di **'aprobado'** para continuar."
-   - `in_progress` → Reanudar con `implementer`.
+   - `in_progress` → Consultar **Para retomar** en `progress/impl_<name>.md` y reanudar con `implementer` en el worktree asignado.
 3. **Aprobación humana (GATE 1):** El `spec-author` transiciona a `spec_ready`. El flujo se **detiene** hasta que el humano diga "aprobado".
 4. **Implementación:** Post-aprobación, el leader transiciona a `in_progress` y lanza `implementer` (TDD: test primero → verde, tasks marcadas `[x]`, trazabilidad en `progress/impl_<name>.md`).
-5. **Review:** Lanzar `reviewer`. Verifica CHECKPOINTS.md C1-C6, trazabilidad, `node init.mjs` verde.
-6. **Cierre:** Si aprobado, transicionar a `done`. Mover resumen a `progress/history.md`.
+5. **Review:** El `reviewer` aplica `CHECKPOINTS.md`, verifica trazabilidad y tareas, y ejecuta `node init-full.mjs` antes de aprobar el cierre.
+6. **Cierre:** Si la revisión está aprobada y la verificación completa pasó, marca solo la feature asignada como `done` y añade el resumen con evidencia al final de `progress/history.md`. Si queda pendiente, actualiza **Para retomar**.
 7. **Commit** como `refactor:` o `feat:` (dominante). → **GATE 2** — confirmar antes de commitear.
 
 ## Hard Gates
@@ -48,5 +48,5 @@ Cuando termines, reporta:
 - Spec actualizado en `openspec/changes/<name>/`
 - Trazabilidad en `progress/impl_<name>.md`
 - Revisión en `progress/review_<name>.md`
-- Resultado de `node init.mjs`
+- Resultado de `node init-full.mjs` si se verificó el cierre
 - Commit hash y mensaje (si aplica)

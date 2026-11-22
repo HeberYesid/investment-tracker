@@ -1,9 +1,10 @@
 # AGENTS.md — Mapa de navegación para agentes de IA
 
--App personal para gestionar portafolio personal
+Aplicación para gestionar un portafolio personal.
 
 ## 1. Antes de empezar (obligatorio)
-1.Hay dos scripts de verificación. Ejecuta según el momento:
+
+Hay dos scripts de verificación. Ejecuta el que corresponda:
 
 | Momento | Comando | Qué hace |
 |---|---|---|
@@ -15,21 +16,25 @@ Reglas:
 1. Al comenzar CUALQUIER sesión, ejecuta `node init-quick.mjs`. Si falla, no avances: resuelve el error o repórtalo.
 2. Si la tarea va a modificar código, ejecuta también `pnpm test:run` una vez al inicio para conocer el estado base. Si ya hay tests rotos, repórtalo antes de tocar nada.
 3. Si la sesión es solo lectura, preguntas o documentación, no ejecutes `init-full.mjs`.
-4. Antes de declarar una tarea como `done`, ejecuta `node init-full.mjs`. Si falla, la tarea NO está terminada.
+4. Antes de marcar una feature como `done`, ejecuta `node init-full.mjs`. Si falla, no cambies su estado a `done`.
 5. Si un script falla, lee solo las líneas `[FAIL]` y su detalle. No vuelvas a ejecutarlo sin haber cambiado algo.
 6. Revisa el estado de git antes de editar. Preserva los cambios ajenos y no
    cambies el estado de una feature que no forma parte de la solicitud.
-- Si vas a retomar una feature, consulta solo su entrada en feature_list.json, su nota progress/impl_<name>.md y los pendientes de su especificación, si aplica.
+
+### Contexto de la tarea
+
+- Si vas a retomar una feature, consulta su entrada en `feature_list.json`, su nota `progress/impl_<name>.md` y los pendientes de su especificación, si aplica.
 - Si no sabes qué trabajo retomar, consulta primero las entradas activas o bloqueadas del catálogo. Para una pregunta o un ajuste documental independiente, lee solo los archivos pertinentes.
-- feature_list.json es la fuente oficial del estado. Consulta progress/history.md solo si necesitas contexto histórico.
+- `feature_list.json` es la fuente oficial del estado. Consulta `progress/history.md` solo si necesitas contexto histórico.
 
 ## 2. Mapa del repositorio
 
 | Archivo / carpeta            | Qué contiene                                                                | Cuándo leerlo |
 |------------------------------|-----------------------------------------------------------------------------|---------------|
 | `docs/agentic-engineering-loop.md` | Metodología adaptativa para desarrollar con agentes de IA              | Para definir o revisar el proceso de trabajo con agentes |
-| `feature_list.json`          | Lista de features con estado (`pending` / `spec_ready` / `in_progress` / `done` / `blocked`) | Siempre, al empezar |
-| `progress/current.md`        | Estado de la sesión actual                                                  | Siempre, al empezar |
+| `feature_list.json`          | Catálogo y estado oficial de las features | Para elegir trabajo o consultar la entrada de la feature asignada |
+| `progress/impl_<name>.md`    | Punto de reanudación, trazabilidad y evidencia por feature | Al retomar o revisar esa feature |
+| `progress/current.md`        | Bitácora anterior, opcional | Solo para recuperar contexto que aún no está en la nota de la feature |
 | `progress/history.md`        | Bitácora append-only de sesiones anteriores                                 | Si necesitas contexto histórico |
 | `openspec/changes/<name>/`   | `proposal.md` + `design.md` + `tasks.md` (Kiro-style)                       | Antes de implementar cualquier feature con `"sdd": true` |
 | `docs/architecture.md`       | Qué significa "hacer un buen trabajo" en este proyecto                      | Antes de implementar |
@@ -53,12 +58,10 @@ Reglas:
 
 - Una sola feature por sesión y por worktree. Puedes trabajar en varias features en paralelo, siempre que cada una tenga su propia rama, su propio worktree y una sesión separada.
 - Trabaja en paralelo solo si las features se pueden implementar y verificar por separado. Si comparten una migración, un contrato que va a cambiar o una decisión pendiente, acuerda primero el orden.
-- Registra el avance y la evidencia por feature, sin sobrescribir las notas de otros trabajos.
-- - **No declares una tarea `done` sin pruebas.** Verifica y que los tests pasa al 100%.
-- **No saltes la fase de spec.** Toda feature sdd debe obtener aprobación antes.
-- **Documenta lo que haces** en `progress/current.md` mientras trabajas, no al final.
+- El catálogo puede tener varias entradas `in_progress`; eso no asigna varias features al mismo worktree. Cada rama tiene su propia copia del catálogo: cambia solo la entrada asignada y conserva las demás al integrar.
+- **No saltes la fase de spec.** Lee `docs/specs.md` antes de trabajar en una especificación o feature con `sdd: true`. No implementes hasta que la especificación tenga aprobación humana.
 - **Si no sabes algo, busca en `docs/`**
-- Guarda el contexto por feature, en su propio worktree. Si el trabajo queda pendiente, actualiza la sección Para retomar de progress/impl_<name>.md con tres datos: qué quedó verificado, qué falta o bloquea y cuál es la siguiente acción. Indica si esa acción necesita autorización.
+- Guarda el contexto por feature, en su propio worktree. Si el trabajo queda pendiente, actualiza la sección **Para retomar** de `progress/impl_<name>.md`: qué quedó verificado, qué falta o bloquea y cuál es la siguiente acción. Indica si esa acción necesita autorización.
 - Enlaza la evidencia y las decisiones existentes en lugar de copiarlas. No dupliques el estado oficial ni edites las notas de otra feature. Un ajuste pequeño que termina en la misma sesión no necesita una nota propia.
 
 ### Elegir la ruta de trabajo
@@ -73,7 +76,8 @@ Reglas:
   instrucciones y herramientas disponibles. Mantén las comprobaciones de
   [verificación](docs/verification.md) que correspondan.
 - Durante la adopción, los cambios ya iniciados conservan sus specs, aprobaciones
-  y estados. El trabajo en paralelo sigue la regla de worktrees y no elimina ninguna aprobación ni verificación obligatoria.; la ruta no habilita trabajo paralelo ni concede permisos adicionales.
+  y estados. El trabajo en paralelo sigue la regla de worktrees y no elimina
+  aprobaciones, verificaciones ni límites de permisos.
 
 ### Requisitos y decisiones de diseño
 
@@ -94,7 +98,8 @@ Reglas:
 pending → [spec-author] → spec_ready → ⏸ HUMANO → in_progress → [implementer → reviewer] → done
 ```
 
-1. El leader detecta la primera feature `pending` con `"sdd": true`.
+1. El leader identifica la feature asignada a la sesión y su worktree, y consulta
+   su estado. Si ya está iniciada, retoma la etapa que corresponda sin elegir otra feature.
 2. El leader lanza `spec-author`, que crea
    `openspec/changes/<name>/{proposal,design,tasks}.md` y marca el status como
    `spec_ready`.
@@ -104,13 +109,12 @@ pending → [spec-author] → spec_ready → ⏸ HUMANO → in_progress → [imp
    y documentando la trazabilidad en `progress/impl_<name>.md`.
 6. El reviewer verifica trazabilidad `R<n>` ↔ test y tasks completas;
    aprueba o rechaza.
-7. Si aprueba, el leader marca `done` y mueve el resumen a
-   `progress/history.md`.
+7. Si aprueba, el leader aplica el cierre de §5.
 
 ## 5. Cierre de sesión
 
 Antes de terminar:
 
-1. Ejecuta `node init-full.mjs` — todo verde.
-2. Si acabaste la feature correspondiente y pasó su revisión: actualiza su estado en `feature_list.json`.
-3. Si el trabajo queda pendiente, deja actualizado su punto de reanudación. Si se cierra, añade un resumen breve con enlaces a la evidencia en progress/history.md, sin reescribir entradas anteriores ni borrar contexto de otros trabajos.
+1. Antes de marcar una feature como `done`, ejecuta `node init-full.mjs` y confirma que pasa. No lo ejecutes para cerrar una consulta, revisión de solo lectura o ajuste documental independiente.
+2. Marca solo la feature asignada como `done` en `feature_list.json`, una vez que hayan pasado las verificaciones aplicables y se haya aprobado la revisión correspondiente.
+3. Si la feature queda pendiente, actualiza su punto de reanudación. Si se cierra, añade un resumen breve con enlaces a la evidencia al final de `progress/history.md`, sin reescribir entradas previas ni borrar contexto de otros trabajos.

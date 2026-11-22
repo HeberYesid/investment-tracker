@@ -81,11 +81,12 @@ La migración `0001_foundation.sql` es inmutable. Cambios al schema → nueva `0
 - ❌ Marcar la feature como `done` sin pasar el script de verificación.
 - ❌ Dejar `console.log` de debug en el código.
 
-## Verificación final antes de cerrar sesión
+## Verificación final antes de marcar una feature como `done`
 
 ```bash
-node init.mjs           # debe terminar con [OK] Entorno listo
+node init-full.mjs
 ```
 
-Si `node init.mjs` está rojo, **no** marques nada como `done`. Anota el bloqueo
-en `progress/current.md` y marca la feature como `blocked` en `feature_list.json`.
+Si falla, **no** marques la feature como `done`. Registra el fallo y la siguiente
+acción en `progress/impl_<name>.md`; si no se puede continuar, marca solo la
+feature asignada como `blocked` en `feature_list.json`.

@@ -2,7 +2,7 @@
   "project": "investment-tracker",
   "description": "Aplicación de tracking de inversiones. Next.js 15 + React 19 + Supabase. Moneda base USD, UI en español.",
   "rules": {
-    "one_feature_at_a_time": true,
+    "one_feature_per_worktree": true,
     "require_tests_to_close": true,
     "require_approved_spec_to_implement": true,
     "valid_status": ["pending", "spec_ready", "in_progress", "done", "blocked"],

@@ -6,19 +6,18 @@
 
 ## C1 — El arnés está completo
 
-- [ ] Existen los 7 archivos base: `AGENTS.md`, `init.mjs`, `feature_list.json`,
-      `progress/current.md`, `docs/architecture.md`, `docs/conventions.md`,
-      `docs/verification.md`.
-- [ ] Existe `CHECKPOINTS.md` (este archivo).
-- [ ] `node init.mjs` termina con exit code 0.
+- [ ] `node init-quick.mjs` termina con código 0 y valida el entorno, los
+      archivos base y el catálogo con sus especificaciones.
+- [ ] Antes de marcar la feature como `done`, `node init-full.mjs` termina con código 0.
 
 ## C2 — El estado es coherente
 
-- [ ] Como mucho una feature en `in_progress` en `feature_list.json`.
+- [ ] La sesión y el worktree corresponden a una sola feature. Solo se actualiza
+      su entrada en `feature_list.json`, aunque haya otras en `in_progress`.
 - [ ] Toda feature `done` tiene tests asociados que pasan.
 - [ ] Toda feature `done` tiene su código implementado en las rutas esperadas.
-- [ ] `progress/current.md` está vacío o describe la sesión activa
-      (no contiene basura de sesiones anteriores).
+- [ ] Si la feature queda pendiente, `progress/impl_<name>.md` indica qué se
+      verificó, qué falta o bloquea y cuál es la siguiente acción autorizada o por autorizar.
 
 ## C3 — El código respeta la arquitectura
 
@@ -51,9 +50,9 @@
 
 - [ ] No hay archivos sin trackear sospechosos (`*.tmp`, `*.log`, `.env` sin `.example`).
 - [ ] No hay `console.log`/`console.error` de debug sin eliminar.
-- [ ] `progress/history.md` tiene una entrada por la última sesión.
-- [ ] La última feature trabajada está reflejada en su estado correcto en `feature_list.json`.
-- [ ] `progress/current.md` está vacío (salvo la plantilla).
+- [ ] Al cerrar la feature, se añade un resumen con enlaces a la evidencia al
+      final de `progress/history.md`, sin reescribir entradas de otros trabajos.
+- [ ] La feature asignada queda en el estado correcto en `feature_list.json`.
 
 ## C6 — Spec Driven Development
 
@@ -69,5 +68,6 @@
 
 ---
 
-**Cómo usar este archivo:** un agente revisor recorre cada checkbox, marca `[x]` o `[ ]`,
-y rechaza el cierre de sesión si quedan boxes vacíos en C1-C6.
+**Cómo usar este archivo:** el revisor comprueba los puntos aplicables a la
+feature asignada y rechaza el cierre si falta evidencia obligatoria. El líder
+registra el estado final y añade la entrada al historial después de la revisión.

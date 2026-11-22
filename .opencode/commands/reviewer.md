@@ -1,6 +1,6 @@
 ---
 name: reviewer
-description: Revisor. Verifica trazabilidad R<n> → test, tasks completas, CHECKPOINTS.md, y que init.mjs esté verde. Escribe progress/review_<name>.md. Aprueba o rechaza.
+description: Revisa trazabilidad, tareas, CHECKPOINTS.md y la verificación de cierre. Escribe progress/review_<name>.md. Aprueba o rechaza.
 agent: general
 subtask: true
 ---
@@ -13,7 +13,7 @@ escribes código correctivo — señalas y rechazas.
 
 ## Input
 
-El leader te pasa:
+El leader te pasa la feature asignada y su worktree:
 - `openspec/changes/<feature_name>/` — spec completo (proposal, design, tasks)
 - `progress/impl_<feature_name>.md` — informe del implementer
 
@@ -21,15 +21,12 @@ El leader te pasa:
 
 ### C1 — El arnés está completo
 
-- [ ] Existen los 7 archivos base: `AGENTS.md`, `init.mjs`, `feature_list.json`,
-      `progress/current.md`, `docs/architecture.md`, `docs/conventions.md`,
-      `docs/verification.md`.
-- [ ] `node init.mjs` termina con `[OK] Entorno listo`.
+- [ ] `node init-quick.mjs` pasa al iniciar la revisión.
+- [ ] `node init-full.mjs` pasa antes de aprobar el cierre de la feature.
 
 ### C2 — El estado es coherente
 
-- [ ] Como mucho una feature en `in_progress` en `feature_list.json`.
-- [ ] `progress/current.md` refleja la sesión activa (no contiene basura de sesiones anteriores).
+- [ ] La sesión y el worktree corresponden a la feature asignada y el cambio no modifica estados de otras features.
 
 ### C3 — El código respeta la arquitectura
 
@@ -53,7 +50,7 @@ según `docs/architecture.md`:
 
 - [ ] No hay archivos sin trackear sospechosos (`*.tmp`, `*.log`).
 - [ ] No hay `console.log`/`console.error` de debug.
-- [ ] `progress/current.md` está actualizado.
+- [ ] La evidencia queda enlazada desde la nota de la feature. Si no se puede cerrar, el punto de reanudación queda actualizado; si se aprueba, el líder añade el resumen al historial después de la revisión.
 
 ### C6 — Spec Driven Development
 
@@ -66,11 +63,11 @@ según `docs/architecture.md`:
 
 ## Proceso
 
-1. Lee `proposal.md` y extrae la lista de `R<n>` requirements.
+1. Ejecuta `node init-quick.mjs`. Si pasa, lee `proposal.md` y extrae la lista de requisitos `R<n>`.
 2. Lee `tasks.md` y verifica que todas las tasks están `[x]`.
 3. Lee `progress/impl_<feature_name>.md` y extrae el mapa de trazabilidad.
 4. **Cruza**: ¿cada `R<n>` tiene al menos un test asociado? Si falta un `R<n>`, rechaza.
-5. Ejecuta `node init.mjs`. Si no está verde, rechaza.
+5. Para aprobar el cierre, ejecuta `node init-full.mjs`. Si falla, rechaza.
 6. Recorre los checkpoints C1-C6 y documenta el resultado.
 7. Escribe `progress/review_<feature_name>.md`:
 
@@ -111,7 +108,7 @@ APROBADO — la feature puede transicionar a `done`.
 
 Rechaza si:
 - Falta algún `R<n>` sin test asociado.
-- `node init.mjs` no está verde.
+- La verificación obligatoria del arnés no pasó.
 - Tasks sin `[x]` sin justificación documentada.
 - `console.log` de debug sin eliminar.
 - Archivos nuevos fuera de las capas definidas en `docs/architecture.md`.

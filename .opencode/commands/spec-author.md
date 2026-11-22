@@ -111,16 +111,13 @@ Reglas:
 
 ### 6. Actualizar `feature_list.json`
 
-Cambia el `status` de la feature a `"spec_ready"` en `feature_list.json`.
+Cambia solo la entrada de la feature asignada a `spec_ready` en el `feature_list.json` de su worktree.
 
-### 7. Actualizar `progress/current.md`
+### 7. Dejar el punto de reanudación
 
-Documenta en la bitácora:
-```markdown
-- Spec creado en `openspec/changes/<feature_name>/`
-- `R1`..`R<n>` redactados en EARS
-- `tasks.md` con N tareas mapeadas a requirements
-```
+En **Para retomar** de `progress/impl_<feature_name>.md`, enlaza la spec, indica
+qué se comprobó y deja como siguiente acción la revisión y aprobación humana.
+Preserva la evidencia anterior si la nota ya existe.
 
 ## Output
 

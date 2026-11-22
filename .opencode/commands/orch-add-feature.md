@@ -22,15 +22,15 @@ Manually launch a gated Research → Plan → TDD → Review → Commit pipeline
 
 ## Pipeline
 
-1. **Detectar el estado** de la feature en `feature_list.json`. Si no existe, clasificarla como nueva feature.
+1. **Arranque:** ejecuta `node init-quick.mjs`; confirma la feature y el worktree asignados, y consulta solo su entrada en `feature_list.json`. Si no existe, clasifícala como nueva feature.
 2. **Ruta según estado:**
    - `pending` → Lanzar `spec-author` (crea spec EARS en `openspec/changes/<name>/`, transiciona a `spec_ready`).
    - `spec_ready` → **PARAR.** La puerta de aprobación humana está cerrada. Decir: "Spec listo en `openspec/changes/<name>/`. Revísalo y di **'aprobado'** para continuar, o pídeme cambios."
-   - `in_progress` → Reanudar con `implementer`.
+   - `in_progress` → Consultar **Para retomar** en `progress/impl_<name>.md` y reanudar con `implementer` en el worktree asignado.
 3. **Spec → Aprobación humana (GATE 1):** Cuando el `spec-author` termina, la feature queda en `spec_ready`. El flujo se **detiene**. NO continuar sin que el humano diga "aprobado".
 4. **Implementación (post-aprobación):** El leader transiciona `spec_ready → in_progress` y lanza `implementer`. El implementer ejecuta `tasks.md` task por task (TDD: test primero → verde), marca `[x]`, escribe trazabilidad `R<n> → test` en `progress/impl_<name>.md`.
-5. **Review:** Al terminar el implementer, lanzar `reviewer`. El reviewer recorre `CHECKPOINTS.md`, verifica trazabilidad, tasks completas, y `node init.mjs` verde.
-6. **Cierre:** Si el reviewer aprueba, transicionar `in_progress → done`. Mover resumen a `progress/history.md`.
+5. **Review:** El `reviewer` aplica `CHECKPOINTS.md`, verifica trazabilidad y tareas, y ejecuta `node init-full.mjs` antes de aprobar el cierre.
+6. **Cierre:** Si la revisión está aprobada y la verificación completa pasó, marca solo la feature asignada como `done` y añade el resumen con evidencia al final de `progress/history.md`. Si queda pendiente, actualiza **Para retomar**.
 7. **Commit** como `feat:` convencional con mensaje descriptivo. → **GATE 2** — confirmar con usuario antes de commitear.
 
 ## Hard Gates
@@ -47,5 +47,5 @@ Cuando termines, reporta:
 - Spec en `openspec/changes/<name>/` (proposal + design + tasks)
 - Trazabilidad en `progress/impl_<name>.md`
 - Revisión en `progress/review_<name>.md`
-- Resultado de `node init.mjs`
+- Resultado de `node init-full.mjs` si se verificó el cierre
 - Commit hash y mensaje (si aplica)

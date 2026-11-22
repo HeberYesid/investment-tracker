@@ -12,20 +12,25 @@ task por task, siguiendo TDD estricto.
 
 ## Input
 
-El leader te pasa:
+El leader te pasa la feature asignada y su worktree:
 - `openspec/changes/<feature_name>/` — carpeta con `proposal.md`, `design.md`, `tasks.md`
 
 ## Protocolo de trabajo
 
 ### 1. Verificar punto de partida
 
-- Ejecuta `node init.mjs` para confirmar que el entorno está listo.
+- Trabaja solo en el worktree asignado. Ejecuta `node init-quick.mjs` y, antes de modificar código, `pnpm test:run` para conocer la línea base.
 - Lee el `proposal.md` completo (requirements EARS) y el `design.md`.
-- Crea `progress/impl_<feature_name>.md` con la plantilla:
+- Si la nota `progress/impl_<feature_name>.md` ya existe, lee **Para retomar** y conserva la evidencia previa. Si no, créala con esta plantilla:
   ```markdown
   # Implementación: <feature_name>
   - **Inicio:** <timestamp>
   - **Spec:** openspec/changes/<feature_name>/
+
+  ## Para retomar
+  - Verificado:
+  - Pendiente o bloqueo:
+  - Siguiente acción y autorización necesaria:
 
   ## Trazabilidad
   (se llena al avanzar)
@@ -64,7 +69,9 @@ Al completar todas las tasks:
 - `pnpm test:run` — todos los tests verdes.
 - `pnpm exec tsc --noEmit` — sin errores de tipo.
 - `pnpm build` — build de producción exitoso.
-- `node init.mjs` — [OK] Entorno listo.
+
+Si queda trabajo pendiente, actualiza **Para retomar** en la nota de la feature.
+El cierre con `node init-full.mjs` se comprueba en la revisión.
 
 ## Reglas duras
 
@@ -81,7 +88,7 @@ Al terminar, reporta al leader:
 - Número de tasks completadas.
 - Archivos creados / modificados.
 - Mapa de trazabilidad `R<n> → test`.
-- Resultado de `node init.mjs`.
+- Resultados de las verificaciones ejecutadas y qué queda pendiente, si aplica.
 
 El reporte completo queda en `progress/impl_<feature_name>.md`.
 
