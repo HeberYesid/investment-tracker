@@ -2,6 +2,7 @@ import { defineConfig, devices } from "playwright/test";
 
 const isCI = !!process.env.CI;
 const port = 3100;
+const appHost = process.env.CI_E2E_APP_HOST === "localhost" || process.env.FEE_E2E_LOCALHOST === "1" ? "localhost" : "127.0.0.1";
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -17,7 +18,7 @@ export default defineConfig({
     timeout: 180_000,
   },
   use: {
-    baseURL: `http://127.0.0.1:${port}`,
+    baseURL: `http://${appHost}:${port}`,
     trace: "off",
   },
   projects: [
