@@ -91,6 +91,16 @@ pnpm test:e2e
 pnpm build
 ```
 
+Al iniciar una sesión de trabajo, ejecuta `node init-quick.mjs` para revisar el entorno, los archivos base y las especificaciones requeridas. Antes de cerrar una feature, `node init-full.mjs` añade el escaneo de secretos y los tests unitarios. Consulta la [guía de verificación](docs/verification.md) para tipos, lint, build y pruebas de extremo a extremo.
+
+## Mapa del código
+
+- **Entrada y sesión:** [`src/app/`](src/app/) contiene las páginas, el callback de autenticación y las rutas HTTP. Empieza por la [portada](src/app/page.tsx) y sigue con la [resolución de sesión y portafolio](src/lib/supabase/auth.ts).
+- **Importación:** la [vista de importación](src/features/imports/import-page-client.tsx) envía el extracto a la [ruta de previsualización](src/app/api/v1/imports/csv/preview/route.ts). Los [parsers por bróker](src/lib/csv/parsers/) normalizan las filas. Tras revisar observaciones y resolver referencias ambiguas, la persona confirma las filas seleccionadas en la [ruta de confirmación](src/app/api/v1/imports/csv/commit/route.ts) y puede consultar el historial.
+- **Tablero:** el [cargador](src/lib/dashboard/loader.ts) obtiene operaciones y cotizaciones; los [cálculos](src/lib/calculations/) generan posiciones, valoración, evolución y rentabilidad; la [vista](src/features/dashboard/dashboard-view.tsx) presenta los resultados. Las [Edge Functions](supabase/functions/) actualizan precios y divisas sin cambiar las operaciones originales.
+
+Consulta la [arquitectura](docs/architecture.md) para el flujo de datos y las [migraciones](supabase/migrations/) para el esquema y los permisos. Antes de aplicar migraciones o habilitar la sincronización, confirma el entorno de destino y las credenciales.
+
 ## Database
 
 The foundation schema lives in `supabase/migrations/0001_foundation.sql`.

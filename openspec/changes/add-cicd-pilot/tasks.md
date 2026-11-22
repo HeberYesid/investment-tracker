@@ -11,6 +11,6 @@
 
 ## 3. Evidencia de GitHub y entrega
 
-- [x] 3.1 Ejecutar `node init.mjs`, lint, tipos, Vitest, build y E2E acotado; registrar trazabilidad requisito → prueba y resultados. R1–R5.
+- [x] 3.1 Ejecutar `node init-full.mjs`, lint, tipos, Vitest, build y E2E acotado; registrar trazabilidad requisito → prueba y resultados. R1–R5.
 - [x] 3.2 Con autorización específica, demostrar bloqueo por regresión y recuperación a verde en un PR de prueba. Sin autorización, dejar pendiente la evidencia remota. R5.
 - [ ] 3.3 Documentar `docs/cicd.md`. Con autorización específica, probar dos revisiones en entorno de prueba, registrar IDs/SHA y recuperar la anterior con smoke, sin tocar producción ni cambiar políticas de datos. R6.
