@@ -70,7 +70,8 @@ export async function getTrades() {
 
 ## Tests
 
-- **Unitarios:** Vitest con jsdom. Archivos `*.test.{ts,tsx}` en `src/` o `tests/`.
+- **Unitarios:** Vitest en `src/` o `tests/`. Los archivos `*.test.ts` usan Node;
+  los `*.test.tsx` usan jsdom y cargan los comparadores de `jest-dom`.
 - **E2E:** Playwright en `tests/e2e/`. Dev server en `127.0.0.1:3100`.
 - **Fixtures:** `tests/fixtures/csv/` para parsers CSV (un archivo por caso de prueba).
 - **Convenciones de nombres:**

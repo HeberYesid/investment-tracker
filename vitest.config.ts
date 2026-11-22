@@ -12,10 +12,26 @@ export default defineConfig({
     },
   },
   test: {
-    environment: "jsdom",
     globals: true,
-    setupFiles: ["./src/__tests__/setup.ts"],
-    include: ["src/**/*.test.{ts,tsx}", "tests/**/*.test.{ts,tsx}"],
     exclude: ["tests/e2e/**", "node_modules/**", ".opencode/**"],
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: "node",
+          environment: "node",
+          include: ["src/**/*.test.ts", "tests/**/*.test.ts"],
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: "dom",
+          environment: "jsdom",
+          setupFiles: ["./src/__tests__/setup.ts"],
+          include: ["src/**/*.test.tsx", "tests/**/*.test.tsx"],
+        },
+      },
+    ],
   },
 });

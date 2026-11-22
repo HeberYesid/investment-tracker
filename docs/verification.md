@@ -32,6 +32,16 @@ Toda función pública tiene al menos un test en `tests/` o `src/__tests__/` que
 pnpm test:run
 ```
 
+Durante el desarrollo, puedes filtrar por carpeta o archivo para verificar solo
+lo que estás cambiando. Por ejemplo:
+
+```bash
+pnpm test:run src/__tests__/calculations
+```
+
+El filtro no sustituye la suite completa: `node init-full.mjs` ejecuta
+`pnpm test:run` sin filtros antes de marcar una feature como `done`.
+
 ### Nivel 4 — Build (obligatorio)
 
 Verifica que el proyecto compila para producción:
@@ -67,7 +77,7 @@ El implementer documenta el mapa en `progress/impl_<name>.md`:
 Las migraciones se validan con smoke tests en PGlite:
 
 ```bash
-pnpm test:run -- --testPathPattern="schema"
+pnpm test:run src/__tests__/migrations
 ```
 
 La migración `0001_foundation.sql` es inmutable. Cambios al schema → nueva `000N_*.sql`.

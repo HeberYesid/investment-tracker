@@ -52,8 +52,7 @@ const publicTables = [
   "audit_events",
 ];
 
-async function applyMigrations() {
-  const db = new PGlite();
+async function applyMigrations(db: PGlite) {
   await db.exec(`
     create schema if not exists auth;
     create schema if not exists extensions;
@@ -162,8 +161,22 @@ async function applyMigrations() {
   }
 
   await db.exec(readFileSync(path.join(migrationsDir, "0016_market_sync_failed_assets.sql"), "utf8"));
-  return db;
 }
+
+const itWithDb = it
+  .extend("isolatedDb", async ({}, { onCleanup }) => {
+    const db = new PGlite();
+    onCleanup(() => db.close());
+    await applyMigrations(db);
+    return db;
+  })
+  .extend("readOnlyDb", { scope: "file" }, async ({}, { onCleanup }) => {
+    const db = new PGlite();
+    onCleanup(() => db.close());
+    await applyMigrations(db);
+    await db.exec("set default_transaction_read_only = on;");
+    return { query: db.query.bind(db) };
+  });
 
 async function fileExists(filePath: string) {
   try {
@@ -178,43 +191,44 @@ async function fileExists(filePath: string) {
 describe("foundation migration", () => {
   const foundationSql = readFileSync(foundationPath, "utf8").toLowerCase();
 
-  it("bd_admite_fee_cero_sin_reescribir_legado", { timeout: 30_000 }, async () => {
-    const db = await applyMigrations();
-    try {
-      await db.exec(`
-        with fixture_portfolio as (
-          insert into public.portfolios (name) values ('Prueba de cantidad') returning id
-        ), fixture_asset as (
-          insert into public.assets (ticker, asset_type) values ('QTYTEST', 'STOCK') returning id
-        )
-        insert into public.trades (
-          portfolio_id, broker_id, asset_id, trade_date, trade_type, quantity,
-          price_original, currency_original, price_usd, total_invested_usd, source
-        )
-        select p.id, b.id, a.id, v.trade_date, v.trade_type, v.quantity, 0, 'USD', 0, 0, 'MANUAL'
-        from fixture_portfolio p cross join fixture_asset a cross join public.brokers b
-        cross join (values (date '2026-01-01', 'FEE', 1), (date '2026-01-02', 'FEE', 0),
-                           (date '2026-01-03', 'BUY', 0.00000001)) as v(trade_date, trade_type, quantity)
-        where b.code = 'ETORO';
-      `);
-      const liveTrades = await db.query<{ id: string; trade_type: string; quantity: string }>(`
-        select id, trade_type, quantity::text from public.trades
-        where deleted_at is null order by trade_date
-      `);
-      expect(liveTrades.rows).toEqual([
-        { id: expect.any(String), trade_type: "FEE", quantity: "1.00000000" },
-        { id: expect.any(String), trade_type: "FEE", quantity: "0.00000000" },
-        { id: expect.any(String), trade_type: "BUY", quantity: "0.00000001" },
-      ]);
-      const legacy = liveTrades.rows[0];
-      const deleted = await db.query(`
-        update public.trades set deleted_at = now() where id = $1 and deleted_at is null
-        returning id, trade_type, quantity::text, deleted_at is not null as deleted
-      `, [legacy.id]);
-      expect(deleted.rows).toEqual([{ ...legacy, deleted: true }]);
-    } finally {
-      await db.close();
-    }
+  itWithDb("la base compartida rechaza escrituras", { timeout: 30_000 }, async ({ readOnlyDb: db }) => {
+    await expect(
+      db.query("delete from public.market_sync_runs where false;"),
+    ).rejects.toMatchObject({ code: "25006" });
+  });
+
+  itWithDb("bd_admite_fee_cero_sin_reescribir_legado", { timeout: 30_000 }, async ({ isolatedDb: db }) => {
+    await db.exec(`
+      with fixture_portfolio as (
+        insert into public.portfolios (name) values ('Prueba de cantidad') returning id
+      ), fixture_asset as (
+        insert into public.assets (ticker, asset_type) values ('QTYTEST', 'STOCK') returning id
+      )
+      insert into public.trades (
+        portfolio_id, broker_id, asset_id, trade_date, trade_type, quantity,
+        price_original, currency_original, price_usd, total_invested_usd, source
+      )
+      select p.id, b.id, a.id, v.trade_date, v.trade_type, v.quantity, 0, 'USD', 0, 0, 'MANUAL'
+      from fixture_portfolio p cross join fixture_asset a cross join public.brokers b
+      cross join (values (date '2026-01-01', 'FEE', 1), (date '2026-01-02', 'FEE', 0),
+                         (date '2026-01-03', 'BUY', 0.00000001)) as v(trade_date, trade_type, quantity)
+      where b.code = 'ETORO';
+    `);
+    const liveTrades = await db.query<{ id: string; trade_type: string; quantity: string }>(`
+      select id, trade_type, quantity::text from public.trades
+      where deleted_at is null order by trade_date
+    `);
+    expect(liveTrades.rows).toEqual([
+      { id: expect.any(String), trade_type: "FEE", quantity: "1.00000000" },
+      { id: expect.any(String), trade_type: "FEE", quantity: "0.00000000" },
+      { id: expect.any(String), trade_type: "BUY", quantity: "0.00000001" },
+    ]);
+    const legacy = liveTrades.rows[0];
+    const deleted = await db.query(`
+      update public.trades set deleted_at = now() where id = $1 and deleted_at is null
+      returning id, trade_type, quantity::text, deleted_at is not null as deleted
+    `, [legacy.id]);
+    expect(deleted.rows).toEqual([{ ...legacy, deleted: true }]);
   });
 
   it("enables row level security on every public table", () => {
@@ -238,9 +252,7 @@ describe("foundation migration", () => {
     );
   });
 
-  it("applies the schema DDL and creates the expected public schema", { timeout: 30_000 }, async () => {
-    const db = await applyMigrations();
-
+  itWithDb("applies the schema DDL and creates the expected public schema", { timeout: 30_000 }, async ({ readOnlyDb: db }) => {
     const tables = await db.query<{ table_name: string }>(`
       select table_name
       from information_schema.tables
@@ -321,9 +333,7 @@ describe("0003 auth and permissions migration", () => {
     expect(authSql).toContain("owners can insert trades");
   });
 
-  it("applies cleanly to a PGlite database with stubbed auth", async () => {
-    const db = await applyMigrations();
-
+  itWithDb("applies cleanly to a PGlite database with stubbed auth", async ({ readOnlyDb: db }) => {
     const functions = await db.query<{ proname: string }>(`
       select proname
       from pg_proc
@@ -394,9 +404,7 @@ describe("0004 market data sync migration", () => {
     expect(marketDataSql).toMatch(/enqueue_sync_run\('FX'\)/i);
   });
 
-  it("applies cleanly to a PGlite database with stubbed auth", async () => {
-    const db = await applyMigrations();
-
+  itWithDb("applies cleanly to a PGlite database with stubbed auth", async ({ readOnlyDb: db }) => {
     const benchmark = await db.query<{ ticker: string; yahoo_symbol: string | null }>(`
       select ticker, yahoo_symbol
       from public.assets
@@ -466,9 +474,7 @@ describe("0005 sync settings migration", () => {
     expect(syncSettingsSql).not.toContain("current_setting('app.edge_function_base'");
   });
 
-  it("applies cleanly to a PGlite database with stubbed auth", async () => {
-    const db = await applyMigrations();
-
+  itWithDb("applies cleanly to a PGlite database with stubbed auth", async ({ readOnlyDb: db }) => {
     const settings = await db.query<{ table_name: string }>(`
       select table_name
       from information_schema.tables
@@ -498,17 +504,13 @@ describe("0005 sync settings migration", () => {
     expect(enqueue.rows).toHaveLength(1);
   });
 
-  it("raises a clear error when EDGE_FUNCTION_BASE is missing", async () => {
-    const db = await applyMigrations();
-
+  itWithDb("raises a clear error when EDGE_FUNCTION_BASE is missing", async ({ isolatedDb: db }) => {
     await expect(
       db.query(`select public.enqueue_sync_run('PRICES');`),
     ).rejects.toThrow("EDGE_FUNCTION_BASE");
   });
 
-  it("raises a clear error when SUPABASE_ANON_KEY is missing", async () => {
-    const db = await applyMigrations();
-
+  itWithDb("raises a clear error when SUPABASE_ANON_KEY is missing", async ({ isolatedDb: db }) => {
     await db.exec(`
       insert into public.sync_settings (key, value)
       values ('EDGE_FUNCTION_BASE', 'https://example.supabase.co');
@@ -519,9 +521,7 @@ describe("0005 sync settings migration", () => {
     ).rejects.toThrow("SUPABASE_ANON_KEY");
   });
 
-  it("returns a run id when both EDGE_FUNCTION_BASE and SUPABASE_ANON_KEY are configured", async () => {
-    const db = await applyMigrations();
-
+  itWithDb("returns a run id when both EDGE_FUNCTION_BASE and SUPABASE_ANON_KEY are configured", async ({ isolatedDb: db }) => {
     await db.exec(`
       insert into public.sync_settings (key, value) values
         ('EDGE_FUNCTION_BASE', 'https://example.supabase.co'),
@@ -539,8 +539,7 @@ describe("0005 sync settings migration", () => {
   });
 });
 
-it("conserva las fuentes históricas y admite STOOQ sin una migración nueva", async () => {
-  const db = await applyMigrations();
+itWithDb("conserva las fuentes históricas y admite STOOQ sin una migración nueva", async ({ isolatedDb: db }) => {
   await db.exec(`
     insert into public.assets (id, ticker, asset_type, currency)
     values ('44444444-4444-4444-4444-444444444444', 'AAPL', 'STOCK', 'USD');
@@ -561,8 +560,7 @@ it("conserva las fuentes históricas y admite STOOQ sin una migración nueva", a
   ]);
 });
 
-it("expone la fuente de la última cotización sin exponer los diagnósticos privados", async () => {
-  const db = await applyMigrations();
+itWithDb("expone la fuente de la última cotización sin exponer los diagnósticos privados", async ({ isolatedDb: db }) => {
   await db.exec(`
     insert into public.assets (id, ticker, asset_type, currency)
       values ('44444444-4444-4444-4444-444444444444', 'AAPL', 'STOCK', 'USD');
@@ -580,7 +578,6 @@ it("expone la fuente de la última cotización sin exponer los diagnósticos pri
   } catch (error) {
     expect(error).toMatchObject({ code: "42501" });
   }
-  await db.close();
 });
 
 describe("0007 performance indexes migration", () => {
@@ -609,9 +606,7 @@ describe("0007 performance indexes migration", () => {
     expect(performanceSql).toContain("language sql");
   });
 
-  it("applies cleanly to a PGlite database with stubbed auth", async () => {
-    const db = await applyMigrations();
-
+  itWithDb("applies cleanly to a PGlite database with stubbed auth", async ({ readOnlyDb: db }) => {
     const fn = await db.query<{ proname: string }>(`
       select proname
       from pg_proc
@@ -622,9 +617,7 @@ describe("0007 performance indexes migration", () => {
     expect(fn.rows).toHaveLength(1);
   });
 
-  it("returns the latest non-delayed price per asset", async () => {
-    const db = await applyMigrations();
-
+  itWithDb("returns the latest non-delayed price per asset", async ({ isolatedDb: db }) => {
     await db.exec(`
       insert into public.assets (id, ticker, asset_type, currency)
       values
@@ -660,9 +653,7 @@ describe("0007 performance indexes migration", () => {
     expect(Number(result.rows[1].price_usd)).toBe(20);
   });
 
-  it("excludes delayed prices", async () => {
-    const db = await applyMigrations();
-
+  itWithDb("excludes delayed prices", async ({ isolatedDb: db }) => {
     await db.exec(`
       insert into public.assets (id, ticker, asset_type, currency)
       values ('33333333-3333-3333-3333-333333333333', 'CCC', 'STOCK', 'USD');
@@ -684,9 +675,7 @@ describe("0007 performance indexes migration", () => {
     expect(Number(result.rows[0].price_usd)).toBe(28);
   });
 
-  it("returns no rows for an empty asset list", async () => {
-    const db = await applyMigrations();
-
+  itWithDb("returns no rows for an empty asset list", async ({ readOnlyDb: db }) => {
     const result = await db.query(`
       select * from public.get_latest_market_prices(array[]::uuid[]);
     `);
@@ -798,9 +787,7 @@ describe("0009 role-aware trades and imports RLS migration", () => {
     expect(rlsSql).not.toMatch(/grant\s+select.*on\s+table\s+auth\.users/i);
   });
 
-  it("applies cleanly to a PGlite database with stubbed auth", async () => {
-    const db = await applyMigrations();
-
+  itWithDb("applies cleanly to a PGlite database with stubbed auth", async ({ readOnlyDb: db }) => {
     const functions = await db.query<{ proname: string }>(`
       select proname
       from pg_proc
@@ -862,9 +849,7 @@ describe("0010 asset price history migration", () => {
     expect(assetPriceHistorySql).toContain("pg_namespace");
   });
 
-  it("applies cleanly to a PGlite database with stubbed auth", async () => {
-    const db = await applyMigrations();
-
+  itWithDb("applies cleanly to a PGlite database with stubbed auth", async ({ readOnlyDb: db }) => {
     const kindCheck = await db.query<{ conname: string; consrc: string }>(`
       select conname, pg_get_constraintdef(oid) as consrc
       from pg_constraint
@@ -883,9 +868,7 @@ describe("0010 asset price history migration", () => {
     );
   });
 
-  it("accepts a PRICES_HISTORY run via enqueue_sync_run when settings exist", async () => {
-    const db = await applyMigrations();
-
+  itWithDb("accepts a PRICES_HISTORY run via enqueue_sync_run when settings exist", async ({ isolatedDb: db }) => {
     await db.exec(`
       insert into public.sync_settings (key, value) values
         ('EDGE_FUNCTION_BASE', 'https://example.supabase.co'),
@@ -951,9 +934,7 @@ describe("0011 sync extensions and freshness migration", () => {
     );
   });
 
-  it("applies cleanly to a PGlite database and exposes the freshness function", { timeout: 30_000 }, async () => {
-    const db = await applyMigrations();
-
+  itWithDb("applies cleanly to a PGlite database and exposes the freshness function", { timeout: 30_000 }, async ({ readOnlyDb: db }) => {
     const functions = await db.query<{ proname: string }>(`
       select proname
       from pg_proc
