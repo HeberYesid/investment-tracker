@@ -2,6 +2,14 @@
 
 Mobile-first web application for tracking investments across eToro, XTB, Trii, and eTrading Bancolombia with USD as base currency.
 
+## Enfoque del proyecto
+
+La prioridad es que la app funcione primero como **herramienta personal y privada**: importar extractos de los brókeres que uso, revisar cada portafolio y conciliar el total en COP y USD. La dirección elegida es que los movimientos se procesen y se guarden en el dispositivo, con un respaldo cifrado que se pueda restaurar sin cuenta.
+
+**Ese modo local todavía no está implementado.** El flujo actual usa Supabase para guardar operaciones y datos de la vista previa de las importaciones. Ejecutar la app en `localhost` no evita el envío si se configura un Supabase remoto.
+
+Más adelante, la app puede convertirse en un producto público si el uso personal demuestra que resuelve bien el problema y otras personas con varios brókeres muestran interés sostenido. Por ahora no se priorizan el registro público ni la sincronización de portafolios entre dispositivos. Consulta la [investigación de demanda y alternativas](docs/investigacion-demanda-portafolios.md).
+
 ## Getting Started
 
 Usa Node.js 22 o superior y pnpm 11.5.2 (`package.json`). Desde la raíz, instala las dependencias del lockfile:

@@ -4,6 +4,10 @@
 > Los agentes revisores evalúan código contra este archivo.
 > Si no está aquí, no es un requisito.
 
+## Decisiones y límites
+
+El [registro de decisiones (ADR)](adr/README.md) recoge el contexto y las alternativas. La [prioridad de uso personal](adr/013-uso-personal.md) orienta el trabajo futuro; esta página describe la arquitectura actual, que todavía persiste datos en Supabase.
+
 ## Principios
 
 1. **Capas claras.** El proyecto tiene cuatro capas y solo cuatro:
