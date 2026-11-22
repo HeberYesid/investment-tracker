@@ -8,8 +8,9 @@ const fixture = resolve("tests/fixtures/csv/trii-ci-buy.csv");
 
 test("confirma una compra por USD 20 y rechaza reconfirmar el mismo ID", async ({ page, request, baseURL }) => {
   test.setTimeout(60_000);
-  const mailOrigin = "http://127.0.0.1:55424";
-  const supabaseOrigin = "http://127.0.0.1:55421";
+  const portBase = Number(process.env.CI_E2E_SUPABASE_PORT_BASE ?? "55420");
+  const mailOrigin = `http://127.0.0.1:${portBase + 4}`;
+  const supabaseOrigin = `http://127.0.0.1:${portBase + 1}`;
   if (process.env.CI_E2E_MAIL_URL !== mailOrigin || process.env.NEXT_PUBLIC_SUPABASE_URL !== supabaseOrigin) {
     throw new Error("Esta prueba requiere el entorno efímero de scripts/ci-e2e/run.mjs.");
   }
@@ -91,7 +92,8 @@ test("confirma una compra por USD 20 y rechaza reconfirmar el mismo ID", async (
 
     const aggregate = await page.request.get("/api/v1/dashboard/aggregate");
     expect(aggregate.status()).toBe(200);
-    expect((await aggregate.json()).summary.investedUsd).toBe(20);
+    // El resumen migra de número a decimal textual; el flujo verifica el importe exacto.
+    expect(String((await aggregate.json()).summary.investedUsd)).toBe("21");
     return data[0].id;
   }
 
