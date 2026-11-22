@@ -3,6 +3,7 @@ export type MarketPriceRow = {
   price_usd: number;
   observed_at: string;
   delayed_until: string | null;
+  source?: string;
 };
 
 export type ResolvedPrice = {

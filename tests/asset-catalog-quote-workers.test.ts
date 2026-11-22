@@ -119,7 +119,7 @@ describe("fallback de cotizaciones en sync-prices", () => {
   }] } });
 
   it("intenta Stooq una vez tras un 429 de Yahoo y guarda la fuente efectiva", async () => {
-    const { inserts } = workerFixture("PRICES", false, holdings);
+    const { inserts, runs } = workerFixture("PRICES", false, holdings);
     fetchMock.mockImplementation(async (input) => {
       const url = new URL(String(input));
       if (url.hostname === "stooq.com") {
@@ -134,6 +134,7 @@ describe("fallback de cotizaciones en sync-prices", () => {
     expect(response.status).toBe(200);
     const stooqRequests = fetchMock.mock.calls.map(([url]) => new URL(String(url))).filter((url) => url.hostname === "stooq.com");
     expect(stooqRequests.map((url) => url.searchParams.get("s"))).toEqual(["aapl.us"]);
+    expect(runs[0]).toMatchObject({ error: "yahoo_ok=2,stooq_fallback=1", failed_assets: {} });
     expect(inserts).toEqual(expect.arrayContaining([
       { table: "market_prices", values: expect.objectContaining({ asset_id: "apple", price_usd: 192.4, source: "STOOQ", observed_at: "2026-06-17T21:00:00.000Z" }) },
       { table: "market_prices", values: expect.objectContaining({ asset_id: "microsoft", price_usd: 200, source: "YAHOO" }) },
@@ -142,7 +143,7 @@ describe("fallback de cotizaciones en sync-prices", () => {
 
   it.each([429, 200])("conserva la cotización anterior y sigue el lote si Stooq falla (%i)", async (status) => {
     const previous = { asset_id: "apple", price_usd: 191, source: "YAHOO", observed_at: "2026-06-16T20:00:00Z" };
-    const { cachedPrices } = workerFixture("PRICES", false, holdings, [{ ...previous }]);
+    const { cachedPrices, runs } = workerFixture("PRICES", false, holdings, [{ ...previous }]);
     fetchMock.mockImplementation(async (input) => {
       const url = new URL(String(input));
       if (url.hostname === "stooq.com") return new Response("CSV inválido", { status });
@@ -155,6 +156,7 @@ describe("fallback de cotizaciones en sync-prices", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ errors: [{ symbol: "AAPL", message: "Yahoo: 429 for AAPL" }] });
     expect(cachedPrices.filter((row) => row.asset_id === "apple")).toEqual([previous]);
+    expect(runs[0]).toMatchObject({ failed_assets: { apple: "RATE_LIMITED" } });
     expect(cachedPrices).toContainEqual(expect.objectContaining({ asset_id: "microsoft", source: "YAHOO" }));
   });
 

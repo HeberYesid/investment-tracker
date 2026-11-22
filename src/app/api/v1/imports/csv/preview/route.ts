@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
       if (!Number.isNaN(fxRate) && fxRate > 0) {
         const fxRateToUsd = 1 / fxRate;
         for (const trade of parsedTrades) {
-          if (trade.currency_original === "COP") {
+          if (!("issue" in trade) && trade.currency_original === "COP") {
             trade.fx_rate_to_usd = fxRateToUsd;
           }
         }
@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
     }
 
     for (const trade of parsedTrades) {
-      if (trade.currency_original === "USD" && trade.fx_rate_to_usd === 0) {
+      if (!("issue" in trade) && trade.currency_original === "USD" && trade.fx_rate_to_usd === 0) {
         trade.fx_rate_to_usd = 1;
       }
     }

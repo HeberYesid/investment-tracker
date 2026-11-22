@@ -61,7 +61,7 @@ export function useAdvancedData(initial: AdvancedPayload): AdvancedDataState {
     setError(null);
     try {
       const aggregate = await fetchJson<DashboardAggregate>(
-        "/api/v1/dashboard/aggregate?granularity=monthly&groupBy=month&dim=broker",
+        "/api/v1/dashboard/aggregate?granularity=monthly&groupBy=stock&dim=broker",
         controller.signal,
       );
       setPayload(fromAggregate(aggregate));

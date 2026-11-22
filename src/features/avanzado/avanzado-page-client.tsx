@@ -90,7 +90,7 @@ export function AvanzadoPageClient({
   }
 
   const isEmpty =
-    payload.summary !== null && payload.summary.holdingsCount === 0;
+    payload.summary?.hasActiveTrades === false && payload.summary.ledgerStatus === "complete";
 
   if (isEmpty) {
     return (

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
 import { NextRequest } from "next/server";
+import { revalidatePath, revalidateTag } from "next/cache";
 
 import { serializeTradeDTO, UpdateTradeInput } from "@/lib/validations/trades";
 
@@ -27,7 +28,8 @@ const mockTrade = {
 
 type MockBuilder = Record<string, Mock>;
 
-const queuedResults: Record<string, unknown>[] = [];
+type MockResult = Record<string, unknown>;
+const queuedResults: (MockResult | ((builder: MockBuilder) => MockResult))[] = [];
 const builders: MockBuilder[] = [];
 
 function createBuilder(): MockBuilder {
@@ -39,7 +41,10 @@ function createBuilder(): MockBuilder {
   for (const method of chainMethods) {
     builder[method] = vi.fn().mockReturnValue(builder);
   }
-  builder.then = vi.fn((resolve: (v: unknown) => void) => resolve(queuedResults.shift()));
+  builder.then = vi.fn((resolve: (v: unknown) => void) => {
+    const result = queuedResults.shift();
+    resolve(typeof result === "function" ? result(builder) : result);
+  });
   builders.push(builder);
   return builder;
 }
@@ -104,6 +109,48 @@ beforeEach(() => {
 });
 
 describe("POST /api/v1/trades", () => {
+  describe("post_fee_valida_cantidad_antes_de_catalogo_y_escrituras", () => {
+    it("guarda cero numérico y USD 2 para una comisión independiente", async () => {
+      const stored = { ...mockTrade, trade_type: "FEE", quantity: 0,
+        commission_usd: 2, total_invested_usd: 2 };
+      queuedResults.push({ data: { id: mockTrade.broker_id }, error: null },
+        { data: stored, error: null }, { data: null, error: null });
+      const response = await POST(new NextRequest("http://localhost/api/v1/trades", {
+        method: "POST",
+        body: JSON.stringify({ ...validTradeInput, trade_type: "FEE", quantity: 0,
+          price_original: "0", commission_original: "2" }),
+      }));
+
+      expect(response.status).toBe(201);
+      expect(await response.json()).toMatchObject({ quantity: 0, commission_usd: "2", total_invested_usd: "2" });
+      expect(mockSupabase.rpc).toHaveBeenCalledWith("resolve_asset_references", expect.objectContaining({
+        p_portfolio_id: mockTrade.portfolio_id,
+      }));
+      expect(builders[1].insert).toHaveBeenCalledWith(expect.objectContaining({
+        portfolio_id: mockTrade.portfolio_id, asset_id: mockTrade.asset_id, trade_type: "FEE", quantity: 0,
+        commission_original: 2, commission_usd: 2, total_invested_usd: 2,
+      }));
+    });
+
+    it.each([
+      ["FEE", 1], ["FEE", "0"], ["FEE", null], ["FEE", undefined], ["FEE", 1e-9],
+      ["BUY", 0], ["SELL", 1e-9],
+    ])("rechaza %s con cantidad %s antes de efectos", async (trade_type, quantity) => {
+      const response = await POST(new NextRequest("http://localhost/api/v1/trades", {
+        method: "POST",
+        body: JSON.stringify({ ...validTradeInput, trade_type, quantity }),
+      }));
+      expect(response.status).toBe(422);
+      expect(await response.json()).toMatchObject({ error: { details: expect.arrayContaining([
+        expect.objectContaining({ path: ["quantity"] }),
+      ]) } });
+      expect(mockSupabase.rpc).not.toHaveBeenCalled();
+      expect(mockSupabase.from).not.toHaveBeenCalled();
+      expect(revalidatePath).not.toHaveBeenCalled();
+      expect(revalidateTag).not.toHaveBeenCalled();
+    });
+  });
+
   it("rechaza la cotización USD→COP usada como multiplicador COP→USD", async () => {
     const response = await POST(new NextRequest("http://localhost/api/v1/trades", {
       method: "POST",
@@ -318,6 +365,103 @@ it("el lote excluye IDs de otro portafolio y cuenta solo las filas escritas", as
 
 describe("PATCH /api/v1/trades/:id", () => {
   const tradeId = "550e8400-e29b-41d4-a716-446655440003";
+
+  describe("patch_valida_el_par_efectivo_y_la_version_leida", () => {
+    const buy = { ...mockTrade, quantity: 1 };
+    const fee = { ...mockTrade, trade_type: "FEE", quantity: 0, commission_original: 2 };
+    const legacy = { ...fee, quantity: 1 };
+    const patch = (input: Record<string, unknown>) => PATCH(new NextRequest(
+      `http://localhost/api/v1/trades/${tradeId}`, { method: "PATCH", body: JSON.stringify(input) },
+    ), { params: Promise.resolve({ id: tradeId }) });
+
+    it.each([
+      { existing: buy, input: { trade_type: "FEE" } },
+      { existing: fee, input: { trade_type: "BUY" } },
+      { existing: buy, input: { quantity: 0 } },
+      { existing: fee, input: { quantity: 1 } },
+      { existing: legacy, input: { trade_date: "2025-01-20" } },
+      { existing: buy, input: { quantity: 1e-9 } },
+      ...["SELL", "DIVIDEND", "TRANSFER_IN", "TRANSFER_OUT"].flatMap((type) => [
+        { existing: fee, input: { trade_type: type } },
+        { existing: { ...buy, trade_type: type }, input: { quantity: 0 } },
+      ]),
+    ])("rechaza la combinación efectiva incompatible %#", async ({ existing, input }) => {
+      queuedResults.push({ data: existing, error: null });
+      const response = await patch(input);
+      expect(response.status).toBe(422);
+      expect(await response.json()).toMatchObject({ error: { details: expect.arrayContaining([
+        expect.objectContaining({ path: ["quantity"] }),
+      ]) } });
+      expect(mockSupabase.from.mock.calls).toEqual([["trades"]]);
+      expect(builders[0].update).not.toHaveBeenCalled();
+      expect(revalidatePath).not.toHaveBeenCalled();
+      expect(revalidateTag).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      { existing: fee, input: { trade_date: "2025-01-20" }, expected: { trade_type: "FEE", quantity: 0 } },
+      { existing: { ...fee, quantity: "0.00000000" }, input: { commission_original: "3" },
+        expected: { trade_type: "FEE", quantity: 0, total_invested_usd: 3 } },
+      { existing: buy, input: { trade_type: "FEE", quantity: 0 },
+        expected: { trade_type: "FEE", quantity: 0, total_invested_usd: 5 } },
+      { existing: fee, input: { trade_type: "BUY", quantity: 0.25 },
+        expected: { trade_type: "BUY", quantity: 0.25, total_invested_usd: 27 } },
+      { existing: legacy, input: { quantity: 0 },
+        expected: { trade_type: "FEE", quantity: 0, total_invested_usd: 2 } },
+      { existing: buy, input: { trade_type: "SELL" }, expected: { trade_type: "SELL", quantity: 1 } },
+    ])("guarda y audita el par válido %#", async ({ existing, input, expected }) => {
+      let stored: MockResult | undefined;
+      queuedResults.push({ data: existing, error: null }, (builder) => {
+        stored = { ...existing, quantity: Number(existing.quantity), ...builder.update.mock.calls[0][0] };
+        return { data: stored, error: null };
+      }, { data: null, error: null });
+      const response = await patch(input);
+      expect(response.status).toBe(200);
+      expect(stored).toMatchObject(expected);
+      expect(builders[2].insert).toHaveBeenCalledWith(expect.objectContaining({
+        action: "UPDATE", before_json: existing, after_json: stored,
+      }));
+    });
+
+    it("no confunde un string recibido por PATCH con el valor numérico de base", async () => {
+      const response = await patch({ quantity: "0" });
+      expect(response.status).toBe(422);
+      expect(mockSupabase.from).not.toHaveBeenCalled();
+    });
+
+    it("devuelve 404 para una fila fuera del portafolio activo", async () => {
+      queuedResults.push((builder) => {
+        expect(builder.eq.mock.calls).toEqual([["id", tradeId], ["portfolio_id", mockTrade.portfolio_id]]);
+        expect(builder.is).toHaveBeenCalledWith("deleted_at", null);
+        return { data: null, error: null };
+      });
+      expect((await patch({ quantity: 1 })).status).toBe(404);
+      expect(mockSupabase.from.mock.calls).toEqual([["trades"]]);
+    });
+
+    it.each([
+      { trade_type: "SELL" }, { quantity: 2 }, { updated_at: "2024-01-20T10:00:00Z" },
+    ])("devuelve 409 cuando otra edición cambia %o entre lectura y escritura", async (change) => {
+      let row: MockResult = { ...buy };
+      queuedResults.push(() => {
+        const read = row;
+        row = { ...row, ...change };
+        return { data: read, error: null };
+      }, (builder) => {
+        const matches = builder.eq.mock.calls.every(([column, value]) => row[column] === value);
+        if (matches) row = { ...row, ...builder.update.mock.calls[0][0] };
+        return { data: matches ? row : null, error: null };
+      });
+      const response = await patch({ commission_original: "7" });
+      expect(response.status).toBe(409);
+      expect(await response.json()).toMatchObject({ error: { code: "CONFLICT", message: expect.stringMatching(/recarga/i) } });
+      expect(row).toEqual({ ...buy, ...change });
+      expect(builders[1].is).toHaveBeenCalledWith("deleted_at", null);
+      expect(mockSupabase.from.mock.calls).toEqual([["trades"], ["trades"]]);
+      expect(revalidatePath).not.toHaveBeenCalled();
+      expect(revalidateTag).not.toHaveBeenCalled();
+    });
+  });
 
   it("no declara el portafolio como campo editable", () => {
     expect(UpdateTradeInput.shape).not.toHaveProperty("portfolio_id");

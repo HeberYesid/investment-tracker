@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { TradeForm, type TradeFormValues } from "./trade-form";
+import { getTradeLabels } from "@/lib/i18n/trades";
 
 const initialData = {
   trade_date: "2025-01-15",
@@ -23,6 +24,71 @@ function quote() {
 }
 
 afterEach(() => vi.unstubAllGlobals());
+
+describe("formulario_fee_exige_cero_sin_resetear_cantidad", () => {
+  const labels = getTradeLabels();
+
+  it("en alta exige un cero ingresado, conserva la referencia y envía un número", async () => {
+    const submit = vi.fn();
+    render(<TradeForm mode="create" initialData={{ ...initialData, quantity: undefined }} onSubmit={submit} />);
+    const quantity = screen.getByLabelText(labels.quantity);
+    fireEvent.change(screen.getByLabelText(labels.tradeType), { target: { value: "FEE" } });
+    expect(quantity).toHaveValue(null);
+    expect(quantity).toHaveAccessibleDescription(labels.feeQuantityZero);
+
+    const reference = screen.getByLabelText("Referencia del instrumento");
+    expect(reference).toBeInvalid();
+    fireEvent.change(reference, { target: { value: "new" } });
+    fireEvent.change(screen.getByLabelText("Mercado"), { target: { value: "BVC" } });
+    fireEvent.change(screen.getByLabelText("Moneda de cotización"), { target: { value: "COP" } });
+    fireEvent.change(screen.getByLabelText("Tipo de instrumento"), { target: { value: "STOCK" } });
+    const save = screen.getByRole("button", { name: labels.save });
+    fireEvent.click(save);
+    expect(await screen.findByText(labels.quantityNumberRequired)).toBeVisible();
+    expect(quantity).toHaveAttribute("aria-invalid", "true");
+    expect(quantity).toHaveFocus();
+    expect(submit).not.toHaveBeenCalled();
+
+    fireEvent.change(quantity, { target: { value: "0" } });
+    fireEvent.click(save);
+    await waitFor(() => expect(submit).toHaveBeenCalledWith(expect.objectContaining({
+      trade_type: "FEE", quantity: 0, asset_reference: { kind: "new", exchange: "BVC", currency: "COP", asset_type: "STOCK" },
+    })));
+  });
+
+  it("en edición no muta una comisión histórica ni resetea cantidad al cambiar de tipo", async () => {
+    const submit = vi.fn();
+    render(<TradeForm mode="edit" initialData={{ ...initialData, trade_type: "FEE" }} onSubmit={submit} />);
+    const quantity = screen.getByLabelText(labels.quantity);
+    const type = screen.getByLabelText(labels.tradeType);
+    const save = screen.getByRole("button", { name: labels.save });
+    expect(quantity).toHaveValue(1);
+    expect(quantity).toHaveAttribute("aria-invalid", "false");
+    fireEvent.click(save);
+    await waitFor(() => expect(quantity).toHaveAttribute("aria-invalid", "true"));
+    expect(submit).not.toHaveBeenCalled();
+    fireEvent.change(type, { target: { value: "BUY" } });
+    expect(quantity).toHaveValue(1);
+    fireEvent.change(type, { target: { value: "FEE" } });
+    expect(quantity).toHaveValue(1);
+    fireEvent.change(quantity, { target: { value: "0" } });
+    fireEvent.click(save);
+    await waitFor(() => expect(submit).toHaveBeenCalledWith(expect.objectContaining({ trade_type: "FEE", quantity: 0 })));
+  });
+
+  it.each(["BUY", "SELL", "DIVIDEND", "TRANSFER_IN", "TRANSFER_OUT"] as const)("%s rechaza cero y acepta una fracción", async (trade_type) => {
+    const submit = vi.fn();
+    render(<TradeForm mode="edit" initialData={{ ...initialData, trade_type, quantity: 0 }} onSubmit={submit} />);
+    const quantity = screen.getByLabelText(labels.quantity);
+    const save = screen.getByRole("button", { name: labels.save });
+    fireEvent.click(save);
+    expect(await screen.findByText(labels.quantityPositiveAtScale)).toBeVisible();
+    expect(submit).not.toHaveBeenCalled();
+    fireEvent.change(quantity, { target: { value: "0.25" } });
+    fireEvent.click(save);
+    await waitFor(() => expect(submit).toHaveBeenCalledWith(expect.objectContaining({ trade_type, quantity: 0.25 })));
+  });
+});
 
 describe("tasa de cambio del formulario de operaciones", () => {
   it("solicita COP→USD solo al elegir COP y usa el multiplicador sin repetir la consulta", async () => {

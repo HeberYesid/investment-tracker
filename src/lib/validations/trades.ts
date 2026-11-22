@@ -55,13 +55,26 @@ const nonNegativeDecimalInput = z.union([
 
 const positiveDecimalInput = nonNegativeDecimalInput.pipe(z.number().positive());
 
+const tradeLabels = getTradeLabels();
+const minQuantityRoundedPositive = 0.5 / 10 ** TRADE_DECIMAL_SCALE;
+
+export const TradeQuantityInput = z.object({
+  trade_type: z.enum(TRADE_TYPES),
+  quantity: z.number({ error: tradeLabels.quantityNumberRequired }),
+}).refine(({ trade_type, quantity }) => trade_type !== "FEE" || quantity === 0, {
+  path: ["quantity"],
+  error: tradeLabels.feeQuantityZero,
+}).refine(({ trade_type, quantity }) => trade_type === "FEE" || quantity >= minQuantityRoundedPositive, {
+  path: ["quantity"],
+  error: tradeLabels.quantityPositiveAtScale,
+});
+
 const TradeInputFields = z.object({
+  ...TradeQuantityInput.shape,
   portfolio_id: z.string().uuid(),
   broker_id: z.string().uuid(),
   asset_id: z.string().uuid(),
   trade_date: z.string(),
-  trade_type: z.enum(TRADE_TYPES),
-  quantity: z.number().positive(),
   price_original: z.number().min(0),
   currency_original: z.enum(SUPPORTED_CURRENCIES),
   commission_original: z.number().min(0),
@@ -69,11 +82,15 @@ const TradeInputFields = z.object({
   source: z.enum(SOURCES),
 });
 
-export const TradeFxInput = TradeInputFields.pick({ currency_original: true, fx_rate_to_usd: true })
+export const TradeFxInput = z.object({
+  currency_original: TradeInputFields.shape.currency_original,
+  fx_rate_to_usd: TradeInputFields.shape.fx_rate_to_usd,
+})
   .refine(hasValidTradeFx, validTradeFxOptions)
   .transform(normalizeTradeFx);
 
-const CreateTradeInputBase = TradeInputFields.extend({
+const CreateTradeInputBase = TradeQuantityInput.safeExtend({
+  ...TradeInputFields.shape,
   commission_original: z.number().min(0).default(0),
   fx_rate_to_usd: z.number().positive().default(1),
   source: z.enum(SOURCES).default("MANUAL"),
@@ -85,13 +102,11 @@ export const CreateTradeInput = CreateTradeInputBase
 
 export type CreateTradeInput = z.infer<typeof CreateTradeInput>;
 
-export const TradeFormInput = z.object({
+export const TradeFormInput = TradeQuantityInput.safeExtend({
   trade_date: z.string(),
-  trade_type: z.enum(TRADE_TYPES),
   broker_code: z.string().min(1, "Bróker requerido"),
   ticker: CatalogTicker,
   asset_reference: AssetDecision.optional(),
-  quantity: z.number().positive(),
   price_original: nonNegativeDecimalInput,
   currency_original: z.enum(SUPPORTED_CURRENCIES),
   commission_original: nonNegativeDecimalInput.default(0),

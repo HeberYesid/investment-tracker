@@ -45,7 +45,7 @@ function findCall(spy: ChainSpy, method: string): CallRecord | undefined {
 const rpcMock = vi.fn();
 const fromMock = vi.fn();
 const serviceSupabase = {
-  rpc: rpcMock,
+  rpc: (...args: unknown[]) => ({ select: () => rpcMock(...args) }),
   from: fromMock,
 };
 

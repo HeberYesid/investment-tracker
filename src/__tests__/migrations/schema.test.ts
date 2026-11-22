@@ -161,6 +161,7 @@ async function applyMigrations() {
     await db.exec(readFileSync(syncExtensionsPath, "utf8"));
   }
 
+  await db.exec(readFileSync(path.join(migrationsDir, "0016_market_sync_failed_assets.sql"), "utf8"));
   return db;
 }
 
@@ -176,6 +177,45 @@ async function fileExists(filePath: string) {
 
 describe("foundation migration", () => {
   const foundationSql = readFileSync(foundationPath, "utf8").toLowerCase();
+
+  it("bd_admite_fee_cero_sin_reescribir_legado", { timeout: 30_000 }, async () => {
+    const db = await applyMigrations();
+    try {
+      await db.exec(`
+        with fixture_portfolio as (
+          insert into public.portfolios (name) values ('Prueba de cantidad') returning id
+        ), fixture_asset as (
+          insert into public.assets (ticker, asset_type) values ('QTYTEST', 'STOCK') returning id
+        )
+        insert into public.trades (
+          portfolio_id, broker_id, asset_id, trade_date, trade_type, quantity,
+          price_original, currency_original, price_usd, total_invested_usd, source
+        )
+        select p.id, b.id, a.id, v.trade_date, v.trade_type, v.quantity, 0, 'USD', 0, 0, 'MANUAL'
+        from fixture_portfolio p cross join fixture_asset a cross join public.brokers b
+        cross join (values (date '2026-01-01', 'FEE', 1), (date '2026-01-02', 'FEE', 0),
+                           (date '2026-01-03', 'BUY', 0.00000001)) as v(trade_date, trade_type, quantity)
+        where b.code = 'ETORO';
+      `);
+      const liveTrades = await db.query<{ id: string; trade_type: string; quantity: string }>(`
+        select id, trade_type, quantity::text from public.trades
+        where deleted_at is null order by trade_date
+      `);
+      expect(liveTrades.rows).toEqual([
+        { id: expect.any(String), trade_type: "FEE", quantity: "1.00000000" },
+        { id: expect.any(String), trade_type: "FEE", quantity: "0.00000000" },
+        { id: expect.any(String), trade_type: "BUY", quantity: "0.00000001" },
+      ]);
+      const legacy = liveTrades.rows[0];
+      const deleted = await db.query(`
+        update public.trades set deleted_at = now() where id = $1 and deleted_at is null
+        returning id, trade_type, quantity::text, deleted_at is not null as deleted
+      `, [legacy.id]);
+      expect(deleted.rows).toEqual([{ ...legacy, deleted: true }]);
+    } finally {
+      await db.close();
+    }
+  });
 
   it("enables row level security on every public table", () => {
     for (const tableName of publicTables) {
@@ -519,6 +559,28 @@ it("conserva las fuentes históricas y admite STOOQ sin una migración nueva", a
   expect(result.rows.map(({ source }) => source)).toEqual([
     "YAHOO", "BENCHMARK", "PRICE_HISTORY", "BENCHMARK_HISTORY", "STOOQ",
   ]);
+});
+
+it("expone la fuente de la última cotización sin exponer los diagnósticos privados", async () => {
+  const db = await applyMigrations();
+  await db.exec(`
+    insert into public.assets (id, ticker, asset_type, currency)
+      values ('44444444-4444-4444-4444-444444444444', 'AAPL', 'STOCK', 'USD');
+    insert into public.market_prices (asset_id, price, currency, price_usd, source, observed_at)
+      values ('44444444-4444-4444-4444-444444444444', 100, 'USD', 100, 'STOOQ', '2026-06-17T00:00:00Z');
+    insert into public.market_sync_runs (kind, status, failed_assets)
+      values ('PRICES', 'SUCCESS', '{"private-asset":"RATE_LIMITED"}');
+    set role authenticated;
+  `);
+  const result = await db.query<{ source: string }>(`select source from public.get_latest_market_prices(array['44444444-4444-4444-4444-444444444444']::uuid[])`);
+  expect(result.rows).toEqual([{ source: "STOOQ" }]);
+  try {
+    const runs = await db.query("select failed_assets from public.market_sync_runs");
+    expect(runs.rows).toEqual([]);
+  } catch (error) {
+    expect(error).toMatchObject({ code: "42501" });
+  }
+  await db.close();
 });
 
 describe("0007 performance indexes migration", () => {

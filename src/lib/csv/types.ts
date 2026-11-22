@@ -14,20 +14,27 @@ export type ParsedCsvTrade = {
 
 export type RawCsvRow = Record<string, string>;
 
+export type CsvParseIssue = {
+  issue: "XTB_FEE_SYMBOL" | "XTB_FEE_AMOUNT" | "XTB_FEE_DATE";
+  raw: RawCsvRow;
+};
+
+export type CsvParseRow = ParsedCsvTrade | CsvParseIssue;
+
 export type FileFormat = "csv" | "xlsx" | "xls" | "html" | "unknown";
 
 export interface CsvBrokerParser {
   readonly brokerCode: BrokerCode;
   readonly supportedFormats: readonly FileFormat[];
   /**
-   * Parses the given file buffer into a list of trades.
+   * Parses the given file buffer into ordered trades and recognized issues.
    * The parser is responsible for finding the right sheet/rows internally.
    */
   parse(
     fileName: string,
     buffer: ArrayBuffer,
     options?: { purchaseDate?: string },
-  ): ParsedCsvTrade[];
+  ): CsvParseRow[];
 }
 
 export type CsvImportStatus = "PREVIEWED" | "COMMITTED" | "FAILED";

@@ -92,7 +92,8 @@ test("confirma una compra por USD 20 y rechaza reconfirmar el mismo ID", async (
 
     const aggregate = await page.request.get("/api/v1/dashboard/aggregate");
     expect(aggregate.status()).toBe(200);
-    expect((await aggregate.json()).summary.investedUsd).toBe(20);
+    // El resumen migra de número a decimal textual; el flujo verifica el importe exacto.
+    expect(String((await aggregate.json()).summary.investedUsd)).toBe("20");
     return data[0].id;
   }
 

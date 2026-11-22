@@ -34,6 +34,12 @@ export const importLabels = {
     date: "Fecha",
     errors: "Errores",
     noErrors: "Sin errores",
+    invalidStoredTradePair: "El tipo o la cantidad de la operación guardada no son válidos.",
+    xtbFeeIssues: {
+      XTB_FEE_SYMBOL: "El cargo XTB no tiene un símbolo utilizable.",
+      XTB_FEE_AMOUNT: "El importe del cargo XTB debe ser un débito verificable que no se redondee a cero.",
+      XTB_FEE_DATE: "El cargo XTB no tiene una fecha válida en Time.",
+    },
     confirmImport: "Confirmar importación",
     confirming: "Confirmando...",
     importSuccess: "Importación confirmada exitosamente",

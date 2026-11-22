@@ -5,66 +5,66 @@
 
 ## 2. Stooq provider
 
-- [ ] 2.1 Create `src/lib/market-data/stooq.ts` exporting `createStooqProvider(opts?: StooqProviderOptions): PriceProvider`. Cubre: R1.
-- [ ] 2.2 Define a Zod schema (`StooqCsvRowSchema`) in `src/lib/market-data/stooq.ts` that validates a single CSV row with columns `Symbol,Date,Time,Open,High,Low,Close,Volume` (all required, `Close` must be a positive number). Cubre: R5.
-- [ ] 2.3 Implement the local symbol mapping table (`{ AAPL: 'aapl.us', '^GSPC': '^spx', 'ECOPETROL.CL': 'ec.cl', ... }`) with at least 10 entries covering the brokers already supported (eToro, XTB, Trii, eTrading Bancolombia). Symbols without a mapping MUST reject with `{ code: 'NOT_FOUND' }` before making any HTTP request. Cubre: R6.
-- [ ] 2.4 Implement `fetchQuotes` to build the URL, call Stooq with a desktop `User-Agent` header (reuse `env.userAgent`), parse the CSV body, and return `FetchedQuote[]` with `symbol` reset to the original requested symbol, `currency: 'USD'`, `delayedUntil: null`. Reject with `INVALID_PAYLOAD` on Zod failure, `RATE_LIMITED` on HTTP 429, `TRANSIENT` on network errors, `PERMANENT` on other non-2xx. Cubre: R1, R5, R6.
-- [ ] 2.5 Add Stooq-specific env vars to `src/lib/market-data/config.ts`: `STOOQ_BASE_URL` (default `https://stooq.com`) and the same `MARKET_DATA_TIMEOUT_MS` and `MARKET_DATA_USER_AGENT` already used by Yahoo. Cubre: R1.
-- [ ] 2.6 Write `tests/unit/market-data/stooq.test.ts` with fixtures: (a) valid CSV for `aapl.us` resolves with the expected quote; (b) malformed CSV rejects with `INVALID_PAYLOAD`; (c) HTTP 429 rejects with `RATE_LIMITED`; (d) unmapped symbol rejects with `NOT_FOUND` without making an HTTP request; (e) network error rejects with `TRANSIENT`. Cubre: R1, R5, R6.
+- [x] 2.1 Create `src/lib/market-data/stooq.ts` exporting `createStooqProvider(opts?: StooqProviderOptions): PriceProvider`. Cubre: R1.
+- [x] 2.2 Define a Zod schema (`StooqCsvRowSchema`) in `src/lib/market-data/stooq.ts` that validates a single CSV row with columns `Symbol,Date,Time,Open,High,Low,Close,Volume` (all required, `Close` must be a positive number). Cubre: R5.
+- [ ] 2.3 Implementar un mapa explícito de al menos 10 cotizaciones verificadas en USD. Activos sin mapeo, colombianos, cripto y el benchmark quedan fuera del fallback inicial; el proveedor rechaza un símbolo sin mapa con `NOT_FOUND` antes de consultar la red. Bloqueo observado: el endpoint CSV configurado devolvió HTTP 404 para los 10 símbolos el 2026-11-22. Cubre: R6.
+- [x] 2.4 Implement `fetchQuotes` to build the URL, call Stooq with a desktop `User-Agent` header (reuse `env.userAgent`), parse the CSV body, and return `FetchedQuote[]` with `symbol` reset to the original requested symbol, `currency: 'USD'`, `delayedUntil: null`. Reject with `INVALID_PAYLOAD` on Zod failure, `RATE_LIMITED` on HTTP 429, `TRANSIENT` on network errors, `PERMANENT` on other non-2xx. Cubre: R1, R5, R6.
+- [x] 2.5 Configurar `STOOQ_BASE_URL` y reutilizar las opciones de agente y timeout en Node. Cubre: R1.
+- [x] 2.6 Probar CSV válido e inválido, HTTP 429, símbolo sin mapa y fallo de red en `src/__tests__/market-data/stooq.test.ts`. Cubre: R1, R5, R6.
 
 ## 3. Composite provider
 
-- [ ] 3.1 Create `src/lib/market-data/composite.ts` exporting `createCompositeProvider(providers: PriceProvider[]): PriceProvider` that orchestrates providers in the order given. Cubre: R2, R7.
-- [ ] 3.2 Implement `fetchQuotes` to map each symbol to a per-symbol promise that tries providers in order; the first non-erroring result wins and the returned `FetchedQuote` carries the `source` of the provider that produced it. Cubre: R2, R3, R7.
-- [ ] 3.3 Implement per-symbol fallback semantics: if the primary returns `RATE_LIMITED`, `TRANSIENT`, or `PERMANENT`, try the next provider; if all fail, return the primary's error. Cubre: R2, R7.
-- [ ] 3.4 Implement a `fetchQuotesWithBreakdown` helper (or return a tuple) that the Edge Function can use to log `yahoo_ok=N, stooq_fallback=M` into `market_sync_runs.error`. Cubre: R8.
-- [ ] 3.5 Write `tests/unit/market-data/composite.test.ts`: (a) Yahoo 200 ok → Stooq not called; (b) Yahoo 429 + Stooq 200 → composite returns Stooq quote tagged with `source: 'STOOQ'`; (c) Yahoo 404 + Stooq 404 → composite returns the Yahoo error; (d) Yahoo 200 with one symbol, Yahoo 429 with another → composite returns both with appropriate sources. Cubre: R2, R3, R7.
+- [x] 3.1 Crear `createCompositeProvider` con Yahoo seguido de Stooq. Cubre: R2, R7.
+- [x] 3.2 Resolver cada símbolo de forma independiente y etiquetar la fuente efectiva. Cubre: R2, R3, R7.
+- [x] 3.3 Conservar el error principal si no se obtiene cotización de respaldo. Cubre: R2, R7.
+- [x] 3.4 Exponer el desglose por proveedor y registrar el desglose equivalente en el worker Deno. Cubre: R8.
+- [x] 3.5 Probar éxito de Yahoo sin fallback, fallback por símbolo y conservación del error principal con HTTP simulado. Cubre: R2, R3, R7.
 
 ## 4. Registry update
 
-- [ ] 4.1 Update `src/lib/market-data/registry.ts` so `getPriceProvider()` returns `createCompositeProvider([createYahooProvider(), createStooqProvider()])`. Add a `resetPriceProviderForTests()` helper so unit tests can inject mocks. Cubre: R1, R2.
-- [ ] 4.2 Update `tests/unit/market-data/yahoo-profile.test.ts` (and any other test that imports the registry directly) to call `resetPriceProviderForTests()` in `beforeEach` and to inject mocks via the existing `opts.env` / `opts.fetchImpl` parameters. Cubre: R1.
+- [x] 4.1 Exportar el compuesto predeterminado y su reinicio para pruebas en `registry.ts`. Cubre: R1, R2.
+- [x] 4.2 Probar el registro y su reinicio en `composite.test.ts`; los tests del perfil de Yahoo prueban el adaptador directamente y no necesitan el registro. Cubre: R1.
 
 ## 5. Edge Function
 
-- [ ] 5.1 Update `supabase/functions/sync-prices/index.ts` to import the composite from a shared module (e.g. `supabase/functions/_shared/composite.ts`) constructed once per run, and to call `fetchQuotesWithBreakdown` so the per-provider counts land in `market_sync_runs.error` as `"yahoo_ok=N,stooq_fallback=M"` (only when the run is `SUCCESS`). Cubre: R2, R7, R8.
+- [x] 5.1 Usar el fallback compartido en Deno y registrar `yahoo_ok=N,stooq_fallback=M` en corridas `SUCCESS`. Cubre: R2, R7, R8.
 - [x] 5.2 Pass the composite's resolved `source` value (`'YAHOO'`, `'STOOQ'`, `'BENCHMARK'`) to the `market_prices` insert so the row records the effective provider. Cubre: R3.
-- [ ] 5.3 Update `supabase/functions/_shared/yahoo.ts` if needed so the Deno side can import the composite (mirror the Node-side logic without adding new Deno dependencies). Cubre: R1, R2.
-- [ ] 5.4 Smoke test the Edge Function locally with `supabase functions serve sync-prices` against a fixture that includes one Yahoo-failing symbol to confirm the breakdown string and the `source = 'STOOQ'` row. Cubre: R2, R7, R8.
+- [x] 5.3 Mantener el fallback Deno sin dependencias nuevas; se reutiliza el adaptador Yahoo existente. Cubre: R1, R2.
+- [x] 5.4 Ejecutar `sync-prices` en Supabase Edge Runtime local con proveedores simulados y confirmar la fila `STOOQ` y el desglose persistido en PostgreSQL. Verificado con la imagen local `edge-runtime:v1.74.0`; el smoke complementario también verifica doble fallo en Deno. Cubre: R2, R7, R8.
 
 ## 6. Sync status endpoint
 
-- [ ] 6.1 Create `src/lib/dashboard/sync-status.ts` exporting `loadSyncHealth(supabase, now?: Date): Promise<SyncHealth>`. The function MUST use `createServiceSupabaseClient()` to read `market_sync_runs` (kind = `'PRICES'`), MUST compute the most recent `SUCCESS` and `FAILED` rows, MUST derive `lastFailureReason` from a small `categorizeFailureReason(error: string | null, failedAssetCount: number, status: string)` helper, and MUST compute `nextRunEstimate = lastAttemptAt + 30 min` rounded up to the next minute. Cubre: R9, R15.
-- [ ] 6.2 Define `SyncHealthSchema` in `src/lib/validations/dashboard.ts` (z.object) and add it as a new field on `SummaryResponse` and `SnapshotResponse`. Add a new boolean `shouldShowStaleBanner` to `SnapshotResponse`. Cubre: R14.
-- [ ] 6.3 Create `src/app/api/v1/market-data/sync-status/route.ts` (GET, user-scoped via `requireApiUser()`) that calls `loadSyncHealth`, returns the `SyncHealth` JSON, and applies a 60-second `unstable_cache` keyed by user id. Cubre: R9, R15.
-- [ ] 6.4 Hook the existing rate-limit middleware (or add one if missing) to enforce 60 req/min on the new endpoint. Use the same in-memory or KV-based limiter already used elsewhere in the app. Cubre: R9.
-- [ ] 6.5 Write `tests/unit/dashboard/sync-status.test.ts` covering: recent success → `lastFailureReason = 'NONE'`; recent failure → `'TOTAL_FAILURE'`; partial failure with `RATE_LIMITED` in `error` → categorized correctly; no runs in 7 days → nulls. Use PGlite + a stubbed `market_sync_runs` fixture. Cubre: R9.
-- [ ] 6.6 Update `src/lib/dashboard/snapshot.ts` to compute `sync` and `shouldShowStaleBanner` in `loadSnapshot` and pass them to the route. Update `src/app/api/v1/dashboard/summary/route.ts` and `src/app/api/v1/dashboard/snapshot/route.ts` to include the new fields in their responses. Cubre: R14.
-- [ ] 6.7 Update existing tests (`src/__tests__/api/dashboard.test.ts`, `tests/integration/dashboard/summary.test.ts`) to assert the new `sync` and `shouldShowStaleBanner` fields. Cubre: R14.
+- [x] 6.1 Leer la última corrida de `PRICES` y su último éxito en un helper interno; agregar los códigos privados exclusivamente para posiciones abiertas autorizadas y estimar el próximo intento. Cubre: R9, R15.
+- [x] 6.2 Definir `SyncHealthSchema` y los campos de diagnóstico y visibilidad en resumen y snapshot. Cubre: R14.
+- [x] 6.3 Servir `GET /api/v1/market-data/sync-status` con portafolio autorizado y sin errores crudos. Caché interna verificada en Next.js de producción con backend local simulado: reutilización e invalidación por etiqueta. Cubre: R9, R15.
+- [x] 6.4 Limitar a 60 solicitudes por minuto y usuario; comprobar HTTP 429 en la solicitud 61. Cubre: R9.
+- [x] 6.5 Probar éxito reciente, fallo total, parcial propio, parcial ajeno y ausencia de corridas recientes con fixtures; verificar en PGlite que el usuario no lee diagnósticos crudos. Cubre: R9, R15.
+- [x] 6.6 Devolver diagnóstico y visibilidad desde el resumen y snapshot, sin consultar proveedores durante la lectura. Cubre: R14.
+- [x] 6.7 Afirmar ambos campos en las pruebas de API de resumen y snapshot (`src/__tests__/api/dashboard.test.ts`). Cubre: R14.
 
 ## 7. i18n: relative date helper
 
-- [ ] 7.1 Create `src/lib/i18n/dates.ts` with `formatRelativeEs(iso: string, now?: Date): string`. Output examples: `"hace 5 min"`, `"hace 2 h 14 min"`, `"ayer 18:32"`, `"14 jun 18:32"` (for older than 7 days). Use `Intl.RelativeTimeFormat('es-CO', { numeric: 'auto' })` and a `Intl.DateTimeFormat('es-CO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })` for the fallback. Cubre: R13.
-- [ ] 7.2 Add the seven Spanish reason strings to `src/lib/i18n/dashboard.ts`: `staleReasonMarketClosed`, `staleReasonUpstreamNull`, `staleReasonRateLimited`, `staleReasonNetworkError`, `staleReasonPartialFailure`, `staleReasonTotalFailure`, plus the two banner-with-time variants (`staleBannerWithTime`, `staleBannerWithReason`). Cubre: R10.
-- [ ] 7.3 Write `tests/unit/i18n/dates.test.ts` covering each of the four output shapes and edge cases (same minute, exactly 1 hour, exactly 24 hours, 8 days ago). Cubre: R13.
+- [x] 7.1 Formatear fechas relativas en `dates.ts` con zona horaria de Bogotá. Cubre: R13.
+- [x] 7.2 Añadir las razones y etiquetas de fecha en `i18n/dashboard.ts`. Cubre: R10.
+- [x] 7.3 Probar los formatos y casos límite en `src/lib/i18n/dates.test.ts`. Cubre: R13.
 
 ## 8. UI: enriched stale banner
 
-- [ ] 8.1 Update `src/components/charts/summary-cards.tsx` to render the new banner structure: title, relative time line, reason line, and (when applicable) "Próximo intento: en ~X min" derived from `sync.nextRunEstimate` and `formatRelativeEs`. Cubre: R10, R11, R13.
-- [ ] 8.2 Pass `sync: SyncHealth` from the dashboard page server loader into `SummaryCards` (extend the prop type, keep backward-compat by treating undefined as "no sync info"). Cubre: R10, R14.
-- [ ] 8.3 Update `src/components/charts/distribution-chart.tsx` to expand the clock-icon tooltip with the source of the price (read from `slice.source` added to `DistributionSlice` schema). Use the format `"Cotización del <fecha> · Fuente: <Yahoo|Stooq|Benchmark>"`. Cubre: R12.
-- [ ] 8.4 Extend `DistributionSlice` and `DistributionResponse` in `src/lib/validations/dashboard.ts` to include the per-slice `source` (and `observedAt` if not already there). Update the `dashboard/distribution/route.ts` loader to compute and return it. Cubre: R12.
-- [ ] 8.5 Write `tests/component/summary-cards.test.tsx` (or extend the existing one) to assert the banner renders the relative time and the reason when `sync` is provided, and that it falls back to the old "Precio desactualizado" message when `sync` is undefined. Cubre: R10, R11, R14.
-- [ ] 8.6 Write `tests/component/distribution-chart.test.tsx` (or extend) to assert the clock-icon tooltip includes the source. Cubre: R12.
+- [x] 8.1 Mostrar título, fecha relativa, razón y próximo intento cuando aplique. Cubre: R10, R11, R13.
+- [x] 8.2 Llevar el diagnóstico a `SummaryCards` a través del resumen; conservar el aviso básico si no está disponible. Cubre: R10, R14.
+- [x] 8.3 Mostrar fecha y fuente de la cotización desactualizada en el indicador de distribución. Cubre: R12.
+- [x] 8.4 Exponer fecha y fuente desde la ruta de distribución y el agregado. Cubre: R12.
+- [x] 8.5 Probar el aviso ampliado y el básico en `summary-cards.test.tsx`. Cubre: R10, R11, R14.
+- [x] 8.6 Probar que el indicador incluye fecha y fuente en `distribution-chart.test.tsx`. Cubre: R12.
 
 ## 9. Tests, lint, build
 
-- [ ] 9.1 Run `pnpm lint` and fix any new lint errors. Cubre: — (verificación, sin R asociado).
-- [ ] 9.2 Run `pnpm test:run` and confirm all new and existing tests pass. Cubre: — (verificación global).
-- [ ] 9.3 Run `pnpm build` and confirm the production build succeeds (this is the de-facto typecheck per AGENTS.md). Cubre: — (verificación global).
-- [ ] 9.4 Run `pnpm test:e2e` against a dev server and confirm the new banner copy and tooltip are visible in the dashboard. Cubre: R10, R12.
+- [x] 9.1 Run `pnpm lint` and fix any new lint errors. Cubre: — (verificación, sin R asociado).
+- [x] 9.2 Run `pnpm test:run` and confirm all new and existing tests pass. Cubre: — (verificación global).
+- [x] 9.3 Ejecutar `pnpm build` y comprobar que genera la aplicación de producción. Verificado sin red con respuestas CSS de fuentes simuladas. Cubre: — (verificación global).
+- [x] 9.4 Ejecutar `tests/e2e/market-data-disclosure.spec.ts` contra el Supabase efímero y comprobar el aviso y el indicador de fuente. Pasó en Chromium móvil con Next de producción, Auth, Mailpit y PostgreSQL locales. Cubre: R10, R12.
 
 ## 10. Documentation
 
-- [ ] 10.1 Documentar en `README.md` o `docs/phases/05-market-data-fx.md` el fallback Stooq, el endpoint `sync-status`, el aviso ampliado y la compatibilidad de fuentes sin migración nueva. Cubre: — (documentación, sin R asociado).
-- [ ] 10.2 Update `src/lib/market-data/README.md` (if it exists) or add inline JSDoc to `src/lib/market-data/composite.ts` explaining the order of providers and how to add a new one. Cubre: — (documentación, sin R asociado).
+- [x] 10.1 Documentar fallback, endpoint, aviso y conservación de fuentes históricas en `README.md`. Cubre: — (documentación, sin R asociado).
+- [x] 10.2 Documentar el orden de proveedores y la separación del histórico en `composite.ts`. Cubre: — (documentación, sin R asociado).

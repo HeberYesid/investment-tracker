@@ -232,11 +232,18 @@ Deno.serve(async (request: Request) => {
 
     const delayedUntil = new Date(Date.now() + DELAYED_UNTIL_MINUTES * 60_000).toISOString();
     let assetsProcessed = 0;
+    let yahooOk = 0;
+    let stooqFallback = 0;
+    const failedAssets: Record<string, string> = {};
     const errors: Array<{ symbol: string; message: string }> = [];
 
     for (const job of jobs) {
       const result = await fetchPriceWithFallback(job.symbol, job.allowStooq);
       if (!result.ok) {
+        if (!job.isBenchmark) {
+          failedAssets[job.assetId] = result.error.message === "Yahoo: no usable price in chart response"
+            ? "UPSTREAM_NULL" : result.error.code;
+        }
         errors.push({ symbol: job.symbol, message: result.error.message });
         continue;
       }
@@ -254,6 +261,7 @@ Deno.serve(async (request: Request) => {
           .limit(1)
           .maybeSingle();
         if (fxError || !fxRow) {
+          if (!job.isBenchmark) failedAssets[job.assetId] = "PARTIAL_FAILURE";
           errors.push({ symbol: job.symbol, message: `No COP→USD FX rate available` });
           continue;
         }
@@ -270,10 +278,13 @@ Deno.serve(async (request: Request) => {
         delayed_until: delayedUntil,
       });
       if (insertError) {
+        if (!job.isBenchmark) failedAssets[job.assetId] = "PARTIAL_FAILURE";
         errors.push({ symbol: job.symbol, message: insertError.message });
         continue;
       }
       assetsProcessed += 1;
+      if (result.source === "STOOQ") stooqFallback += 1;
+      else yahooOk += 1;
     }
 
     let benchmarkBackfill: { inserted: number; skipped: number; message?: string } | null = null;
@@ -287,7 +298,9 @@ Deno.serve(async (request: Request) => {
       }
     }
 
-    await recordRunSuccess(supabase, runId, { assetsProcessed });
+    await recordRunSuccess(supabase, runId, {
+      assetsProcessed, failedAssets, error: `yahoo_ok=${yahooOk},stooq_fallback=${stooqFallback}`,
+    });
 
     await invalidateCacheTag("market-prices");
     if (benchmark) {

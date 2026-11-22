@@ -19,6 +19,7 @@ export type FetchedQuote = {
   currency: string;
   observedAt: string;
   delayedUntil: string | null;
+  source?: "YAHOO" | "STOOQ";
 };
 
 export type FetchedHistoryPoint = {
@@ -32,7 +33,7 @@ export type FetchedHistory = {
 };
 
 export type PriceProviderError = {
-  code: "TRANSIENT" | "PERMANENT" | "RATE_LIMITED";
+  code: "TRANSIENT" | "PERMANENT" | "RATE_LIMITED" | "NOT_FOUND" | "INVALID_PAYLOAD";
   message: string;
   cause?: unknown;
 };
@@ -42,6 +43,7 @@ export type PriceProviderResult<T> =
   | { ok: false; error: PriceProviderError };
 
 export type PriceProvider = {
+  fetchQuote?(symbol: string): Promise<FetchedQuote>;
   fetchQuotes(symbols: string[]): Promise<FetchedQuote[]>;
   fetchHistory(symbol: string, range: YahooRange): Promise<FetchedHistory>;
 };

@@ -104,7 +104,7 @@
         "BenchmarkChart con S&P 500 (Yahoo Finance)"
       ],
       "sdd": true,
-      "status": "in_progress"
+      "status": "blocked"
     },
     {
       "id": 7,
@@ -194,7 +194,7 @@
         "La base conserva el legado y el libro aprobado sigue mostrando USD 18 realizados tras un cierre de USD 20 y un FEE posterior de USD 2 (R9–R10)"
       ],
       "sdd": true,
-      "status": "spec_ready"
+      "status": "done"
     },
     {
       "id": 18,

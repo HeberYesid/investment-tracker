@@ -7,6 +7,7 @@ import {
 
 export type MarketDataEnv = {
   yahooBaseUrl: string;
+  stooqBaseUrl?: string;
   fxBaseUrl: string;
   userAgent: string;
   requestTimeoutMs: number;
@@ -26,6 +27,7 @@ export function getMarketDataEnv(
 ): MarketDataEnv {
   return {
     yahooBaseUrl: process.env.MARKET_DATA_YAHOO_BASE_URL ?? DEFAULT_YAHOO_BASE_URL,
+    stooqBaseUrl: overrides.stooqBaseUrl ?? process.env.STOOQ_BASE_URL ?? "https://stooq.com",
     fxBaseUrl: process.env.MARKET_DATA_FX_BASE_URL ?? DEFAULT_FX_BASE_URL,
     userAgent:
       process.env.MARKET_DATA_USER_AGENT ?? DEFAULT_USER_AGENT,

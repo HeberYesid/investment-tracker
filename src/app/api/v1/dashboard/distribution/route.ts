@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { aggregateHoldings } from "@/lib/calculations/holdings";
-import { groupByDimension } from "@/lib/calculations/distribution";
+import { projectDistribution } from "@/lib/calculations/current-valuation";
 import { badRequest, serverError, validationError } from "@/lib/api/errors";
 import { requireApiUserWithPortfolio } from "@/lib/api/auth";
 import { loadDashboardData } from "@/lib/dashboard/loader";
-import { computeAssetStaleness } from "@/lib/dashboard/snapshot";
+import { buildDashboardValuation } from "@/lib/dashboard/current";
 import { DistributionQuery } from "@/lib/validations/dashboard";
 
 export async function GET(request: NextRequest) {
@@ -26,50 +25,7 @@ export async function GET(request: NextRequest) {
     }
     const data = await loadDashboardData(portfolio.portfolioId, supabase);
 
-    const holdings = aggregateHoldings(data.trades, data.assets, data.brokers);
-
-    const activeAssetIds = Array.from(
-      new Set(
-        holdings
-          .filter((h) => h.quantity > 0)
-          .map((h) => h.assetId),
-      ),
-    );
-    const staleness = computeAssetStaleness(
-      activeAssetIds,
-      data.latestMarketPrices,
-    );
-
-    const equityByHolding = new Map<string, number>();
-    const stalenessByHolding = new Map<string, "fresh" | "stale" | "estimated">();
-    for (const holding of holdings) {
-      const key = `${holding.assetId}::${holding.brokerId}`;
-      if (!equityByHolding.has(key)) {
-        const latest = data.latestMarketPrices.find((m) => m.asset_id === holding.assetId);
-        const priceUsd = latest && (!latest.delayed_until || latest.delayed_until <= new Date().toISOString())
-          ? Number(latest.price_usd)
-          : holding.averageCost;
-        equityByHolding.set(key, priceUsd * holding.quantity);
-      }
-      if (!stalenessByHolding.has(key)) {
-        const holdingStaleness = staleness.get(holding.assetId) ?? "estimated";
-        stalenessByHolding.set(key, holdingStaleness);
-      }
-    }
-
-    const result = groupByDimension(
-      holdings,
-      equityByHolding,
-      parsed.data.dim,
-      stalenessByHolding,
-    );
-
-    return NextResponse.json({
-      dim: result.dim,
-      totalUsd: result.totalUsd,
-      slices: result.slices,
-      unclassified: result.unclassified,
-    });
+    return NextResponse.json(projectDistribution(buildDashboardValuation(data), parsed.data.dim));
   } catch (err) {
     if (err instanceof Error) return badRequest(err.message);
     return serverError();

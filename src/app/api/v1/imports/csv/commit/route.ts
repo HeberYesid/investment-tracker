@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { requireApiUserWithPortfolio } from "@/lib/api/auth";
-import { normalizeTradeUsdValues, type CreateTradeInput } from "@/lib/validations/trades";
+import { TradeQuantityInput, normalizeTradeUsdValues, type CreateTradeInput } from "@/lib/validations/trades";
 import type { ParsedCsvTrade } from "@/lib/csv/types";
 import { badRequest, forbidden, serverError } from "@/lib/api/errors";
 import { AssetResolutionError, resolveAssetReferences } from "@/lib/asset-catalog/resolve-references";
@@ -9,6 +9,7 @@ import { planCsvAssetReferences } from "@/lib/asset-catalog/csv-references";
 import { AssetDecision, AssetId } from "@/lib/validations/asset-catalog";
 import { z } from "zod";
 import { errors as errorMessages } from "@/lib/i18n/errors";
+import { getImportLabels } from "@/lib/i18n/imports";
 
 const CommitBody = z.object({
   import_id: z.string().uuid(),
@@ -80,9 +81,23 @@ export async function POST(request: NextRequest) {
     if (Array.from(decisions.keys()).some((id) => !rowIds.has(id))) {
       return badRequest(errorMessages.assetReferenceRowsMismatch);
     }
-    const { batches } = planCsvAssetReferences(validRows.flatMap((row) => {
-      const ticker = (row.parsed_data_json as ParsedCsvTrade | null)?.ticker;
-      return typeof ticker === "string" ? [{ id: row.id, ticker }] : [];
+    const errors: string[] = [];
+    const candidates = validRows.flatMap((row) => {
+      const stored: unknown = row.parsed_data_json;
+      const pair = TradeQuantityInput.safeParse(stored);
+      if (!pair.success) {
+        const reason = pair.error.issues.find(({ path }) => path[0] === "quantity")?.message
+          ?? getImportLabels().invalidStoredTradePair;
+        errors.push(`Fila ${row.row_number}: ${reason}`);
+        decisions.delete(row.id);
+        return [];
+      }
+      // El par se valida en runtime; el resto conserva el contrato del preview y el flujo monetario CSV.
+      const parsedData = { ...(stored as Omit<ParsedCsvTrade, "trade_type" | "quantity">), ...pair.data };
+      return [{ id: row.id, rowNumber: row.row_number, parsedData }];
+    });
+    const { batches } = planCsvAssetReferences(candidates.flatMap(({ id, parsedData }) => {
+      return typeof parsedData.ticker === "string" ? [{ id, ticker: parsedData.ticker }] : [];
     }), decisions);
     const assetIdByRow = new Map<string, string>();
     for (const batch of batches) {
@@ -96,14 +111,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const errors: string[] = [];
     const tradeInserts: Array<Record<string, unknown>> = [];
 
-    for (const row of validRows) {
-      const parsedData = row.parsed_data_json as ParsedCsvTrade | null;
-      const asset_id = assetIdByRow.get(row.id);
-      if (!parsedData || !asset_id) {
-        errors.push(`Fila ${row.row_number}: ${errorMessages.assetReferenceChoice}`);
+    for (const { id, rowNumber, parsedData } of candidates) {
+      const asset_id = assetIdByRow.get(id);
+      if (!asset_id) {
+        errors.push(`Fila ${rowNumber}: ${errorMessages.assetReferenceChoice}`);
         continue;
       }
 
@@ -141,7 +154,7 @@ export async function POST(request: NextRequest) {
         });
       } catch (err) {
         errors.push(
-          `Fila ${row.row_number}: ${err instanceof Error ? err.message : errorMessages.unknown}`,
+          `Fila ${rowNumber}: ${err instanceof Error ? err.message : errorMessages.unknown}`,
         );
       }
     }

@@ -1,14 +1,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { aggregateHoldings } from "@/lib/calculations/holdings";
-import { calculateTotalEquity } from "@/lib/calculations/equity";
-import { calculatePortfolioPnl } from "@/lib/calculations/pnl";
+import { aggregateCurrentReturns, projectDistribution, projectSummary } from "@/lib/calculations/current-valuation";
 import { buildPortfolioValueSeries } from "@/lib/calculations/evolution";
-import { aggregateReturns, computeAnnualReturnsFromSeries } from "@/lib/calculations/returns-aggregation";
-import { resolveAssetPrice } from "@/lib/calculations/pricing";
-import { groupByDimension } from "@/lib/calculations/distribution";
+import { computeAnnualReturnsFromSeries } from "@/lib/calculations/returns-aggregation";
+import { buildDashboardValuation } from "@/lib/dashboard/current";
 import { groupHistoricalPricesByAsset, loadDashboardData } from "@/lib/dashboard/loader";
-import { computeAssetStaleness, loadSnapshot } from "@/lib/dashboard/snapshot";
+import { loadSnapshot } from "@/lib/dashboard/snapshot";
 import { computeTWRFromTrades } from "@/lib/calculations/twr";
 import type {
   DistributionDimension,
@@ -48,50 +45,22 @@ export async function loadDashboardAggregate(
   },
 ): Promise<DashboardAggregate> {
   const data = await loadDashboardData(portfolioId, supabase);
-  const holdings = aggregateHoldings(data.trades, data.assets, data.brokers);
-
-  const snapshot = await loadSnapshot(data, supabase);
+  const now = new Date();
+  const snapshot = await loadSnapshot(data, supabase, now);
 
   if (scope === "advanced") {
     return { snapshot };
   }
 
-  const { equityUsd, isAnyEstimated } = calculateTotalEquity(
-    holdings,
-    data.latestMarketPrices,
-  );
-  const pnl = calculatePortfolioPnl(holdings, equityUsd);
-
-  const activeAssetIds = Array.from(
-    new Set(
-      holdings.filter((h) => h.quantity > 0).map((h) => h.assetId),
-    ),
-  );
-  const staleness = computeAssetStaleness(
-    activeAssetIds,
-    data.latestMarketPrices,
-  );
-  const isAnyStale = Array.from(staleness.values()).some(
-    (value) => value === "stale",
-  );
-  const staleTickers = Array.from(staleness.entries())
-    .filter(([, v]) => v === "stale")
-    .map(([id]) => data.assets.find((a) => a.id === id)?.ticker ?? id);
-
-  const twr = computeTWRFromTrades(data.trades, 0, equityUsd);
+  const valued = buildDashboardValuation(data, now);
+  const current = projectSummary(valued);
+  const twr = current.equityUsd === null ? null : computeTWRFromTrades(data.trades, 0, Number(current.equityUsd));
 
   const summary: SummaryResponse = {
-    equityUsd,
-    investedUsd: pnl.investedUsd,
-    realizedPnlUsd: pnl.realizedPnlUsd,
-    unrealizedPnlUsd: pnl.unrealizedPnlUsd,
-    totalPnlUsd: pnl.totalPnlUsd,
-    returnPct: pnl.returnPct,
+    ...current,
     twr,
-    holdingsCount: holdings.filter((h) => h.quantity > 0).length,
-    isEstimated: isAnyEstimated,
-    isAnyStale,
-    staleTickers,
+    ...(snapshot.sync ? { sync: snapshot.sync } : {}),
+    ...(snapshot.shouldShowStaleBanner !== undefined ? { shouldShowStaleBanner: snapshot.shouldShowStaleBanner } : {}),
   };
 
   const historicalPricesByAsset = groupHistoricalPricesByAsset(
@@ -111,58 +80,14 @@ export async function loadDashboardAggregate(
     isEstimated: series.isEstimated,
   };
 
-  const equityByHolding = new Map<string, number>();
-  const stalenessByHolding = new Map<
-    string,
-    "fresh" | "stale" | "estimated"
-  >();
-  for (const holding of holdings) {
-    const key = `${holding.assetId}::${holding.brokerId}`;
-    if (!equityByHolding.has(key)) {
-      const latest = data.latestMarketPrices.find(
-        (m) => m.asset_id === holding.assetId,
-      );
-      const resolved = resolveAssetPrice({
-        assetId: holding.assetId,
-        latestMarketPrice: latest,
-        fallbackTradePriceUsd: holding.averageCost,
-      });
-      equityByHolding.set(key, resolved.priceUsd * holding.quantity);
-    }
-    if (!stalenessByHolding.has(key)) {
-      const holdingStaleness = staleness.get(holding.assetId) ?? "estimated";
-      stalenessByHolding.set(key, holdingStaleness);
-    }
-  }
-
   const returnsGroupBy = options?.returnsGroupBy ?? DEFAULT_GROUP_BY;
-  const returnsRows =
+  const returns: ReturnsResponse =
     returnsGroupBy === "year"
-      ? computeAnnualReturnsFromSeries(series.points)
-      : aggregateReturns({
-          groupBy: returnsGroupBy,
-          trades: data.trades,
-          holdings,
-          equityByHolding,
-        });
-  const returns: ReturnsResponse = {
-    groupBy: options?.returnsGroupBy ?? DEFAULT_GROUP_BY,
-    rows: returnsRows,
-  };
+      ? { groupBy: "year", rows: computeAnnualReturnsFromSeries(series.points) }
+      : aggregateCurrentReturns(valued, returnsGroupBy);
 
   const dimension = options?.distributionDimension ?? DEFAULT_DIMENSION;
-  const distributionResult = groupByDimension(
-    holdings,
-    equityByHolding,
-    dimension,
-    stalenessByHolding,
-  );
-  const distribution: DistributionResponse = {
-    dim: distributionResult.dim,
-    totalUsd: distributionResult.totalUsd,
-    slices: distributionResult.slices,
-    unclassified: distributionResult.unclassified,
-  };
+  const distribution: DistributionResponse = projectDistribution(valued, dimension);
 
   return { summary, evolution, returns, distribution, snapshot };
 }

@@ -34,15 +34,15 @@ const emptyPayload = {
   snapshot: null,
 };
 
-const readySummary = {
-  equityUsd: 1000,
-  investedUsd: 800,
-  realizedPnlUsd: 0,
-  unrealizedPnlUsd: 200,
-  totalPnlUsd: 200,
+const readySummary = { ledgerStatus: "complete" as const, ledgerIssues: [],
+  equityUsd: "1000",
+  investedUsd: "800",
+  realizedPnlUsd: "0",
+  unrealizedPnlUsd: "200",
+  totalPnlUsd: "200",
   returnPct: 25,
   twr: null,
-  holdingsCount: 0,
+  holdingsCount: 0, hasActiveTrades: false,
   isEstimated: false,
   isAnyStale: false,
   staleTickers: [] as string[],
@@ -73,7 +73,7 @@ describe("home dashboard client", () => {
       createElement(DashboardPageClient, {
         initialPayload: {
           ...emptyPayload,
-          summary: { ...readySummary, holdingsCount: 3 },
+          summary: { ...readySummary, holdingsCount: 3, hasActiveTrades: true },
         },
       }),
     );

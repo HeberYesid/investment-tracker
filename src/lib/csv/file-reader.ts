@@ -5,6 +5,7 @@ export type FileFormat = "csv" | "xlsx" | "xls" | "html" | "unknown";
 export type RawSheet = {
   name: string;
   rows: Record<string, string>[];
+  rawNumbers?: (number | undefined)[];
 };
 
 export type RawFileContent = {
@@ -18,6 +19,7 @@ export type ReadFileOptions = {
    * next row as the header. Useful for sheets with metadata rows.
    */
   skipRows?: Record<string, number>;
+  rawNumberColumn?: string;
 };
 
 /**
@@ -72,9 +74,17 @@ export function readFile(
         blankrows: false,
         range: skip > 0 ? skip : undefined,
       });
+      const column = options?.rawNumberColumn;
+      const rawByRow = column && new Map(XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
+        raw: true, range: skip > 0 ? skip : undefined,
+      }).map((row) => [row.__rowNum__, row[column]]));
       return {
         name,
         rows: rows.map((row) => stringifyRow(row)),
+        ...(rawByRow ? { rawNumbers: rows.map((row) => {
+          const value = rawByRow.get(row.__rowNum__);
+          return typeof value === "number" ? value : undefined;
+        }) } : {}),
       };
     });
     return { format, sheets };

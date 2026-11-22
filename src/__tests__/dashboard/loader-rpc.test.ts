@@ -39,7 +39,7 @@ const rpcMock = vi.fn();
 const fromMock = vi.fn();
 
 vi.mock("@/lib/supabase/server", () => ({
-  createServiceSupabaseClient: () => ({ rpc: rpcMock, from: fromMock }),
+  createServiceSupabaseClient: () => ({ rpc: (...args: unknown[]) => ({ select: () => rpcMock(...args) }), from: fromMock }),
 }));
 
 vi.mock("next/cache", () => ({

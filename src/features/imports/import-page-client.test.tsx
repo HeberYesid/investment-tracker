@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { getImportLabels } from "@/lib/i18n/imports";
 
 import { ImportPageClient } from "./import-page-client";
 
@@ -74,4 +75,23 @@ describe("ImportPageClient role-aware rendering", () => {
       expect(globalThis.fetch).toHaveBeenCalledWith("/api/v1/imports/history");
     });
   });
+});
+
+it("xtb_no_oculta_cargos_reconocidos: muestra el motivo sin candidata, referencia ni confirmación", async () => {
+  const labels = getImportLabels();
+  const reason = labels.xtbFeeIssues.XTB_FEE_AMOUNT;
+  vi.mocked(fetch).mockImplementation(async (url) => Response.json(url === "/api/v1/imports/csv/preview" ? {
+    import: { id: "import" },
+    rows: [{ id: "row", row_number: 1, valid: false, error: reason, parsed: null }],
+    summary: { total: 1, valid: 0, invalid: 1 },
+  } : { data: [] }));
+  render(<ImportPageClient portfolioId={portfolioId} readOnly={false} />);
+  fireEvent.click(screen.getByRole("button", { name: /XTB/ }));
+  fireEvent.change(screen.getByLabelText(labels.dragDrop), {
+    target: { files: [new File(["fixture"], "xtb.xlsx")] },
+  });
+  fireEvent.click(screen.getByRole("button", { name: labels.preview }));
+  expect(await screen.findByText(reason)).toBeVisible();
+  expect(screen.queryByRole("button", { name: labels.confirmImport })).not.toBeInTheDocument();
+  expect(screen.queryByText("Buscar referencias")).not.toBeInTheDocument();
 });

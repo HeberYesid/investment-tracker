@@ -2,6 +2,7 @@ import { cache } from "react";
 import { cacheLife, cacheTag } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AssetMeta, BrokerMeta, DashboardTrade } from "@/lib/calculations/holdings";
+import type { LedgerAsset, LedgerPrice, LedgerTrade } from "@/lib/calculations/position-ledger";
 import type { MarketPriceRow } from "@/lib/calculations/pricing";
 import { createServiceSupabaseClient } from "@/lib/supabase/server";
 
@@ -20,19 +21,15 @@ export type DashboardData = {
   portfolioId: string;
 };
 
-type TradeRow = {
-  asset_id: string;
-  broker_id: string;
+type CachedLedgerPrice = LedgerPrice & { source?: string };
+export type DashboardDataWithLedger = DashboardData & { ledgerTrades: LedgerTrade[]; ledgerPrices: CachedLedgerPrice[] };
+
+type TradeRow = Omit<LedgerTrade, "trade_type"> & {
   trade_type: DashboardTrade["trade_type"];
-  trade_date: string;
-  quantity: number;
-  price_usd: number;
-  commission_usd: number;
   total_invested_usd: number;
-  deleted_at: string | null;
   assets:
-    | { ticker: string; name: string | null; sector: string | null; country: string | null }
-    | Array<{ ticker: string; name: string | null; sector: string | null; country: string | null }>
+    | Omit<LedgerAsset, "id">
+    | Array<Omit<LedgerAsset, "id">>
     | null;
   brokers:
     | { code: string; name: string }
@@ -46,19 +43,20 @@ function firstJoin<T>(value: T | T[] | null | undefined): T | null {
   return value;
 }
 
-const loadTradesAndAssets = async (
+export const loadTradesAndAssets = async (
   portfolioId: string,
   supabase: SupabaseClient,
 ): Promise<{
   trades: DashboardTrade[];
-  assets: AssetMeta[];
+  ledgerTrades: LedgerTrade[];
+  assets: LedgerAsset[];
   brokers: BrokerMeta[];
   assetIds: string[];
 }> => {
   const { data: tradesData, error: tradesError } = await supabase
     .from("trades")
     .select(
-      "asset_id, broker_id, trade_type, trade_date, quantity, price_usd, commission_usd, total_invested_usd, deleted_at, assets(ticker, name, sector, country), brokers(code, name)",
+      "id, asset_id, broker_id, trade_type, trade_date, quantity::text, price_usd::text, commission_usd::text, total_invested_usd, deleted_at, assets(ticker, name, sector, country, exchange), brokers(code, name)",
     )
     .eq("portfolio_id", portfolioId)
     .is("deleted_at", null);
@@ -81,7 +79,9 @@ const loadTradesAndAssets = async (
     deleted_at: row.deleted_at,
   }));
 
-  const assetMap = new Map<string, AssetMeta>();
+  const ledgerTrades = rows.map(({ id, asset_id, broker_id, trade_date, trade_type, quantity, price_usd, commission_usd, deleted_at }) =>
+    ({ id, asset_id, broker_id, trade_date, trade_type, quantity, price_usd, commission_usd, deleted_at }));
+  const assetMap = new Map<string, LedgerAsset>();
   const brokerMap = new Map<string, BrokerMeta>();
   const assetIds = new Set<string>();
 
@@ -95,6 +95,7 @@ const loadTradesAndAssets = async (
         name: asset.name,
         sector: asset.sector,
         country: asset.country,
+        exchange: asset.exchange ?? null,
       });
     }
     const broker = firstJoin(row.brokers);
@@ -109,6 +110,7 @@ const loadTradesAndAssets = async (
 
   return {
     trades,
+    ledgerTrades,
     assets: Array.from(assetMap.values()),
     brokers: Array.from(brokerMap.values()),
     assetIds: Array.from(assetIds),
@@ -117,23 +119,28 @@ const loadTradesAndAssets = async (
 
 async function fetchLatestMarketPricesInner(
   assetIds: string[],
-): Promise<MarketPriceRow[]> {
+): Promise<CachedLedgerPrice[]> {
   const supabase = createServiceSupabaseClient();
   const { data, error } = await supabase.rpc("get_latest_market_prices", {
     p_asset_ids: assetIds,
-  });
+  }).select("asset_id, price_usd::text, observed_at, delayed_until, source");
   if (error) throw new Error(error.message);
-  return ((data ?? []) as MarketPriceRow[]).map((row) => ({
+  return (data ?? []) as unknown as CachedLedgerPrice[];
+}
+
+function toSnapshotMarketPrices(rows: CachedLedgerPrice[]): MarketPriceRow[] {
+  return rows.map((row) => ({
     asset_id: row.asset_id,
     price_usd: Number(row.price_usd),
     observed_at: row.observed_at,
     delayed_until: row.delayed_until,
+    ...(row.source ? { source: row.source } : {}),
   }));
 }
 
 async function fetchLatestMarketPrices(
   assetIds: string[],
-): Promise<MarketPriceRow[]> {
+): Promise<CachedLedgerPrice[]> {
   "use cache";
   cacheTag("market-prices");
   cacheLife({ revalidate: 60 });
@@ -143,7 +150,7 @@ async function fetchLatestMarketPrices(
 const loadLatestMarketPrices = async (
   assetIds: string[],
   _supabase: SupabaseClient,
-): Promise<MarketPriceRow[]> => {
+): Promise<CachedLedgerPrice[]> => {
   if (assetIds.length === 0) return [];
   return fetchLatestMarketPrices(assetIds);
 };
@@ -215,12 +222,13 @@ export const loadDashboardData = cache(
   async (
     portfolioId: string,
     supabase: SupabaseClient,
-  ): Promise<DashboardData> => {
-    const { trades, assets, brokers, assetIds } = await loadTradesAndAssets(
+  ): Promise<DashboardDataWithLedger> => {
+    const { trades, ledgerTrades, assets, brokers, assetIds } = await loadTradesAndAssets(
       portfolioId,
       supabase,
     );
-    const latestMarketPrices = await loadLatestMarketPrices(assetIds, supabase);
+    const ledgerPrices = await loadLatestMarketPrices(assetIds, supabase);
+    const latestMarketPrices = toSnapshotMarketPrices(ledgerPrices);
     const firstTradeDate = trades.reduce<string | null>((acc, trade) => {
       if (!acc || trade.trade_date < acc) return trade.trade_date;
       return acc;
@@ -236,9 +244,11 @@ export const loadDashboardData = cache(
       : [];
     return {
       trades,
+      ledgerTrades,
       assets,
       brokers,
       latestMarketPrices,
+      ledgerPrices,
       historicalPrices,
       portfolioId,
     };

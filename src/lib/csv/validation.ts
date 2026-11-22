@@ -1,5 +1,7 @@
-import type { ParsedCsvTrade, RawCsvRow } from "./types";
+import type { CsvParseRow, ParsedCsvTrade, RawCsvRow } from "./types";
 import type { BrokerCode } from "@/lib/reference/brokers";
+import { TradeQuantityInput } from "@/lib/validations/trades";
+import { getImportLabels } from "@/lib/i18n/imports";
 
 export type RowValidation = {
   rowNumber: number;
@@ -17,7 +19,7 @@ export type RowValidation = {
  * - Returns per-row validation results
  */
 export function validateParsedRows(
-  rows: ParsedCsvTrade[],
+  rows: CsvParseRow[],
   brokerCode: BrokerCode,
 ): RowValidation[] {
   const results: RowValidation[] = [];
@@ -26,6 +28,10 @@ export function validateParsedRows(
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
     const rowNumber = i + 1;
+    if ("issue" in row) {
+      results.push({ rowNumber, valid: false, error: getImportLabels().xtbFeeIssues[row.issue], parsed: null, raw: row.raw });
+      continue;
+    }
     const raw: RawCsvRow = {
       trade_date: row.trade_date,
       trade_type: row.trade_type,
@@ -61,10 +67,8 @@ export function validateParsedRows(
       );
     }
 
-    // Quantity must be positive
-    if (row.quantity <= 0) {
-      errors.push("La cantidad debe ser positiva.");
-    }
+    const pair = TradeQuantityInput.safeParse(row);
+    if (!pair.success) errors.push(...pair.error.issues.map(({ message }) => message));
 
     // Price must be non-negative
     if (row.price_original < 0) {

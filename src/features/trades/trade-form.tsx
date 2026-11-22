@@ -2,14 +2,14 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { useForm, useWatch, type Control } from "react-hook-form";
 import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
 import { getTradeLabels } from "@/lib/i18n/trades";
 import { BROKER_SEEDS } from "@/lib/reference/brokers";
-import { TRADE_TYPES, SUPPORTED_CURRENCIES, hasValidTradeFx, isCopToUsdRate, normalizeTradeFx } from "@/lib/validations/trades";
+import { TRADE_TYPES, SUPPORTED_CURRENCIES, TradeQuantityInput, hasValidTradeFx, isCopToUsdRate, normalizeTradeFx } from "@/lib/validations/trades";
 import { LatestFxResponse } from "@/lib/validations/fx";
 
 import { AssetDecision, CatalogTicker, type CandidateGroup } from "@/lib/validations/asset-catalog";
@@ -18,14 +18,12 @@ import { errors as errorMessages } from "@/lib/i18n/errors";
 
 const labels = getTradeLabels();
 
-export const tradeFormSchema = z
-  .object({
-    trade_type: z.enum(TRADE_TYPES),
+export const tradeFormSchema = TradeQuantityInput
+  .safeExtend({
     trade_date: z.string().min(1, labels.required),
     broker_code: z.string().min(1, labels.required),
     ticker: z.string().min(1, labels.required),
     asset_reference: AssetDecision.optional(),
-    quantity: z.coerce.number().positive(labels.positiveNumber),
     price_original: z.coerce.number().min(0, labels.positiveNumber),
     currency_original: z.enum(SUPPORTED_CURRENCIES),
     commission_original: z.coerce.number().min(0),
@@ -90,7 +88,7 @@ export function TradeForm({ mode, initialData, onSubmit }: TradeFormProps) {
       trade_date: initialData?.trade_date ?? todayString(),
       broker_code: initialData?.broker_code ?? "",
       ticker: initialData?.ticker ?? "",
-      quantity: initialData?.quantity ?? 0,
+      quantity: initialData?.quantity,
       price_original: initialData?.price_original ?? 0,
       currency_original: initialData?.currency_original ?? "USD",
       commission_original: initialData?.commission_original ?? 0,
@@ -98,6 +96,9 @@ export function TradeForm({ mode, initialData, onSubmit }: TradeFormProps) {
     },
   });
   const tickerValue = useWatch({ control, name: "ticker" });
+  const tradeType = useWatch({ control, name: "trade_type" });
+  const quantityHintId = useId();
+  const quantityMessage = errors.quantity?.message ?? (tradeType === "FEE" ? labels.feeQuantityZero : undefined);
   const tickerField = register("ticker");
   const ticker = CatalogTicker.safeParse(tickerValue);
   const [references, setReferences] = useState<CandidateGroup[]>([]);
@@ -214,12 +215,15 @@ export function TradeForm({ mode, initialData, onSubmit }: TradeFormProps) {
             id="quantity"
             type="number"
             step="any"
-            {...register("quantity")}
+            aria-required="true"
+            aria-invalid={Boolean(errors.quantity)}
+            aria-describedby={quantityMessage ? quantityHintId : undefined}
+            {...register("quantity", { valueAsNumber: true })}
             className={inputClass}
           />
-          {errors.quantity && (
-            <p className="text-xs text-red-600 dark:text-red-400">
-              {errors.quantity.message}
+          {quantityMessage && (
+            <p id={quantityHintId} className={errors.quantity ? "text-xs text-red-600 dark:text-red-400" : "text-xs text-text-muted"}>
+              {quantityMessage}
             </p>
           )}
         </div>

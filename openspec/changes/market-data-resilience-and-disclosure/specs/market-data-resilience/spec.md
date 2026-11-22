@@ -22,7 +22,7 @@ The system MUST expose a `CompositeProvider` in `src/lib/market-data/composite.t
 
 ### Requirement: Stooq provider
 
-The system MUST expose a `StooqProvider` in `src/lib/market-data/stooq.ts` that implements the `PriceProvider` interface by calling `https://stooq.com/q/l/?s=<symbol>&f=sd2t2ohlcv&h&e=csv` with a desktop `User-Agent` header. The provider MUST validate the response body with a Zod schema before returning. The provider MUST map broker tickers to Stooq's symbol format (e.g. `AAPL` → `aapl.us`, `^GSPC` → `^spx`, `ECOPETROL.CL` → `ec.cl`); for symbols that have no Stooq equivalent, the provider MUST reject with `{ code: 'NOT_FOUND' }` without making an HTTP request. The provider MUST NOT be called for crypto tickers (this is a non-goal of this change).
+The system MUST expose a `StooqProvider` in `src/lib/market-data/stooq.ts` that implements the `PriceProvider` interface by calling `https://stooq.com/q/l/?s=<symbol>&f=sd2t2ohlcv&h&e=csv` with a desktop `User-Agent` header. The provider MUST validate the response body with a Zod schema before returning. The initial explicit map MUST contain only verified USD quotes (e.g. `AAPL` → `aapl.us`). For symbols not in that map the provider MUST reject with `{ code: 'NOT_FOUND' }` without making an HTTP request. The fallback MUST NOT request crypto, Colombian assets, or the benchmark.
 
 #### Scenario: Stooq returns a valid CSV quote
 - **WHEN** the provider calls Stooq for `aapl.us` and the response is `Symbol,Date,Time,Open,High,Low,Close,Volume\nAAPL.US,2026-06-17,21:00:00,191.50,193.10,190.80,192.40,12345678\n`

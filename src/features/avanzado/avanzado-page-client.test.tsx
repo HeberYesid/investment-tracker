@@ -44,12 +44,12 @@ const emptyPayload = {
   snapshot: null,
 };
 
-const readySummary = {
-  equityUsd: 1000,
-  investedUsd: 800,
-  realizedPnlUsd: 0,
-  unrealizedPnlUsd: 200,
-  totalPnlUsd: 200,
+const readySummary = { ledgerStatus: "complete" as const, ledgerIssues: [], hasActiveTrades: true,
+  equityUsd: "1000",
+  investedUsd: "800",
+  realizedPnlUsd: "0",
+  unrealizedPnlUsd: "200",
+  totalPnlUsd: "200",
   returnPct: 25,
   twr: null,
   holdingsCount: 3,
@@ -80,9 +80,9 @@ describe("AvanzadoPageClient", () => {
   });
 
   it("renders the empty state when the portfolio has no holdings", async () => {
-    mockAdvanced({ summary: { ...readySummary, holdingsCount: 0 } });
+    mockAdvanced({ summary: { ...readySummary, holdingsCount: 0, hasActiveTrades: false } });
     const { AvanzadoPageClient: Component } = await import("./avanzado-page-client");
-    render(createElement(Component, { initialPayload: { ...emptyPayload, summary: { ...readySummary, holdingsCount: 0 } } }));
+    render(createElement(Component, { initialPayload: { ...emptyPayload, summary: { ...readySummary, holdingsCount: 0, hasActiveTrades: false } } }));
     expect(screen.getByTestId("avanzado-empty")).toBeInTheDocument();
   });
 
@@ -96,7 +96,7 @@ describe("AvanzadoPageClient", () => {
         ],
       },
       distribution: { dim: "broker", slices: [], unclassified: false },
-      returns: { groupBy: "stock", rows: [] },
+      returns: { groupBy: "stock", ledgerStatus: "complete", ledgerIssues: [], rows: [] },
       snapshot: {
         benchmark: {
           benchmark: "S&P 500",
@@ -127,7 +127,7 @@ describe("AvanzadoPageClient", () => {
     mockAdvanced({
       summary: readySummary,
       distribution: { dim: "broker", slices: [], unclassified: false },
-      returns: { groupBy: "stock", rows: [] },
+      returns: { groupBy: "stock", ledgerStatus: "complete", ledgerIssues: [], rows: [] },
       snapshot: { benchmark: null, assets: [], isAnyEstimated: false, isAnyStale: false },
     });
     const { AvanzadoPageClient: Component } = await import("./avanzado-page-client");
@@ -143,7 +143,7 @@ describe("AvanzadoPageClient", () => {
     mockAdvanced({
       summary: readySummary,
       distribution: { dim: "broker", slices: [], unclassified: false },
-      returns: { groupBy: "stock", rows: [] },
+      returns: { groupBy: "stock", ledgerStatus: "complete", ledgerIssues: [], rows: [] },
       snapshot: { benchmark: null, assets: [], isAnyEstimated: false, isAnyStale: false },
     });
     const { AvanzadoPageClient: Component } = await import("./avanzado-page-client");

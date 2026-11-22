@@ -27,6 +27,33 @@ function validBuyInput(overrides: Record<string, unknown> = {}) {
   };
 }
 
+describe("cantidad_por_tipo_no_infiere_cero", () => {
+  it.each(["BUY", "SELL", "DIVIDEND", "FEE", "TRANSFER_IN", "TRANSFER_OUT"])(
+    "%s valida el par sin convertir ni redondear la entrada",
+    (trade_type) => {
+      const fee = trade_type === "FEE";
+      const base = { ...validBuyInput(), trade_type, broker_code: "ETORO", ticker: "AAPL" };
+      const { quantity: _quantity, ...withoutQuantity } = base;
+      for (const schema of [CreateTradeInput, TradeFormInput]) {
+        for (const quantity of fee ? [0] : [1, 0.25, 1e-8, 5e-9, 0.123456789]) {
+          expect(schema.parse({ ...base, quantity }).quantity).toBe(quantity);
+        }
+        for (const input of [
+          withoutQuantity,
+          ...[null, "0", "1", NaN, Infinity, -Infinity, -1, -1e-9, 1e-9, 4.999e-9,
+            fee ? 1 : 0, ...(fee ? [5e-9, 1e-8] : [])].map((quantity) => ({ ...base, quantity })),
+        ]) {
+          const result = schema.safeParse(input);
+          expect(result.success).toBe(false);
+          expect(result.error?.issues).toEqual(expect.arrayContaining([
+            expect.objectContaining({ path: ["quantity"] }),
+          ]));
+        }
+      }
+    },
+  );
+});
+
 describe("CreateTradeInput validation", () => {
   it("valid BUY trade passes validation", () => {
     const result = CreateTradeInput.safeParse(validBuyInput());
@@ -122,7 +149,7 @@ describe("normalizeTradeUsdValues", () => {
 
   it("FEE total_invested_usd equals commission_usd", () => {
     const input = CreateTradeInput.parse(
-      validBuyInput({ trade_type: "FEE", quantity: 1, commission_original: 15 }),
+      validBuyInput({ trade_type: "FEE", quantity: 0, commission_original: 15 }),
     );
     const result = normalizeTradeUsdValues(input);
     expect(result.total_invested_usd).toBe(15);

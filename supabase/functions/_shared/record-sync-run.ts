@@ -28,7 +28,7 @@ export async function recordRunStart(
 export async function recordRunSuccess(
   supabase: ServiceClient,
   runId: string,
-  details: { assetsProcessed?: number } = {},
+  details: { assetsProcessed?: number; error?: string; failedAssets?: Record<string, string> } = {},
 ): Promise<void> {
   const { error } = await supabase
     .from("market_sync_runs")
@@ -36,7 +36,8 @@ export async function recordRunSuccess(
       status: "SUCCESS",
       finished_at: new Date().toISOString(),
       assets_processed: details.assetsProcessed ?? null,
-      error: null,
+      error: details.error ?? null,
+      ...(details.failedAssets ? { failed_assets: details.failedAssets } : {}),
     })
     .eq("id", runId);
   if (error) {

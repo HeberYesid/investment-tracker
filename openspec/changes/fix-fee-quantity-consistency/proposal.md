@@ -8,6 +8,7 @@ El libro conciliado exige cantidad cero para una comisión independiente (`FEE`)
 - Admitir en el flujo de importación los cargos independientes identificables del formato XTB existente e informar los cargos XTB reconocidos que no se puedan procesar. No anunciar que la importación incluya todas las comisiones del extracto ni añadir mapeos de otros brókeres.
 - Conservar la confirmación parcial de importaciones, revalidando el JSON persistido antes de resolver referencias o preparar inserciones, sin corregir datos anteriores sobre la marcha.
 - Añadir regresiones de base local y del P/L resultante, sin cambiar el libro aprobado ni migrar datos.
+- Integrar selectivamente la proyección actual ya aprobada: **BREAKING**, los importes actuales del resumen, tabla y distribución pasan de números a decimales string; una proyección no disponible devuelve `null` y un diagnóstico estable. Se conservan fecha y fuente de cotización y el contrato histórico.
 
 ## Requirements
 
@@ -53,6 +54,7 @@ MIENTRAS se procesen los formatos admitidos de eToro, Trii y eTrading Bancolombi
 ### Modified Capabilities
 
 - `csv-import-batching`: añadir controles previos a los lotes para comisiones reconocidas y revalidación de las candidatas persistidas; conservar lotes y resultado parcial.
+- `dashboard-summary`, `portfolio-returns` y `portfolio-distribution`: compartir la valoración del libro conciliado para lecturas actuales (R9–R10), manteniendo la rama anual y los datos de sincronización de mercado.
 
 ## Impact
 

@@ -7,6 +7,8 @@ import { STALE_HISTORY_MS } from "@/lib/market-data/types";
 import type { MarketPriceRow } from "@/lib/calculations/pricing";
 import type { DashboardData } from "@/lib/dashboard/loader";
 import { createServiceSupabaseClient } from "@/lib/supabase/server";
+import { loadSyncHealth } from "@/lib/dashboard/sync-status";
+import type { SyncHealth } from "@/lib/validations/dashboard";
 
 export const BENCHMARK_TICKER = "^GSPC";
 export const BENCHMARK_LABEL = "S&P 500";
@@ -45,6 +47,8 @@ export type SnapshotResult = {
   isAnyEstimated: boolean;
   isAnyStale: boolean;
   benchmark: BenchmarkSeries | null;
+  sync?: SyncHealth;
+  shouldShowStaleBanner?: boolean;
 };
 
 export function computeAssetStaleness(
@@ -242,9 +246,15 @@ export async function loadSnapshot(
     dashboardData.latestMarketPrices,
     now,
   );
-  const assets = buildSnapshotAssets(dashboardData, staleness);
+  const assets = buildSnapshotAssets({ ...dashboardData, assets: dashboardData.assets.filter(({ id }) => staleness.has(id)) }, staleness);
   const isAnyEstimated = assets.some((a) => a.isEstimated);
   const isAnyStale = assets.some((a) => a.isStale);
-  const benchmark = await loadBenchmarkSeries(supabase, now);
-  return { assets, isAnyEstimated, isAnyStale, benchmark };
+  const [benchmark, sync] = await Promise.all([
+    loadBenchmarkSeries(supabase, now),
+    loadSyncHealth(activeAssetIds, now.getTime()).catch(() => undefined),
+  ]);
+  const affectedByFailure = sync?.lastFailureReason === "TOTAL_FAILURE" && !!sync.lastSuccessAt &&
+    assets.some(({ observedAt }) => observedAt && Date.parse(observedAt) < Date.parse(sync.lastSuccessAt!));
+  return { assets, isAnyEstimated, isAnyStale, benchmark, ...(sync ? { sync } : {}),
+    shouldShowStaleBanner: isAnyStale || isAnyEstimated || affectedByFailure };
 }

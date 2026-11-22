@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { createYahooProvider } from "@/lib/market-data/yahoo";
+import { getPriceProvider } from "@/lib/market-data/registry";
 import type { YahooRange } from "@/lib/market-data/types";
 import { BENCHMARK_TICKER } from "@/lib/dashboard/snapshot";
 
@@ -35,7 +35,7 @@ export async function backfillBenchmarkHistory(
   const assetId = (benchmarkAsset as { id: string }).id;
   const yahooSymbol = (benchmarkAsset as { yahoo_symbol: string | null }).yahoo_symbol ?? BENCHMARK_TICKER;
 
-  const provider = createYahooProvider();
+  const provider = getPriceProvider();
   let history;
   try {
     history = await provider.fetchHistory(yahooSymbol, range);

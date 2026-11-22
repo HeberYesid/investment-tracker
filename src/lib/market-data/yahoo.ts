@@ -257,24 +257,19 @@ export function createYahooProvider(
     return { status: "not_found" };
   }
 
+  async function fetchQuote(symbol: string): Promise<FetchedQuote> {
+    const result = await fetchChart(symbol, { range: "1d", interval: "1d" });
+    const { price, observedAt } = pickQuotePrice(result);
+    return { symbol, priceUsd: price, currency: result.meta?.currency ?? "USD", observedAt, delayedUntil: null };
+  }
+
   return {
+    fetchQuote,
     async fetchQuotes(symbols) {
       const results = await Promise.all(
         symbols.map(async (symbol) => {
           try {
-            const result = await fetchChart(symbol, {
-              range: "1d",
-              interval: "1d",
-            });
-            const { price, observedAt } = pickQuotePrice(result);
-            const quote: FetchedQuote = {
-              symbol,
-              priceUsd: price,
-              currency: result.meta?.currency ?? "USD",
-              observedAt,
-              delayedUntil: null,
-            };
-            return { ok: true as const, value: quote };
+            return { ok: true as const, value: await fetchQuote(symbol) };
           } catch (err) {
             return { ok: false as const, error: toProviderError(err) };
           }

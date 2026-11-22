@@ -4,21 +4,19 @@ import { useState } from "react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 
 import { getDashboardLabels } from "@/lib/i18n/dashboard";
+import { formatQuoteDateEs } from "@/lib/i18n/dates";
 import { getChartPalette } from "@/lib/theme/chart-palette";
 import { useTheme } from "@/lib/theme/theme-provider";
 import { useChartExport } from "@/lib/chart-export";
 import { ChartExportButton } from "@/components/ui/chart-export-button";
+import { formatCurrentUsd } from "./current-money";
+import { LedgerNotice } from "./ledger-notice";
 import {
   type AssetStaleness,
   type DistributionDimension,
+  type DistributionSlice,
   DistributionResponse,
 } from "@/lib/validations/dashboard";
-const usdFormatter = new Intl.NumberFormat("es-CO", {
-  style: "currency",
-  currency: "USD",
-  maximumFractionDigits: 0,
-});
-
 const labels = getDashboardLabels();
 
 interface DistributionChartProps {
@@ -43,9 +41,15 @@ function stalenessColor(staleness: AssetStaleness): string {
   return "text-text-muted";
 }
 
-function stalenessTooltip(staleness: AssetStaleness): string {
+function stalenessTooltip({ staleness, observedAt, source }: DistributionSlice): string {
   if (staleness === "estimated") return labels.distributionEstimatedTooltip;
-  if (staleness === "stale") return labels.distributionStaleTooltip;
+  if (staleness === "stale") {
+    const date = observedAt && formatQuoteDateEs(observedAt);
+    const provider = source && Object.hasOwn(labels.quoteSources, source)
+      ? labels.quoteSources[source as keyof typeof labels.quoteSources] : null;
+    return [date ? labels.quoteAt.replace("{date}", date) : labels.distributionStaleTooltip,
+      provider ? labels.quoteSource.replace("{source}", provider) : null].filter(Boolean).join(" · ");
+  }
   return "";
 }
 
@@ -56,6 +60,7 @@ export function DistributionChart({ initial }: DistributionChartProps) {
   const [data, setData] = useState<DistributionResponse>(initial);
   const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
+  const unavailable = data.ledgerStatus === "unavailable";
 
   async function handleDimChange(next: DistributionDimension) {
     if (next === data.dim || loading) return;
@@ -101,10 +106,10 @@ export function DistributionChart({ initial }: DistributionChartProps) {
             </button>
           ))}
         </div>
-        <ChartExportButton
+        {!unavailable && <ChartExportButton
           exporting={exporting}
           onExport={exportAsPng}
-        />
+        />}
       </div>
       {failed && <p role="alert" className="mt-2 text-sm text-text-secondary">{labels.distributionLoadError}</p>}
 
@@ -112,13 +117,14 @@ export function DistributionChart({ initial }: DistributionChartProps) {
         <p className="mt-2 text-xs text-text-muted" role="status">{labels.distributionUnclassifiedTooltip}</p>
       )}
 
+      {unavailable ? <LedgerNotice issues={data.ledgerIssues} /> : (
       <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_1.4fr]" aria-busy={loading}>
         <div className="h-56" ref={containerRef}>
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Tooltip
                 formatter={(_value, name, item) => [
-                  usdFormatter.format(Number(item.payload?.valueUsd ?? 0)),
+                  formatCurrentUsd(item.payload?.valueUsd ?? null),
                   String(name),
                 ]}
                 contentStyle={{
@@ -130,8 +136,8 @@ export function DistributionChart({ initial }: DistributionChartProps) {
                 }}
               />
               <Pie
-                data={data.slices}
-                dataKey="valueUsd"
+                data={data.slices.map((slice) => ({ ...slice, chartValue: Number(slice.valueUsd) }))}
+                dataKey="chartValue"
                 nameKey="label"
                 innerRadius={45}
                 outerRadius={80}
@@ -188,7 +194,8 @@ export function DistributionChart({ initial }: DistributionChartProps) {
                   <span
                     aria-hidden
                     className={`text-xs font-semibold ${stalenessColor(slice.staleness)}`}
-                    title={stalenessTooltip(slice.staleness)}
+                    title={stalenessTooltip(slice)}
+                    aria-label={stalenessTooltip(slice)}
                   >
                     {stalenessGlyph(slice.staleness)}
                   </span>
@@ -199,13 +206,14 @@ export function DistributionChart({ initial }: DistributionChartProps) {
                   {slice.percent.toFixed(2)}%
                 </span>
                 <span className="font-mono text-xs text-text-muted">
-                   {usdFormatter.format(slice.valueUsd)}
+                    {formatCurrentUsd(slice.valueUsd)}
                 </span>
               </div>
             </li>
           ))}
         </ul>
       </div>
+      )}
     </section>
   );
 }

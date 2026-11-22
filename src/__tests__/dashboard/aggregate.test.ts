@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import type { DashboardData } from "@/lib/dashboard/loader";
+import type { DashboardDataWithLedger } from "@/lib/dashboard/loader";
 
 const loadDashboardDataMock = vi.fn();
 const groupHistoricalPricesByAssetMock = vi.fn();
 const loadSnapshotMock = vi.fn();
-const stalenessState = { values: [] as string[] };
+
 
 vi.mock("@/lib/dashboard/loader", () => ({
   loadDashboardData: (portfolioId: string, supabase: SupabaseClient) =>
@@ -16,28 +16,25 @@ vi.mock("@/lib/dashboard/loader", () => ({
 }));
 
 vi.mock("@/lib/dashboard/snapshot", () => ({
-  loadSnapshot: (data: DashboardData, supabase: SupabaseClient) =>
+  loadSnapshot: (data: DashboardDataWithLedger, supabase: SupabaseClient) =>
     loadSnapshotMock(data, supabase),
-  computeAssetStaleness: (assetIds: string[]) => {
-    const map = new Map<string, string>();
-    for (const id of assetIds) {
-      const value = stalenessState.values.shift() ?? "fresh";
-      map.set(id, value);
-    }
-    return map;
-  },
 }));
 
 import { loadDashboardAggregate } from "@/lib/dashboard/aggregate";
 
 const PORTFOLIO_ID = "p1";
+const assetId = "30000000-0000-4000-8000-000000000001";
+const brokerId = "40000000-0000-4000-8000-000000000001";
 
-function buildDashboardData(overrides: Partial<DashboardData> = {}): DashboardData {
+function buildDashboardData(overrides: Partial<DashboardDataWithLedger> = {}): DashboardDataWithLedger {
   return {
+    ledgerTrades: [{ id: "50000000-0000-4000-8000-000000000001", asset_id: assetId, broker_id: brokerId,
+      trade_type: "BUY", trade_date: "2025-02-10", quantity: "10", price_usd: "100", commission_usd: "0", deleted_at: null }],
+    ledgerPrices: [{ asset_id: assetId, price_usd: "150", observed_at: new Date().toISOString(), delayed_until: null }],
     trades: [
       {
-        asset_id: "a1",
-        broker_id: "b1",
+        asset_id: assetId,
+        broker_id: brokerId,
         trade_type: "BUY",
         trade_date: "2025-02-10",
         quantity: 10,
@@ -48,19 +45,19 @@ function buildDashboardData(overrides: Partial<DashboardData> = {}): DashboardDa
       },
     ],
     assets: [
-      { id: "a1", ticker: "AAPL", name: null, sector: "Technology", country: "US" },
+      { id: assetId, ticker: "AAPL", name: null, sector: "Technology", country: "US" },
     ],
-    brokers: [{ id: "b1", code: "ETORO", name: "eToro" }],
+    brokers: [{ id: brokerId, code: "ETORO", name: "eToro" }],
     latestMarketPrices: [
       {
-        asset_id: "a1",
+        asset_id: assetId,
         price_usd: 150,
         observed_at: new Date().toISOString(),
         delayed_until: null,
       },
     ],
     historicalPrices: [
-      { asset_id: "a1", price_usd: 120, observed_at: "2025-02-28T20:00:00.000Z" },
+      { asset_id: assetId, price_usd: 120, observed_at: "2025-02-28T20:00:00.000Z" },
     ],
     portfolioId: PORTFOLIO_ID,
     ...overrides,
@@ -75,7 +72,7 @@ function buildSnapshot(overrides: Partial<{
   return {
     assets: [
       {
-        id: "a1",
+        id: assetId,
         ticker: "AAPL",
         isEstimated: false,
         isStale: false,
@@ -138,8 +135,8 @@ describe("loadDashboardAggregate", () => {
     const result = await loadDashboardAggregate(PORTFOLIO_ID, supabase, "full");
 
     expect(result.summary).toBeDefined();
-    expect(result.summary!.equityUsd).toBe(1500);
-    expect(result.summary!.investedUsd).toBe(1000);
+    expect(result.summary!.equityUsd).toBe("1500");
+    expect(result.summary!.investedUsd).toBe("1000");
     expect(result.summary!.holdingsCount).toBe(1);
     expect(result.evolution).toBeDefined();
     expect(result.evolution!.points.length).toBeGreaterThan(0);
@@ -152,6 +149,7 @@ describe("loadDashboardAggregate", () => {
     const data = buildDashboardData({
       historicalPrices: [],
       latestMarketPrices: [],
+      ledgerPrices: [],
     });
     loadDashboardDataMock.mockResolvedValue(data);
     loadSnapshotMock.mockResolvedValue(buildSnapshot());
@@ -165,8 +163,7 @@ describe("loadDashboardAggregate", () => {
   });
 
   it("flags summary.isAnyStale when any active holding has a stale quote", async () => {
-    stalenessState.values = ["stale"];
-    const data = buildDashboardData();
+    const data = buildDashboardData({ ledgerPrices: [{ ...buildDashboardData().ledgerPrices[0], observed_at: "2026-06-14T23:32:00Z", source: "STOOQ" }] });
     loadDashboardDataMock.mockResolvedValue(data);
     loadSnapshotMock.mockResolvedValue(buildSnapshot());
 
@@ -175,5 +172,6 @@ describe("loadDashboardAggregate", () => {
 
     expect(result.summary!.isAnyStale).toBe(true);
     expect(result.summary!.staleTickers).toEqual(["AAPL"]);
+    expect(result.distribution?.slices).toMatchObject([{ valueUsd: "1500", staleness: "stale", source: "STOOQ", observedAt: "2026-06-14T23:32:00Z" }]);
   });
 });

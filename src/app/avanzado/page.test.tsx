@@ -35,15 +35,15 @@ const emptyPayload = {
   snapshot: null,
 };
 
-const readySummary = {
-  equityUsd: 1000,
-  investedUsd: 800,
-  realizedPnlUsd: 0,
-  unrealizedPnlUsd: 200,
-  totalPnlUsd: 200,
+const readySummary = { ledgerStatus: "complete" as const, ledgerIssues: [],
+  equityUsd: "1000",
+  investedUsd: "800",
+  realizedPnlUsd: "0",
+  unrealizedPnlUsd: "200",
+  totalPnlUsd: "200",
   returnPct: 25,
   twr: null,
-  holdingsCount: 0,
+  holdingsCount: 0, hasActiveTrades: false,
   isEstimated: false,
   isAnyStale: false,
   staleTickers: [] as string[],
@@ -74,9 +74,9 @@ describe("avanzado dashboard client", () => {
       createElement(AvanzadoPageClient, {
         initialPayload: {
           ...emptyPayload,
-          summary: { ...readySummary, holdingsCount: 3 },
-          distribution: { dim: "broker", slices: [], unclassified: false, totalUsd: 0 },
-          returns: { groupBy: "stock", rows: [] },
+          summary: { ...readySummary, holdingsCount: 3, hasActiveTrades: true },
+          distribution: { dim: "broker", slices: [], unclassified: false, totalUsd: "0", ledgerStatus: "complete", ledgerIssues: [] },
+          returns: { groupBy: "stock", ledgerStatus: "complete", ledgerIssues: [], rows: [] },
         },
       }),
     );

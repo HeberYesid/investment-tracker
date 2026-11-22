@@ -15,6 +15,8 @@ export type DistributionSlice = {
   percent: number;
   holdingsCount: number;
   staleness: AssetStalenessValue;
+  source?: string;
+  observedAt?: string;
 };
 
 export type DistributionResult = {
@@ -80,6 +82,7 @@ export function groupByDimension(
   equityByHolding: Map<string, number>,
   dim: DistributionDimension,
   stalenessByHolding?: Map<string, AssetStalenessValue>,
+  quotesByAsset?: Map<string, { source?: string; observed_at: string }>,
 ): DistributionResult {
   type Bucket = {
     key: string;
@@ -88,6 +91,7 @@ export function groupByDimension(
     holdingsCount: number;
     unclassified: boolean;
     staleness: AssetStalenessValue;
+    oldestStaleQuote?: { source?: string; observed_at: string };
   };
   const buckets = new Map<string, Bucket>();
   let totalUsd = 0;
@@ -112,6 +116,11 @@ export function groupByDimension(
     bucket.valueUsd += equity;
     bucket.holdingsCount += 1;
     bucket.staleness = worseStaleness(bucket.staleness, holdingStaleness);
+    const quote = quotesByAsset?.get(holding.assetId);
+    if (holdingStaleness === "stale" && quote &&
+      (!bucket.oldestStaleQuote || Date.parse(quote.observed_at) < Date.parse(bucket.oldestStaleQuote.observed_at))) {
+      bucket.oldestStaleQuote = quote;
+    }
     buckets.set(v.key, bucket);
     totalUsd += equity;
   }
@@ -124,6 +133,10 @@ export function groupByDimension(
       percent: totalUsd > 0 ? (b.valueUsd / totalUsd) * 100 : 0,
       holdingsCount: b.holdingsCount,
       staleness: b.staleness,
+      ...(b.staleness === "stale" && b.oldestStaleQuote ? {
+        observedAt: b.oldestStaleQuote.observed_at,
+        ...(b.oldestStaleQuote.source ? { source: b.oldestStaleQuote.source } : {}),
+      } : {}),
     }),
   );
 

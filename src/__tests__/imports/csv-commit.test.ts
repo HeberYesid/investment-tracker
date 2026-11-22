@@ -143,6 +143,73 @@ describe("POST /api/v1/imports/csv/commit", () => {
     vi.restoreAllMocks();
   });
 
+  describe("commit_revalida_candidatas_antes_del_catalogo", () => {
+    const fee = { ...buildTrade("ACME", 0), trade_type: "FEE", quantity: 0, price_original: 0, commission_original: 2 };
+    const buy = buildTrade("ACME", 1);
+    const discarded = [
+      { ...fee, quantity: 1 }, { ...buy, quantity: 0 }, { ...buy, quantity: 1e-9 },
+      { ...buy, trade_type: "OTHER" }, { trade_type: "FEE", ticker: "ACME" },
+      { ...fee, quantity: "0" }, null, { ...fee, quantity: null },
+    ];
+
+    function withRows(payloads: unknown[]) {
+      const rows = payloads.map((parsed_data_json, index) => ({
+        id: rowId(index), row_number: 10 + index, parsed_data_json,
+      }));
+      const record = { id: IMPORT_ID, broker_id: BROKER_ID, status: "PREVIEWED" };
+      const db = buildSupabaseMock({ importRecord: record, validRows: rows });
+      requireApiUserWithPortfolioMock.mockResolvedValue({ user: { id: "u1" }, supabase: db, portfolio: PORTFOLIO, response: null });
+      return { db, rows, record };
+    }
+
+    it.each([false, true])("guarda un lote de FEE cero y compra, ignorando decisiones de descartadas (%s)", async (mixed) => {
+      const { db, rows, record } = withRows(mixed ? [fee, buy, ...discarded] : [fee, buy]);
+      const before = structuredClone(rows);
+      const asset_references = {
+        ...choices(2),
+        ...(mixed ? Object.fromEntries(rows.slice(2).map(({ id }) => [id, { kind: "new", exchange: "NYSE", currency: "USD", asset_type: "STOCK" }])) : {}),
+      };
+      const response = await POST(buildRequest({ import_id: IMPORT_ID, asset_references }));
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ import_id: IMPORT_ID, status: "COMMITTED", imported: 2,
+        errors: mixed ? discarded.map((_, i) => expect.stringMatching(`^Fila ${12 + i}:`)) : [],
+      });
+      expect(db.rpc.mock.calls.flatMap(([, { p_items }]) => p_items.flatMap(({ row_ids }) => row_ids))).toEqual([rowId(0), rowId(1)]);
+      expect(db.insertCalls.filter(({ table }) => table === "trades")).toMatchObject([{ payload: [
+        { quantity: 0, trade_type: "FEE", commission_usd: 2, total_invested_usd: 2 },
+        { quantity: 1, trade_type: "BUY", total_invested_usd: 100 },
+      ] }]);
+      expect(rows).toEqual(before);
+      expect(db.calls.filter(({ table }) => table === "csv_import_rows").map(({ method }) => method)).toEqual(["select", "eq", "eq", "eq"]);
+      expect(db.calls).toContainEqual(expect.objectContaining({ table: "csv_imports", method: "update", args: [{ status: "COMMITTED" }, { count: "exact" }] }));
+      record.status = "COMMITTED";
+      const repeated = await POST(buildRequest({ import_id: IMPORT_ID, asset_references }));
+      expect(repeated.status).toBe(409);
+      expect(db.rpc).toHaveBeenCalledTimes(1);
+    });
+
+    it("marca FAILED con error por fila y sin catálogo ni trades si todas fallan", async () => {
+      const { db, rows } = withRows(discarded);
+      const response = await POST(buildRequest({ import_id: IMPORT_ID, asset_references: choices(rows.length) }));
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ import_id: IMPORT_ID, status: "FAILED", imported: 0,
+        errors: rows.map(({ row_number }) => expect.stringMatching(`^Fila ${row_number}:`)),
+      });
+      expect(db.rpc).not.toHaveBeenCalled();
+      expect(db.insertCalls.map(({ table }) => table)).toEqual(["audit_events"]);
+    });
+
+    it("mantiene 400 sin filas previamente válidas y no acepta decisiones de filas ajenas", async () => {
+      const empty = withRows([]);
+      expect((await POST(buildRequest({ import_id: IMPORT_ID }))).status).toBe(400);
+      expect(empty.db.rpc).not.toHaveBeenCalled();
+      const { db } = withRows([fee]);
+      expect((await POST(buildRequest({ import_id: IMPORT_ID, asset_references: choices(2) }))).status).toBe(400);
+      expect(db.rpc).not.toHaveBeenCalled();
+      expect(db.calls).toContainEqual({ table: "csv_import_rows", method: "eq", args: ["validation_status", "VALID"] });
+    });
+  });
+
   it("splits large imports into batches of 500 when inserting trades", async () => {
     const rows = Array.from({ length: 600 }, (_, i) => ({
       id: rowId(i),

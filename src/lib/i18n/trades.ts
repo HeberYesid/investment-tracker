@@ -59,6 +59,10 @@ export const tradeLabels = {
     required: "Este campo es requerido",
     invalidDate: "Fecha inválida",
     positiveNumber: "Debe ser un número positivo",
+    quantityNumberRequired: "Ingresa la cantidad como un número finito.",
+    feeQuantityZero: "Para una comisión, la cantidad debe ser 0.",
+    quantityPositiveAtScale: "Ingresa una cantidad positiva que no se redondee a cero.",
+    staleTradeUpdate: "La operación cambió mientras la editabas. Recarga la página e inténtalo de nuevo.",
     copFxRateRequired:
       "Ingresa el multiplicador de COP a USD (por ejemplo, 0.00026316).",
 

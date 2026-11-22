@@ -56,3 +56,21 @@ export function rateLimitHeaders(result: ReturnType<typeof checkRateLimit>): Rec
     "X-RateLimit-Reset": String(Math.ceil(result.reset / 1000)),
   };
 }
+
+const syncStatusWindows = new Map<string, number[]>();
+let lastSyncStatusCleanup = 0;
+
+export function checkSyncStatusRateLimit(userId: string, now = Date.now()): boolean {
+  const cutoff = now - WINDOW_MS;
+  if (now - lastSyncStatusCleanup >= CLEANUP_INTERVAL) {
+    lastSyncStatusCleanup = now;
+    for (const [id, times] of syncStatusWindows) {
+      if (times.at(-1)! <= cutoff) syncStatusWindows.delete(id);
+    }
+  }
+  const times = (syncStatusWindows.get(userId) ?? []).filter((time) => time > cutoff);
+  if (times.length >= MAX_REQUESTS) return false;
+  times.push(now);
+  syncStatusWindows.set(userId, times);
+  return true;
+}
