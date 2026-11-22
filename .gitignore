@@ -43,6 +43,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# Índice local de skills
+/.atl/
+
 #supabase
 supabase/.temp
 supabase/migrations/0012_assets_write_policy.sql
