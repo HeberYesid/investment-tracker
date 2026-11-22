@@ -17,7 +17,7 @@ flowchart TD
     C["Contrato y plan<br/>alcance · riesgo · permisos · evidencia"]
     D["Implementación<br/>TDD · Gherkin cuando aplica"]
     E["Verificación<br/>tests · API · navegador · logs · DB"]
-    F["Evaluación independiente"]
+    F["Revisión proporcional al riesgo"]
     G{"¿Cumple el contrato?"}
     H["Aprendizaje validado"]
     A --> B --> C --> D --> E --> F --> G
@@ -47,34 +47,35 @@ flowchart LR
 3. **Explorar:** leer el código y documentación relevantes, ejecutar la línea
    base y observar el sistema.
 4. **Contrato:** definir objetivo, límites, permisos, aceptación y evidencia.
-5. **Plan:** crear un plan versionado, sin convertir supuestos no comprobados en
-   implementación detallada.
-6. **Build:** implementar una unidad coherente en un workspace aislado.
+5. **Plan:** definir los pasos necesarios y versionar el plan cuando la ruta lo
+   justifique, sin convertir supuestos no comprobados en implementación detallada.
+6. **Build:** implementar una unidad coherente; aislar el workspace si hay
+   riesgo de interferir con otro cambio y el proyecto lo permite.
 7. **Verify:** ejecutar tests y comprobaciones proporcionales al riesgo.
-8. **Evaluate:** revisar con otra sesión, agente o persona contra el contrato.
+8. **Evaluate:** revisar contra los criterios acordados; hacerlo de forma
+   independiente cuando la ruta o las reglas del proyecto lo exijan.
 9. **Compound:** conservar solo aprendizajes respaldados por evidencia.
 
 ## Selección de ruta
 
-```mermaid
-quadrantChart
-    title Ruta según riesgo e incertidumbre
-    x-axis Baja incertidumbre --> Alta incertidumbre
-    y-axis Bajo riesgo --> Alto riesgo
-    quadrant-1 Serious path
-    quadrant-2 Spike + decisión humana
-    quadrant-3 Fast path
-    quadrant-4 Standard path
-```
+Si todavía falta una respuesta para decidir qué construir o cómo verificarlo,
+investiga primero. Con el alcance claro, elige la ruta según el impacto de equivocarte.
 
-| Riesgo | Incertidumbre | Ruta |
+| Condición | Ruta | Evidencia esperada |
 |---|---|---|
-| Bajo | Baja | **Fast path:** editar, check focalizado, revisar diff. |
-| Medio | Baja | **Standard path:** contrato, plan, implementación, tests y evaluación. |
-| Alto o crítico | Baja | **Serious path:** Gherkin, TDD, integración, E2E, seguridad y staging. |
-| Cualquiera | Alta | **Spike path:** hipótesis, timebox, prototipo, observación y decisión. |
+| Riesgo bajo, cambio claro y reversible | **Rápida** | Comprobación puntual y revisión del diff. |
+| Riesgo medio y alcance verificable | **Estándar** | Criterios observables, plan breve, pruebas relevantes y revisión. |
+| Riesgo alto o crítico y alcance verificable | **Seria** | Contrato aprobado, TDD, Gherkin si hay comportamiento compartido, pruebas del flujo real y revisión independiente. |
+| Incertidumbre que impide decidir o verificar, con cualquier riesgo | **Investigación (`spike`)** | Pregunta, límite de tiempo, evidencia y decisión. Si el riesgo es alto o crítico, pide una decisión humana antes de pasar a implementación. |
+
+Si aparecen riesgos o dudas nuevos, pausa el trabajo afectado y reclasifica.
+Después de una investigación, vuelve a elegir ruta antes de implementar. Ninguna
+ruta reduce los requisitos de aprobación o verificación del proyecto.
 
 ## Artefactos persistentes
+
+Esta estructura es orientativa. Reutiliza los artefactos del proyecto si ya
+cumplen la misma función; no dupliques contratos, planes ni registros.
 
 ```text
 AGENTS.md                 → mapa corto del proyecto
@@ -181,7 +182,7 @@ Objetivo cumplido
 + fuera de alcance respetado
 + evidencia ejecutada
 + riesgos revisados
-+ evaluación independiente conforme
++ evaluación independiente conforme cuando se exige
 + documentación actualizada
 + estado recuperable
 ```

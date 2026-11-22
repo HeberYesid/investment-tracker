@@ -1,21 +1,29 @@
 # AGENTS.md — Mapa de navegación para agentes de IA
 
-> Este archivo es el **punto de entrada** para cualquier agente que trabaje en este
-> repositorio. NO es una biblia de reglas: es un **mapa**. Lee solo lo que
-> necesites cuando lo necesites (divulgación progresiva).
-
----
+-App personal para gestionar portafolio personal
 
 ## 1. Antes de empezar (obligatorio)
+1.Hay dos scripts de verificación. Ejecuta según el momento:
 
-1. Ejecuta `node init.mjs` y verifica que termina sin errores. Si falla, **para**
-   y resuelve el entorno antes de tocar código.
+| Momento | Comando | Qué hace |
+|---|---|---|
+| Inicio de sesión | `node init-quick.mjs` | Revisa entorno, archivos base y `feature_list.json`. Es instantáneo y de solo lectura. |
+| Antes de marcar una feature como `done` | `node init-full.mjs` | Lo anterior, más instalación de dependencias, escaneo de secrets y tests. |
+
+Reglas:
+
+1. Al comenzar CUALQUIER sesión, ejecuta `node init-quick.mjs`. Si falla, no avances: resuelve el error o repórtalo.
+2. Si la tarea va a modificar código, ejecuta también `pnpm test:run` una vez al inicio para conocer el estado base. Si ya hay tests rotos, repórtalo antes de tocar nada.
+3. Si la sesión es solo lectura, preguntas o documentación, no ejecutes `init-full.mjs`.
+4. Antes de declarar una tarea como `done`, ejecuta `node init-full.mjs`. Si falla, la tarea NO está terminada.
+5. Si un script falla, lee solo las líneas `[FAIL]` y su detalle. No vuelvas a ejecutarlo sin haber cambiado algo.
 2. Lee `progress/current.md` para entender en qué estado quedó la última sesión.
 3. Lee `feature_list.json`. Toda feature nueva (`"sdd": true`) pasa por
    **Spec Driven Development con Openspec** — ver `docs/specs.md` y §4 de este archivo.
 4. Lee `docs/specs.md` antes de tocar cualquier spec o feature `sdd: true`.
 5. Revisa `git status --short` antes de editar. Preserva los cambios ajenos y no
    cambies el estado de una feature que no forma parte de la solicitud.
+
 
 ### Entorno y comandos
 
@@ -110,13 +118,20 @@ El callback de autenticación (`src/app/auth/callback/route.ts`) usa
 Conserva ese patrón: no lo reemplaces por el cliente genérico sin comprobar
 que la respuesta devuelta conserva las cookies de sesión.
 
-### Routing de tareas
+### Elegir la ruta de trabajo
 
-| Tipo | Acción |
-|------|--------|
-| Documentación, typo o bug aislado | Resolver directamente dentro del alcance solicitado |
-| Harness/config change | Revisar instrucciones y herramientas disponibles antes de cambiar |
-| Feature no trivial (>1 sesión) | **OpenSpec primero** (skill `openspec-propose`) |
+- Para trabajo nuevo, identifica el tipo de solicitud, estima qué pasa si te
+  equivocas y qué falta por saber. Elige la ruta según la
+  [tabla de Agentic Engineering Loop](docs/agentic-engineering-loop.md#selección-de-ruta)
+  y deja claro qué resultado se espera y cómo se comprobará.
+- La ruta no sustituye los controles del repositorio. Para una feature no trivial
+  (>1 sesión), **OpenSpec primero** (skill `openspec-propose`). Si es `sdd: true`,
+  aplica §4; para cambios del arnés o de configuración, revisa primero las
+  instrucciones y herramientas disponibles. Mantén las comprobaciones de
+  [verificación](docs/verification.md) que correspondan.
+- Durante la adopción, los cambios ya iniciados conservan sus specs, aprobaciones
+  y estados. Sigue la regla de una sola feature a la vez; la ruta no habilita
+  trabajo paralelo ni concede permisos adicionales.
 
 Los nombres de rol del flujo SDD no garantizan que exista un subagente con ese
 nombre. Si falta un rol o una herramienta obligatoria, informa del bloqueo;

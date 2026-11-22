@@ -3,6 +3,19 @@
 > Este proyecto sigue un flujo Kiro-style: requirements → design → tasks → code.
 > El código no se escribe hasta que el spec está aprobado por un humano.
 
+## Adopción gradual del Agentic Engineering Loop
+
+La [selección de ruta](agentic-engineering-loop.md#selección-de-ruta) orienta
+el trabajo nuevo. Para todo cambio con `sdd: true`, OpenSpec sigue siendo
+obligatorio: la ruta no reemplaza la aprobación previa, la trazabilidad
+`R<n> → test`, las comprobaciones aplicables ni la revisión independiente.
+Los cambios ya iniciados no se migran al nuevo flujo.
+
+Usa `proposal.md` como contrato de ejecución: qué se quiere lograr, qué queda
+fuera, qué permisos o aprobaciones hacen falta y qué evidencia permitirá
+aceptarlo. Conserva el diseño y el plan en `design.md` y `tasks.md`; enlázalos
+en lugar de abrir un segundo contrato o plan.
+
 ## Estructura
 
 Cada feature nueva (`"sdd": true` en `feature_list.json`) tiene una carpeta
@@ -29,12 +42,16 @@ El `feature-name` coincide con el campo `name` de `feature_list.json`.
 
 ## La puerta de aprobación humana
 
-El flujo automático se detiene **una vez**: cuando el `spec-author` termina
-sus tres archivos, marca la feature como `spec_ready` y para. El humano
+El flujo automático se detiene **antes de implementar**: cuando el `spec-author`
+termina sus tres archivos, marca la feature como `spec_ready` y para. El humano
 lee `openspec/changes/<feature>/` y dice "aprobado" (o pide cambios).
 
 Solo entonces el `leader` transiciona `spec_ready → in_progress` y lanza
 el `implementer`.
+
+Si después hay que cambiar un requisito o criterio aprobado, o debilitar una
+prueba que protege una garantía, pausa el trabajo afectado, explica el motivo y
+solicita aprobación antes de cambiarlo.
 
 ```
 pending → [spec-author] → spec_ready → ⏸ HUMANO → in_progress → [implementer → reviewer] → done

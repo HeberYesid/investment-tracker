@@ -18,4 +18,6 @@ Aplicación para inversores particulares que quieren reunir operaciones de vario
 
 Usa el gestor indicado en [`package.json`](package.json), instala dependencias con `pnpm install` y arranca con `pnpm dev`. El [README](README.md) separa Supabase Auth y sus redirecciones, configuración de `.env.local`, base de datos y sincronización opcional. Mantén `SUPABASE_SERVICE_ROLE_KEY` y `ADMIN_CACHE_TOKEN` solo en servidor. Antes de aplicar migraciones o habilitar sincronización confirma destino y credenciales; no se inspeccionaron valores reales ni se atribuyó un despliegue.
 
-Orden de lectura: `src/app/page.tsx` → `src/lib/supabase/auth.ts` → `src/lib/dashboard/loader.ts` → `src/lib/calculations/`; para importación, sigue la vista y los dos controladores anteriores. Para la otra copia local, consulta [Investment Tracker — entrega](../investment-tracker-entrega/GUIA-PROYECTO.md).
+**Verificación:** `node init.mjs` revisa el entorno, los archivos base y las especificaciones requeridas, busca secretos en el código y ejecuta la suite de Vitest; para revisar tipos, ejecutar lint, compilar para producción o probar flujos de extremo a extremo (E2E), consulta la [guía de verificación](docs/verification.md).
+
+Orden de lectura: `src/app/page.tsx` → `src/lib/supabase/auth.ts` → `src/lib/dashboard/loader.ts` → `src/lib/calculations/`; para importación, sigue la vista y los dos controladores anteriores.
