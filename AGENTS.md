@@ -17,41 +17,16 @@ Reglas:
 3. Si la sesión es solo lectura, preguntas o documentación, no ejecutes `init-full.mjs`.
 4. Antes de declarar una tarea como `done`, ejecuta `node init-full.mjs`. Si falla, la tarea NO está terminada.
 5. Si un script falla, lee solo las líneas `[FAIL]` y su detalle. No vuelvas a ejecutarlo sin haber cambiado algo.
-2. Lee `progress/current.md` para entender en qué estado quedó la última sesión.
-3. Lee `feature_list.json`. Toda feature nueva (`"sdd": true`) pasa por
-   **Spec Driven Development con Openspec** — ver `docs/specs.md` y §4 de este archivo.
-4. Lee `docs/specs.md` antes de tocar cualquier spec o feature `sdd: true`.
-5. Revisa `git status --short` antes de editar. Preserva los cambios ajenos y no
+6. Revisa el estado de git antes de editar. Preserva los cambios ajenos y no
    cambies el estado de una feature que no forma parte de la solicitud.
-
-
-### Entorno y comandos
-
-- Usa Node.js 22 o superior (Node.js 24 es la versión verificada en este entorno).
-- Usa la versión de pnpm indicada en `package.json#packageManager` (actualmente 11.5.2).
-- Instala dependencias con `pnpm install --frozen-lockfile` antes de la primera ejecución.
-- `node init.mjs` comprueba el arnés, specs, secretos y tests unitarios; **no** ejecuta
-  lint, typecheck, build ni E2E. Para cambios de código, consulta `docs/verification.md`.
-- Si pnpm intenta reinstalar dependencias al ejecutar scripts y falla por ausencia
-  de TTY, no autorices un borrado automático de `node_modules`. Si la instalación
-  existente está disponible, puedes ejecutar la comprobación sin autoinstalación
-  con una variable temporal en PowerShell:
-
-  ```powershell
-  $env:PNPM_CONFIG_VERIFY_DEPS_BEFORE_RUN = 'false'
-  node init.mjs
-  Remove-Item Env:PNPM_CONFIG_VERIFY_DEPS_BEFORE_RUN
-  ```
-
-  Esto no repara ni verifica la instalación; los tests deben pasar igualmente.
-  No persistas esta opción en la configuración del proyecto.
+- Si vas a retomar una feature, consulta solo su entrada en feature_list.json, su nota progress/impl_<name>.md y los pendientes de su especificación, si aplica.
+- Si no sabes qué trabajo retomar, consulta primero las entradas activas o bloqueadas del catálogo. Para una pregunta o un ajuste documental independiente, lee solo los archivos pertinentes.
+- feature_list.json es la fuente oficial del estado. Consulta progress/history.md solo si necesitas contexto histórico.
 
 ## 2. Mapa del repositorio
 
 | Archivo / carpeta            | Qué contiene                                                                | Cuándo leerlo |
 |------------------------------|-----------------------------------------------------------------------------|---------------|
-| `README.md`                  | Instalación, configuración, comandos y estado funcional                    | Para incorporar colaboradores o cambiar el setup |
-| `package.json`               | Versiones y scripts actuales                                               | Antes de documentar versiones o comandos |
 | `docs/agentic-engineering-loop.md` | Metodología adaptativa para desarrollar con agentes de IA              | Para definir o revisar el proceso de trabajo con agentes |
 | `feature_list.json`          | Lista de features con estado (`pending` / `spec_ready` / `in_progress` / `done` / `blocked`) | Siempre, al empezar |
 | `progress/current.md`        | Estado de la sesión actual                                                  | Siempre, al empezar |
@@ -62,11 +37,10 @@ Reglas:
 | `docs/specs.md`              | Proceso SDD: EARS notation, los 3 archivos, puerta de aprobación humana     | Antes de redactar o leer un spec |
 | `docs/verification.md`       | Cómo verificar que tu trabajo funciona (incluye trazabilidad requirements)  | Antes de declarar una tarea como `done` |
 | `CHECKPOINTS.md`             | Criterios objetivos de "estado final correcto"                              | Para auto-evaluarte |
-| `.opencode/commands/`        | Definiciones de subagentes (`leader`, `spec-author`, `implementer`, `reviewer`) y comandos de orquestación | Si orquestas trabajo |
 | `src/`                       | Código de la aplicación                                                     | Para implementar |
 | `src/**/*.test.*`, `src/__tests__/`, `tests/` | Tests automáticos (Vitest unit + Playwright e2e)              | Para verificar |
 
-### Guías de contexto por capa
+### Agents.md por capa
 
 | Archivo | Cuándo leerlo |
 |---------|---------------|
@@ -75,48 +49,17 @@ Reglas:
 | `supabase/AGENTS.md` | Antes de crear migraciones o modificar Edge Functions |
 | `tests/AGENTS.md` | Antes de escribir tests unitarios o e2e |
 
-## 3. Reglas duras (no negociables)
+## 3. Reglas
 
-- **Una sola feature a la vez.** No mezcles cambios de varias tareas en la misma sesión.
-- **No declares una tarea `done` sin pruebas verdes.** Ejecuta `node init.mjs` y
-  asegúrate de que el bloque de tests pasa al 100%.
-- **No saltes la fase de spec.** Toda feature con `"sdd": true` debe pasar
-  por `spec-author` y obtener aprobación humana antes de tocar código.
-- **No saltes la puerta de aprobación humana.** El leader detiene el flujo
-  en `spec_ready` y espera.
+- Una sola feature por sesión y por worktree. Puedes trabajar en varias features en paralelo, siempre que cada una tenga su propia rama, su propio worktree y una sesión separada.
+- Trabaja en paralelo solo si las features se pueden implementar y verificar por separado. Si comparten una migración, un contrato que va a cambiar o una decisión pendiente, acuerda primero el orden.
+- Registra el avance y la evidencia por feature, sin sobrescribir las notas de otros trabajos.
+- - **No declares una tarea `done` sin pruebas.** Verifica y que los tests pasa al 100%.
+- **No saltes la fase de spec.** Toda feature sdd debe obtener aprobación antes.
 - **Documenta lo que haces** en `progress/current.md` mientras trabajas, no al final.
-- **No añadas residuos** antes de cerrar la sesión (ver §5). No limpies cambios ajenos.
-- **Si no sabes algo, busca en `docs/`** antes de inventarlo.
-
-### Convenciones técnicas globales
-
-- **Stack**: Next.js 16 App Router + React 19 + TypeScript 6 + Supabase + pnpm.
-  Versiones exactas en `package.json`; dependencias resueltas en `pnpm-lock.yaml`.
-  Las referencias históricas a versiones en specs no sustituyen estos archivos.
-- **Sesión y rutas protegidas**: entrada en `src/proxy.ts`, con lógica de sesión
-  en `src/lib/supabase/middleware.ts`. La home `/` es pública; no documentarla
-  como una ruta que siempre requiere autenticación.
-- **Restricción**: USD 0/mes (Vercel Hobby + Supabase Free únicamente). Sin servicios pagos.
-- **i18n**: strings en español en `src/lib/i18n/*.ts`. Sin copy hardcodeado en componentes.
-- **Tailwind v4**: config via `@theme` en `src/app/globals.css`. **No existe `tailwind.config.*`**.
-  PostCSS plugin: `@tailwindcss/postcss`.
-- **Path alias**: `@/*` → `./src/*` (tsconfig + Vitest).
-- **Dinero**: decimales como string en el wire. Contrato = Zod. Nunca `number` para valores monetarios.
-
-### Clientes Supabase
-
-| Cliente | Cuándo |
-|---------|--------|
-| `createBrowserSupabaseClient()` | Client components |
-| `createUserSupabaseClient()` | **Default**: Route Handlers, RSC, Server Actions |
-| `createServiceSupabaseClient()` | Bypassa RLS. Solo tareas internas. **Nunca en `src/app/`**. |
-
-`SUPABASE_SERVICE_ROLE_KEY` → nunca como `NEXT_PUBLIC_*`, nunca en client components.
-
-El callback de autenticación (`src/app/auth/callback/route.ts`) usa
-`createServerClient` con cookies escritas en la respuesta de redirección.
-Conserva ese patrón: no lo reemplaces por el cliente genérico sin comprobar
-que la respuesta devuelta conserva las cookies de sesión.
+- **Si no sabes algo, busca en `docs/`**
+- Guarda el contexto por feature, en su propio worktree. Si el trabajo queda pendiente, actualiza la sección Para retomar de progress/impl_<name>.md con tres datos: qué quedó verificado, qué falta o bloquea y cuál es la siguiente acción. Indica si esa acción necesita autorización.
+- Enlaza la evidencia y las decisiones existentes en lugar de copiarlas. No dupliques el estado oficial ni edites las notas de otra feature. Un ajuste pequeño que termina en la misma sesión no necesita una nota propia.
 
 ### Elegir la ruta de trabajo
 
@@ -130,12 +73,7 @@ que la respuesta devuelta conserva las cookies de sesión.
   instrucciones y herramientas disponibles. Mantén las comprobaciones de
   [verificación](docs/verification.md) que correspondan.
 - Durante la adopción, los cambios ya iniciados conservan sus specs, aprobaciones
-  y estados. Sigue la regla de una sola feature a la vez; la ruta no habilita
-  trabajo paralelo ni concede permisos adicionales.
-
-Los nombres de rol del flujo SDD no garantizan que exista un subagente con ese
-nombre. Si falta un rol o una herramienta obligatoria, informa del bloqueo;
-no omitas la revisión ni la aprobación humana.
+  y estados. El trabajo en paralelo sigue la regla de worktrees y no elimina ninguna aprobación ni verificación obligatoria.; la ruta no habilita trabajo paralelo ni concede permisos adicionales.
 
 ### Requisitos y decisiones de diseño
 
@@ -149,16 +87,6 @@ no omitas la revisión ni la aprobación humana.
   ni un reemplazo de la aprobación del spec.
 - No dupliques requisitos o decisiones en README: enlaza su fuente y distingue
   lo implementado, lo propuesto y lo pendiente.
-
-### Sync de mercado
-
-- Providers: Yahoo Finance (precios + S&P 500 benchmark) y open.er-api.com (USD/COP). Sin API keys.
-- Stooq y la resiliencia adicional forman parte del cambio
-  `market-data-resilience-and-disclosure`, todavía `in_progress` según
-  `feature_list.json`. No presentarlos como completados sin verificación.
-- Lectura: dashboard y form de trades leen `market_prices` y `fx_rates` cacheados, **nunca** llaman providers on-read.
-- `pg_cron`: `sync-prices-30m` (cada 30 min), `sync-fx-rates-daily` (06:00 UTC).
-- Botón `Sincronizar ahora` en `BenchmarkChart` es **solo dev** (gate `NODE_ENV !== 'production'`).
 
 ## 4. Flujo de trabajo (SDD)
 
@@ -179,24 +107,10 @@ pending → [spec-author] → spec_ready → ⏸ HUMANO → in_progress → [imp
 7. Si aprueba, el leader marca `done` y mueve el resumen a
    `progress/history.md`.
 
-## 5. Cierre de sesión (lifecycle)
+## 5. Cierre de sesión
 
 Antes de terminar:
 
-1. Ejecuta `node init.mjs` — todo verde.
-2. Si acabaste la feature correspondiente y pasó su revisión: marca su
-   `status: "done"` en `feature_list.json`. Una corrección documental no cierra
-   automáticamente una feature en curso.
-3. Mueve el resumen de tu sesión de `progress/current.md` al final de `progress/history.md`
-   con formato: `<!-- SESIÓN: YYYY-MM-DD | Feature: <name> | Agente: <agent> | Resultado: <done|blocked|paused> -->`.
-4. Si no quedan pendientes ni trabajo de otra sesión, deja `progress/current.md`
-   con la plantilla. No borres contexto de trabajo ajeno o aún activo.
-5. No dejes archivos temporales, ni `console.log` de debug, ni TODOs sin contexto.
-
-## 6. Si te bloqueas
-
-- Relee la sección relevante de `docs/`.
-- Si la herramienta no hace lo que esperas, **no inventes un workaround**:
-  documenta el bloqueo en `progress/current.md` y para la sesión.
-- Si estás en fase SDD y el spec tiene contradicciones, marca la feature como
-  `blocked` en `feature_list.json` e indica la razón en `progress/current.md`.
+1. Ejecuta `node init-full.mjs` — todo verde.
+2. Si acabaste la feature correspondiente y pasó su revisión: actualiza su estado en `feature_list.json`.
+3. Si el trabajo queda pendiente, deja actualizado su punto de reanudación. Si se cierra, añade un resumen breve con enlaces a la evidencia en progress/history.md, sin reescribir entradas anteriores ni borrar contexto de otros trabajos.
