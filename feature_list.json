@@ -208,7 +208,21 @@
         "El check funcional bloquea una regresión y el ensayo registra la recuperación por revisión (R5–R6)"
       ],
       "sdd": true,
-      "status": "blocked"
+      "status": "in_progress"
+    },
+    {
+      "id": 19,
+      "name": "import-stooq-daily-closes",
+      "title": "Importación local de cierres diarios de Stooq",
+      "description": "Usar archivos oficiales de Stooq como respaldo de cierre diario, sin descargar automáticamente ni escribir en Supabase.",
+      "acceptance": [
+        "Formato comprobado con archivos oficiales de AAPL y SPY, sin redistribuirlos (R1)",
+        "Vista previa y confirmación; rechazos no alteran datos guardados (R2)",
+        "Persistencia únicamente en el dispositivo (R3)",
+        "Procedencia y fecha de sesión visibles; Yahoo de la misma sesión o posterior tiene prioridad (R4)"
+      ],
+      "sdd": true,
+      "status": "spec_ready"
     }
   ]
 }
