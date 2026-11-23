@@ -1,4 +1,9 @@
-# Phase 6: Alerts And Monthly Summary Plan
+# Fase 6: Resumen mensual del portafolio
+
+El alcance de esta fase se redujo a un resumen dentro del dashboard, sin alertas ni envío de correo. Consulta el [catálogo de features](../../feature_list.json), entrada `monthly-portfolio-summary`, y su [nota de seguimiento](../../progress/impl_monthly-portfolio-summary.md).
+
+<details>
+<summary>Plan original, conservado como referencia histórica (no vigente)</summary>
 
 ## Goal
 
@@ -78,3 +83,4 @@ export interface EmailProvider {
 - Store compact email payloads.
 - Stop sending when daily/monthly limits are near threshold.
 
+</details>

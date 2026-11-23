@@ -1,5 +1,7 @@
 # Investment Tracker Technical Plan
 
+> La [fase 6](phases/06-alerts-summary.md) se acotó a un resumen mensual dentro del dashboard. Las referencias de este plan original a alertas y correos de resumen son históricas.
+
 ## Goal
 
 Build a mobile-first web application for tracking investments across eToro, XTB, Trii, and eTrading Bancolombia with a USD base currency, CSV import, manual trade entry, consolidated analytics, and a strict USD 0 monthly operating cost target.

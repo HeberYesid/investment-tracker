@@ -37,7 +37,7 @@ export const importLabels = {
     invalidStoredTradePair: "El tipo o la cantidad de la operación guardada no son válidos.",
     xtbFeeIssues: {
       XTB_FEE_SYMBOL: "El cargo XTB no tiene un símbolo utilizable.",
-      XTB_FEE_AMOUNT: "El importe del cargo XTB debe ser un débito verificable que no se redondee a cero.",
+      XTB_FEE_AMOUNT: "Revisa la columna Amount del cargo XTB: debe contener un número negativo (por ejemplo, -2.50), sin texto de moneda, que no se redondee a cero.",
       XTB_FEE_DATE: "El cargo XTB no tiene una fecha válida en Time.",
     },
     confirmImport: "Confirmar importación",

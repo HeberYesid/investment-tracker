@@ -185,7 +185,7 @@ La interfaz se mantiene únicamente en español.
 - Phase 4: auth and permissions complete (OWNER-only; members UI deferred to 4.1).
 - Phase 4.1: member management + role-aware UI complete (`/settings/members`, VIEWER read-only banner, API `403 FORBIDDEN` envelope).
 - Phase 5: market data and FX complete.
-- Phase 6: alerts and monthly summary pending.
+- Fase 6: [resumen mensual del portafolio](docs/phases/06-alerts-summary.md), aún sin implementar. Las alertas quedaron fuera del alcance.
 
 ## Notes
 

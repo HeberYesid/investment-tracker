@@ -289,13 +289,22 @@ describe("POST /api/v1/imports/csv/preview", () => {
       expect(insertImport).toHaveBeenCalledWith(expect.objectContaining({ total_rows: total, valid_rows: validCount, invalid_rows: invalid.length }));
       expect(body.rows.filter((row: { valid: boolean }) => row.valid)).toHaveLength(validCount);
       if (mixed) expect(body.rows[0]).toMatchObject({ valid: true, parsed: { ...fee, commission_original: 2 } });
+      const invalidAmountRows = body.rows.slice(mixed ? 3 : 2, mixed ? 9 : 8);
+      expect(invalidAmountRows).toHaveLength(6);
+      for (const row of invalidAmountRows) {
+        expect(row).toMatchObject({
+          valid: false,
+          parsed: null,
+          error: "Revisa la columna Amount del cargo XTB: debe contener un número negativo (por ejemplo, -2.50), sin texto de moneda, que no se redondee a cero.",
+        });
+      }
       const byRow = insertRows.mock.calls[0][0];
       for (const [index, row] of body.rows.entries()) {
         expect(row.row_number).toBe(index + 1);
         expect(byRow[index]).toMatchObject({ id: row.id, row_number: row.row_number, validation_error: row.error, parsed_data_json: row.parsed });
         if (!row.valid) {
           expect(row.parsed).toBeNull();
-          expect(row.error).toMatch(/símbolo|débito|fecha/);
+          expect(row.error).toMatch(/símbolo|Amount|fecha/);
           expect(byRow[index]).toMatchObject({ validation_status: "INVALID", raw_data_json: expect.objectContaining({ Type: expect.any(String) }) });
         }
       }

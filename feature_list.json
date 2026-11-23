@@ -101,17 +101,17 @@
     },
     {
       "id": 7,
-      "name": "alerts_summary",
-      "title": "Fase 6: Alertas & Resumen — Umbrales, notificaciones, reporte periódico",
-      "description": "Configuración de alertas por umbral (P/L %, equity). Resumen periódico. Sin envío de email (restricción USD 0/mes).",
+      "name": "monthly-portfolio-summary",
+      "title": "Fase 6: Resumen mensual del portafolio",
+      "description": "Tarjeta privada en el dashboard para consultar el valor de las posiciones y la actividad registrada del último mes calendario completo en UTC.",
       "acceptance": [
-        "Configuración de umbrales de alerta en /settings",
-        "Evaluación de alertas al cargar dashboard",
-        "Indicador visual de alertas activas en UI",
-        "Resumen de período (diario/semanal/mensual)"
+        "Una tarjeta en / solo para el portafolio activo autenticado con historial hasta el cierre; período y fechas de corte explícitos (R1–R2)",
+        "Valor inicial y final de posiciones con moneda USD en catálogo, sin efectivo, más cambio firmado en USD; cotizaciones históricas elegibles y cortes no disponibles cuando corresponda (R3–R6)",
+        "Conteos por tipo de operación registrada, sin inferir aportes; distinguir cero, falta de historial y datos incompletos (R7, R10)",
+        "Tarjeta legible en móvil y separada del estado del gráfico, sin cambiar KPI ni contratos públicos (R8–R9)"
       ],
       "sdd": true,
-      "status": "pending"
+      "status": "spec_ready"
     },
     {
       "id": 9,
