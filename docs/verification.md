@@ -40,7 +40,8 @@ pnpm test:run src/__tests__/calculations
 ```
 
 El filtro no sustituye la suite completa: `node init-full.mjs` ejecuta
-`pnpm test:run` sin filtros antes de marcar una feature como `done`.
+`pnpm test:run` sin filtros. En el cierre, esa ejecución cubre el nivel 3;
+no lances `pnpm test:run` por separado para la misma versión.
 
 ### Nivel 4 — Build (obligatorio)
 
@@ -96,6 +97,17 @@ La migración `0001_foundation.sql` es inmutable. Cambios al schema → nueva `0
 ```bash
 node init-full.mjs
 ```
+
+Lo ejecuta el revisor, o quien cierra si no se exige revisión independiente.
+Registra el resultado y el SHA verificado en la evidencia de cierre. Si hay
+cambios sin commit, identifica también el diff y los archivos nuevos que forman
+parte de lo verificado: el SHA por sí solo no identifica ese contenido.
+
+El líder comprueba que el resultado es válido para la versión que va a cerrar
+y lo reutiliza. Si falta evidencia o cambian los archivos que el chequeo valida
+(incluidos código, pruebas, dependencias o entradas del arnés), repite la
+verificación antes de cerrar. Este chequeo no sustituye lint, tipos, build, E2E
+ni la revisión que correspondan.
 
 Si falla, **no** marques la feature como `done`. Registra el fallo y la siguiente
 acción en `progress/impl_<name>.md`; si no se puede continuar, marca solo la

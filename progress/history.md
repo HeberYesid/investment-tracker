@@ -46,3 +46,7 @@
 <!-- SESIÓN: 2026-11-22 | Feature: retiro de Stooq | Agente: opencode | Resultado: cancelled -->
 
 - Retirados del alcance el respaldo automático y la importación manual, con sus specs archivadas como referencia y sin incorporarlas a las specs vigentes. La sincronización conserva Yahoo, la última cotización disponible y el diagnóstico de antigüedad. [Decisión y evidencia histórica](../docs/adr/010-mercado.md). Sin despliegue ni cambios a los datos.
+
+## Archivo de la bitácora anterior
+
+- La bitácora anterior conserva el diagnóstico del callback de magic link y las cronologías del ensayo de Stooq y del piloto de CI/CD. Consulta la copia exacta con `git show 37b2dfcc1b5fbe9d242214aac7a81dad9fa18f17:progress/current.md`; sus listas de acciones son históricas.

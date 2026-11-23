@@ -9,14 +9,14 @@ Hay dos scripts de verificación. Ejecuta el que corresponda:
 | Momento | Comando | Qué hace |
 |---|---|---|
 | Inicio de sesión | `node init-quick.mjs` | Revisa entorno, archivos base y `feature_list.json`. Es instantáneo y de solo lectura. |
-| Antes de marcar una feature como `done` | `node init-full.mjs` | Lo anterior, más instalación de dependencias, escaneo de secrets y tests. |
+| Verificación de cierre de una feature (ver §5) | `node init-full.mjs` | Lo anterior, más instalación de dependencias si faltan, escaneo de secrets y tests. |
 
 Reglas:
 
 1. Al comenzar CUALQUIER sesión, ejecuta `node init-quick.mjs`. Si falla, no avances: resuelve el error o repórtalo.
 2. Si la tarea va a modificar código, ejecuta también `pnpm test:run` una vez al inicio para conocer el estado base. Si ya hay tests rotos, repórtalo antes de tocar nada.
 3. Si la sesión es solo lectura, preguntas o documentación, no ejecutes `init-full.mjs`.
-4. Antes de marcar una feature como `done`, ejecuta `node init-full.mjs`. Si falla, no cambies su estado a `done`.
+4. No marques una feature como `done` sin la verificación de cierre de §5.
 5. Si un script falla, lee solo las líneas `[FAIL]` y su detalle. No vuelvas a ejecutarlo sin haber cambiado algo.
 6. Revisa el estado de git antes de editar. Preserva los cambios ajenos y no
    cambies el estado de una feature que no forma parte de la solicitud.
@@ -34,7 +34,7 @@ Reglas:
 | `docs/agentic-engineering-loop.md` | Metodología adaptativa para desarrollar con agentes de IA              | Para definir o revisar el proceso de trabajo con agentes |
 | `feature_list.json`          | Catálogo y estado oficial de las features | Para elegir trabajo o consultar la entrada de la feature asignada |
 | `progress/impl_<name>.md`    | Punto de reanudación, trazabilidad y evidencia por feature | Al retomar o revisar esa feature |
-| `progress/current.md`        | Bitácora anterior, opcional | Solo para recuperar contexto que aún no está en la nota de la feature |
+| `progress/current.md`        | Índice opcional de decisiones y notas por feature | Para navegar, no para registrar estados ni pendientes |
 | `progress/history.md`        | Bitácora append-only de sesiones anteriores                                 | Si necesitas contexto histórico |
 | `openspec/changes/<name>/`   | `proposal.md` + `design.md` + `tasks.md` (Kiro-style)                       | Antes de implementar cualquier feature con `"sdd": true` |
 | `docs/architecture.md`       | Qué significa "hacer un buen trabajo" en este proyecto                      | Antes de implementar |
@@ -115,6 +115,6 @@ pending → [spec-author] → spec_ready → ⏸ HUMANO → in_progress → [imp
 
 Antes de terminar:
 
-1. Antes de marcar una feature como `done`, ejecuta `node init-full.mjs` y confirma que pasa. No lo ejecutes para cerrar una consulta, revisión de solo lectura o ajuste documental independiente.
+1. El revisor ejecuta `node init-full.mjs` para el cierre; si no se exige revisor, lo ejecuta quien cierra. El líder comprueba el resultado para la misma versión que va a cerrar, sin repetir el comando ni ejecutar `pnpm test:run` por separado en ese cierre. Si falta evidencia, falla el chequeo o cambian los archivos verificados, no cierres hasta que se obtenga un resultado válido. Consulta la [guía de verificación](docs/verification.md#verificación-final-antes-de-marcar-una-feature-como-done).
 2. Marca solo la feature asignada como `done` en `feature_list.json`, una vez que hayan pasado las verificaciones aplicables y se haya aprobado la revisión correspondiente.
 3. Si la feature queda pendiente, actualiza su punto de reanudación. Si se cierra, añade un resumen breve con enlaces a la evidencia al final de `progress/history.md`, sin reescribir entradas previas ni borrar contexto de otros trabajos.

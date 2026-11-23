@@ -49,8 +49,9 @@ reporta el bloqueo sin omitir la aprobación ni la revisión.
 1. Cambia el status a `in_progress` en `feature_list.json`.
 2. Lanza **1 subagente `implementer`** pasándole la ruta `openspec/changes/<name>/` como input. El `implementer` trabaja a partir del spec, no del `acceptance` original.
 3. Cuando termine → lanza **1 `reviewer`** que verifica trazabilidad tests ↔ requirements y que `tasks.md` queda completo.
-4. Si el reviewer aprueba y `node init-full.mjs` pasó para lo que se va a cerrar,
-   marca solo esa feature como `done` y añade un resumen con evidencia al final de `progress/history.md`.
+4. Si el reviewer aprueba, aplica el cierre de `AGENTS.md` §5: comprueba la
+   evidencia de `node init-full.mjs` para la misma versión, sin repetirlo, y
+   marca solo esa feature como `done` si se cumplen las demás condiciones.
 
 ### Caso C — status == `spec_ready` SIN aprobación humana
 

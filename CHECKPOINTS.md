@@ -38,7 +38,7 @@
 
 ## C4 — La verificación es real
 
-- [ ] `pnpm test:run` pasa (Vitest unit).
+- [ ] La suite unitaria completa pasa en `node init-full.mjs` (sin repetir `pnpm test:run`).
 - [ ] `pnpm exec tsc --noEmit` pasa (typecheck).
 - [ ] `pnpm lint` pasa (ESLint).
 - [ ] `pnpm build` pasa (build de Next.js).

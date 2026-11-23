@@ -41,7 +41,7 @@ según `docs/architecture.md`:
 
 ### C4 — La verificación es real
 
-- [ ] `pnpm test:run` pasa.
+- [ ] La suite unitaria completa pasa dentro de `node init-full.mjs`.
 - [ ] `pnpm exec tsc --noEmit` pasa.
 - [ ] `pnpm lint` pasa.
 - [ ] `pnpm build` pasa.
@@ -67,7 +67,7 @@ según `docs/architecture.md`:
 2. Lee `tasks.md` y verifica que todas las tasks están `[x]`.
 3. Lee `progress/impl_<feature_name>.md` y extrae el mapa de trazabilidad.
 4. **Cruza**: ¿cada `R<n>` tiene al menos un test asociado? Si falta un `R<n>`, rechaza.
-5. Para aprobar el cierre, ejecuta `node init-full.mjs`. Si falla, rechaza.
+5. Para aprobar el cierre, ejecuta `node init-full.mjs` y registra el resultado y la versión verificada según [la guía de verificación](../../docs/verification.md#verificación-final-antes-de-marcar-una-feature-como-done). No repitas la suite con `pnpm test:run`. Si falla, rechaza.
 6. Recorre los checkpoints C1-C6 y documenta el resultado.
 7. Escribe `progress/review_<feature_name>.md`:
 

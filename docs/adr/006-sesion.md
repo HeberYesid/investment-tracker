@@ -8,4 +8,4 @@
 
 **Alternativa y costo.** Reutilizar el helper genérico también para la respuesta del callback conserva el problema si no propaga las cookies; hacer privada la portada rompe la demo. El flujo exige probar canje, cabeceras y navegación con un origen coherente. La nota histórica sobre cierre de sesión sigue siendo una observación, no un fallo confirmado aquí.
 
-**Fuentes:** [diseño de Auth](../../openspec/changes/archive/2026-07-15-phase-4-auth-permissions/design.md), [bitácora del callback](../../progress/current.md), commits `79b396f`, `d18a415`, `f6b49ff` y [membresías](007-membresias.md).
+**Fuentes:** [diseño de Auth](../../openspec/changes/archive/2026-07-15-phase-4-auth-permissions/design.md), [bitácora histórica del callback](../../progress/history.md#archivo-de-la-bitácora-anterior), commits `79b396f`, `d18a415`, `f6b49ff` y [membresías](007-membresias.md).

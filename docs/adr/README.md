@@ -1,6 +1,6 @@
 # Registro de decisiones de arquitectura (ADR)
 
-Corte: 22 de noviembre de 2026. Estos registros retrospectivos explican por qué se eligió cada solución. Las specs y `docs/architecture.md` conservan el contrato técnico; el [catálogo de features](../../feature_list.json) y la [bitácora](../../progress/current.md) conservan el estado de la entrega. Una decisión adoptada no implica que esté desplegada.
+Corte: 22 de noviembre de 2026. Estos registros retrospectivos explican por qué se eligió cada solución. Las specs y `docs/architecture.md` conservan el contrato técnico. El [catálogo de features](../../feature_list.json) contiene el estado oficial y el [índice de seguimiento](../../progress/current.md) enlaza notas y decisiones. Una decisión adoptada no implica que esté desplegada.
 
 | ADR | Decisión | Estado al corte |
 | --- | --- | --- |
