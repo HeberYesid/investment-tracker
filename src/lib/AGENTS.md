@@ -5,17 +5,17 @@ Lógica de negocio y contratos de datos. Sigue el [AGENTS.md raíz](../../AGENTS
 ## Sub-áreas
 
 ### `api/errors.ts`
-Helpers `badRequest` / `validationError` / `serverError` para Route Handlers. Usar siempre, no devolver `Response` con status crudo.
+Usa los helpers de error en los Route Handlers en lugar de construir respuestas de error a mano.
 
-### `validations/` — Zod contract
-Schemas en `trades.ts`, `dashboard.ts`, `fx.ts` son la fuente de verdad del wire. **Dinero**: decimales como string (`"123.45"`), nunca `number`. El server hace parse/Decimal solo en el límite. `normalizeTradeUsdValues` en `trades.ts` calcula `total_invested_usd`, `fx_rate_to_usd`, etc.
+### `validations/` — Contratos Zod
+Los esquemas son la fuente del contrato de API; deriva los tipos con `z.infer`. **Dinero:** envía decimales como cadenas (`"123.45"`), nunca como `number`; convierte solo en el límite del servidor. `normalizeTradeUsdValues` en `trades.ts` calcula los campos USD normalizados.
 
 ### `supabase/` — Clientes
 | Cliente | Cuándo |
 |---|---|
 | `createBrowserSupabaseClient()` | Client components |
-| `createUserSupabaseClient()` | **Default**: Route Handlers, RSC, Server Actions. Lee cookies, respeta RLS. |
-| `createServiceSupabaseClient()` | Bypassa RLS. Solo tareas internas confiables. **Nunca en `src/app/`**. |
+| `createUserSupabaseClient()` | Por defecto en servidor. Lee las cookies y respeta RLS. |
+| `createServiceSupabaseClient()` | Omite RLS. Solo para tareas internas de confianza. **Nunca en `src/app/`**. |
 
 `SUPABASE_SERVICE_ROLE_KEY` → nunca como `NEXT_PUBLIC_*`, nunca importar en client components.
 
@@ -25,8 +25,8 @@ Pipeline: `parsers/<broker>.ts` → `registry.ts` → `validation.ts`. Cada pars
 2. Parser en `src/lib/csv/parsers/<broker>.ts`
 3. Registrar en `src/lib/csv/registry.ts`
 4. Agregar a `validBrokers` en `src/app/api/v1/imports/csv/preview/route.ts`
-5. Fixture en `tests/fixtures/csv/` + test en `tests/unit/csv/`
-6. Seed via nueva migración numerada
+5. Fixture en `tests/fixtures/csv/` o `tests/fixtures/files/`, según el formato, y prueba en `src/__tests__/csv/`.
+6. Datos de referencia mediante una nueva migración numerada; sigue las [reglas de Supabase](../../supabase/AGENTS.md).
 
 ### `reference/brokers.ts`
 `BrokerCode` union + `BROKER_SEEDS`. Fuente de verdad de brokers (code, name, currency, parser).
@@ -41,7 +41,11 @@ Agregación de posiciones. Funciones puras sobre trades, sin acceso a DB directo
 Providers de precio y FX (yahoo, open-er-api). Sin estado global; el cache es responsabilidad del caller.
 
 ### `dashboard/`
-`loader.ts` (fetch) + `snapshot.ts` (cálculo). Compose, no calcula.
+`loader.ts` coordina las lecturas; `snapshot.ts` compone los cálculos. Mantén separado el acceso a datos de la lógica de dominio.
 
 ### `trades/queries.ts`
 Queries reutilizables sobre la tabla `trades`. Usar desde RSC y Route Handlers, no duplicar queries inline.
+
+## Verificación
+
+Aplica TDD a cambios de lógica de negocio y contratos. Cubre el resultado esperado y los casos de error o límites relevantes (por ejemplo, precisión monetaria). Ubica las pruebas en el dominio correspondiente de `src/__tests__/` y sigue la [guía de verificación](../../docs/verification.md).
