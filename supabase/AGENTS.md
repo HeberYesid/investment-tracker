@@ -1,5 +1,7 @@
 # supabase
 
+Sigue el [AGENTS.md raíz](../AGENTS.md) para el flujo de trabajo y la [arquitectura](../docs/architecture.md) para los límites de acceso a datos.
+
 ## `migrations/`
 - `0001_foundation.sql` es **inmutable**. Cambios → nuevo `000N_*.sql`.
 - Numeradas en orden de aplicación. Cada migración debe ser idempotente con timestamps y reversible.

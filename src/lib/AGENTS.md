@@ -1,8 +1,6 @@
 # src/lib
 
-Fuente canónica para: clientes Supabase, dinero/decimales como string, validaciones Zod.
-
-Lógica de negocio. Cada sub-área tiene un único responsable.
+Lógica de negocio y contratos de datos. Sigue el [AGENTS.md raíz](../../AGENTS.md) para el flujo de trabajo y las [convenciones](../../docs/conventions.md) para el código.
 
 ## Sub-áreas
 

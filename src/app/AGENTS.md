@@ -1,6 +1,6 @@
 # src/app
 
-App Router. Prefijo `api/v1/` intencional.
+App Router. Sigue el [AGENTS.md raíz](../../AGENTS.md) para el flujo de trabajo y la [arquitectura](../../docs/architecture.md) para los límites entre capas.
 
 ## Estructura
 

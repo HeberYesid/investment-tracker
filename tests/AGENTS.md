@@ -1,10 +1,6 @@
 # tests
 
-## Vitest (unit)
-- Tests unitarios en `src/**/*.test.{ts,tsx}` y `tests/**/*.test.{ts,tsx}`.
-- `src/__tests__/` es el directorio principal de tests unitarios.
-- **Excluye** `tests/e2e/**`.
-- **No habilitar `oxc: true`** — rompe el transform actual (usar `esbuild`).
+Sigue el [AGENTS.md raíz](../AGENTS.md), las [convenciones de pruebas](../docs/conventions.md#tests) y la [guía de verificación](../docs/verification.md).
 
 ## Playwright (e2e)
 - En `tests/e2e/`.
