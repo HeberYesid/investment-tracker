@@ -42,3 +42,7 @@
 <!-- SESIÓN: 2026-11-22 | Feature: chequeos del arnés en Windows | Agente: opencode | Resultado: done -->
 
 - `init-quick.mjs` e `init-full.mjs` lanzan `pnpm` mediante `cmd.exe` en Windows y de forma directa en otros sistemas. En Windows pasaron los dos chequeos, el escaneo de secretos, la suite unitaria, TypeScript y el build. El chequeo rápido sigue fallando si falta `pnpm`. No se cambiaron estados de features ni se prepararon commits.
+
+<!-- SESIÓN: 2026-11-22 | Feature: retiro de Stooq | Agente: opencode | Resultado: cancelled -->
+
+- Retirados del alcance el respaldo automático y la importación manual, con sus specs archivadas como referencia y sin incorporarlas a las specs vigentes. La sincronización conserva Yahoo, la última cotización disponible y el diagnóstico de antigüedad. [Decisión y evidencia histórica](../docs/adr/010-mercado.md). Sin despliegue ni cambios a los datos.

@@ -62,7 +62,7 @@ usuario  ─→  App Router page (RSC, lectura)
                      ├─→  validations/ (Zod schemas)
                      ├─→  calculations/ (funciones puras)
                      ├─→  csv/ (parsers → registry → validation)
-                     ├─→  market-data/ (providers Yahoo, Stooq, open.er-api)
+                     ├─→  market-data/ (precios Yahoo, FX open.er-api)
                      └─→  i18n/ (diccionarios español)
 ```
 

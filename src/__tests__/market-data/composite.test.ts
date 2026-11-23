@@ -26,10 +26,21 @@ it("conserva el error principal cuando fracasan ambos proveedores", async () => 
   expect((await composite.fetchQuotesWithBreakdown(["AAPL"])).failures).toEqual([{ symbol: "AAPL", error }]);
 });
 
-it("el registro expone el proveedor compuesto y permite reiniciarlo", () => {
-  const first = getPriceProvider();
-  expect(first.fetchQuotesWithBreakdown).toBeTypeOf("function");
-  expect(getPriceProvider()).toBe(first);
+it("el registro activo solo consulta Yahoo y se puede reiniciar", async () => {
+  const fetchMock = vi.fn<typeof fetch>().mockRejectedValue(new Error("Fallo simulado de red"));
+  vi.stubGlobal("fetch", fetchMock);
+  vi.stubEnv("MARKET_DATA_YAHOO_BASE_URL", "https://yahoo.fixture.invalid");
   resetPriceProviderForTests();
-  expect(getPriceProvider()).not.toBe(first);
+  try {
+    const first = getPriceProvider();
+    await expect(first.fetchQuotes(["AAPL"])).resolves.toEqual([]);
+    expect(new Set(fetchMock.mock.calls.map(([url]) => new URL(String(url)).hostname))).toEqual(new Set(["yahoo.fixture.invalid"]));
+    expect(getPriceProvider()).toBe(first);
+    resetPriceProviderForTests();
+    expect(getPriceProvider()).not.toBe(first);
+  } finally {
+    resetPriceProviderForTests();
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  }
 });

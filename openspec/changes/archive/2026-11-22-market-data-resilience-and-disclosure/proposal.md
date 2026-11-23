@@ -1,5 +1,7 @@
 ## Why
 
+> Registro histórico. Respaldo automático retirado del alcance por decisión del titular; este cambio no se archiva como completado ni incorpora sus requisitos a las specs vigentes. Se mantienen el diagnóstico y el aviso de precios desactualizados.
+
 El dashboard ya muestra el banner "Precio desactualizado" cuando una cotización tiene más de 2 h (`STALE_PRICE_MS`), pero **no dice cuándo se sincronizó por última vez, ni por qué está viejo, ni si el sistema de sync tiene un problema activo**. Eso convierte el banner en una alerta opaca: el usuario ve la advertencia sin contexto para decidir si confiar en el número o esperar. Adicionalmente, hoy hay un solo proveedor de precios (Yahoo Finance) detrás del `PriceProvider`: si Yahoo devuelve 429 o 5xx, no hay fallback, y la siguiente media hora el dashboard muestra el banner aunque el resto del pipeline esté sano. Este change cierra los dos huecos a la vez: añade un segundo proveedor gratuito (Stooq) detrás del mismo interfaz, y expone al usuario la salud real del sync de su portafolio (última corrida exitosa, próxima estimada, razón de la obsolescencia cuando aplique).
 
 ## What Changes

@@ -16,11 +16,10 @@ import {
   recordRunStart,
   recordRunSuccess,
 } from "../_shared/record-sync-run.ts";
-import { fetchYahooHistory } from "../_shared/yahoo.ts";
-import { fetchPriceWithFallback } from "../_shared/price-fallback.ts";
+import { fetchYahooHistory, fetchYahooQuote, type YahooProviderResult } from "../_shared/yahoo.ts";
 import { invalidateCacheTag } from "../_shared/invalidate-cache.ts";
 
-type ActiveAssetRow = { asset_id: string; symbol: string; allowStooq: boolean };
+type ActiveAssetRow = { asset_id: string; symbol: string };
 type BenchmarkAssetRow = { id: string; yahoo_symbol: string | null; ticker: string };
 
 const BENCHMARK_TICKER = "^GSPC";
@@ -114,7 +113,7 @@ async function backfillBenchmarkHistory(
 async function listActiveAssets(supabase: ReturnType<typeof getServiceClient>): Promise<ActiveAssetRow[]> {
   const { data: tradeAssets, error: tradeError } = await supabase
     .from("trades")
-    .select("asset_id, assets(yahoo_symbol, ticker, currency, asset_type, exchange, requires_verified_quote_symbol)")
+    .select("asset_id, assets(yahoo_symbol, ticker, requires_verified_quote_symbol)")
     .is("deleted_at", null);
   if (tradeError) {
     throw new Error(`listActiveAssets: ${tradeError.message}`);
@@ -122,9 +121,6 @@ async function listActiveAssets(supabase: ReturnType<typeof getServiceClient>): 
   type Asset = {
     yahoo_symbol: string | null;
     ticker: string;
-    currency: string;
-    asset_type: string;
-    exchange: string | null;
     requires_verified_quote_symbol: boolean;
   };
   type Row = {
@@ -142,13 +138,7 @@ async function listActiveAssets(supabase: ReturnType<typeof getServiceClient>): 
       : asset.yahoo_symbol ?? asset.ticker;
     if (!symbol) continue;
     seen.add(row.asset_id);
-    result.push({
-      asset_id: row.asset_id,
-      symbol,
-      allowStooq: asset.currency === "USD" &&
-        (asset.asset_type === "STOCK" || asset.asset_type === "ETF") &&
-        (asset.exchange === "NASDAQ" || asset.exchange === "NYSE"),
-    });
+    result.push({ asset_id: row.asset_id, symbol });
   }
   return result;
 }
@@ -212,33 +202,33 @@ Deno.serve(async (request: Request) => {
       assetId: string;
       symbol: string;
       isBenchmark: boolean;
-      allowStooq: boolean;
     };
     const jobs: SymbolJob[] = [];
     for (const asset of activeAssets) {
       const symbol = asset.symbol;
       if (!symbol) continue;
-      jobs.push({ assetId: asset.asset_id, symbol, isBenchmark: false, allowStooq: asset.allowStooq });
+      jobs.push({ assetId: asset.asset_id, symbol, isBenchmark: false });
     }
     if (benchmark) {
       const symbol = benchmark.yahoo_symbol ?? benchmark.ticker;
       if (symbol) {
         // Avoid double-syncing ^GSPC if it is also a holding.
         if (!jobs.some((j) => j.symbol === symbol)) {
-          jobs.push({ assetId: benchmark.id, symbol, isBenchmark: true, allowStooq: false });
+          jobs.push({ assetId: benchmark.id, symbol, isBenchmark: true });
         }
       }
     }
 
     const delayedUntil = new Date(Date.now() + DELAYED_UNTIL_MINUTES * 60_000).toISOString();
     let assetsProcessed = 0;
-    let yahooOk = 0;
-    let stooqFallback = 0;
     const failedAssets: Record<string, string> = {};
     const errors: Array<{ symbol: string; message: string }> = [];
 
     for (const job of jobs) {
-      const result = await fetchPriceWithFallback(job.symbol, job.allowStooq);
+      const result = await fetchYahooQuote(job.symbol).catch((): YahooProviderResult => ({
+        ok: false,
+        error: { code: "TRANSIENT", message: `Yahoo: request failed for ${job.symbol}` },
+      }));
       if (!result.ok) {
         if (!job.isBenchmark) {
           failedAssets[job.assetId] = result.error.message === "Yahoo: no usable price in chart response"
@@ -273,7 +263,7 @@ Deno.serve(async (request: Request) => {
         price: quote.priceUsd,
         price_usd: priceUsd,
         currency,
-        source: job.isBenchmark ? "BENCHMARK" : result.source,
+        source: job.isBenchmark ? "BENCHMARK" : "YAHOO",
         observed_at: quote.observedAt,
         delayed_until: delayedUntil,
       });
@@ -283,8 +273,6 @@ Deno.serve(async (request: Request) => {
         continue;
       }
       assetsProcessed += 1;
-      if (result.source === "STOOQ") stooqFallback += 1;
-      else yahooOk += 1;
     }
 
     let benchmarkBackfill: { inserted: number; skipped: number; message?: string } | null = null;
@@ -298,9 +286,7 @@ Deno.serve(async (request: Request) => {
       }
     }
 
-    await recordRunSuccess(supabase, runId, {
-      assetsProcessed, failedAssets, error: `yahoo_ok=${yahooOk},stooq_fallback=${stooqFallback}`,
-    });
+    await recordRunSuccess(supabase, runId, { assetsProcessed, failedAssets });
 
     await invalidateCacheTag("market-prices");
     if (benchmark) {

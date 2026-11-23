@@ -1,6 +1,6 @@
 type Handler = (request: Request) => Response | Promise<Response>;
 
-Deno.test("sync-prices conserva la caché y registra el fallback por símbolo", async () => {
+Deno.test("sync-prices conserva la caché cuando Yahoo falla y sigue el lote sin Stooq", async () => {
   const originalFetch = globalThis.fetch;
   const originalServe = Deno.serve;
   const names = ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "MARKET_DATA_YAHOO_BASE_URL", "STOOQ_BASE_URL", "APP_URL", "ADMIN_CACHE_TOKEN"];
@@ -28,7 +28,12 @@ Deno.test("sync-prices conserva la caché y registra el fallback por símbolo", 
     globalThis.fetch = async (input, options) => {
       const request = new Request(input, options);
       const url = new URL(request.url);
-      if (url.hostname === "yahoo.fixture.invalid") return new Response(null, { status: 429 });
+      if (url.hostname === "yahoo.fixture.invalid") {
+        if (url.pathname.endsWith("/MSFT")) return new Response(null, { status: 429 });
+        return Response.json({ chart: { result: [{
+          meta: { regularMarketPrice: 192.4, currency: "USD", regularMarketTime: 1781730000 },
+        }] } });
+      }
       if (url.hostname === "stooq.fixture.invalid") {
         const symbol = url.searchParams.get("s") ?? "";
         stooqRequests.push(symbol);
@@ -58,12 +63,12 @@ Deno.test("sync-prices conserva la caché y registra el fallback por símbolo", 
     check(handler, "el worker no registró un handler");
     const response = await handler(new Request("http://edge.fixture.invalid", { method: "POST", body: JSON.stringify({ runId }) }));
     check(response.ok, `falló el worker: ${response.status}`);
-    check(stooqRequests.join(",") === "aapl.us,msft.us", "no hubo exactamente un fallback por símbolo");
+    check(stooqRequests.length === 0, "el worker consultó Stooq");
     check(prices.length === 2 && prices[0].observed_at === "2026-06-16T21:00:00Z" && prices[0].price_usd === 120,
-      "el doble fallo alteró la cotización anterior");
-    check(prices[1].asset_id === apple && prices[1].source === "STOOQ" && prices[1].price_usd === 192.4,
-      "no se persistió la cotización de Stooq");
-    check(storedRun.status === "SUCCESS" && storedRun.error === "yahoo_ok=0,stooq_fallback=1", "el desglose persistido no coincide");
+      "el fallo de Yahoo alteró la cotización anterior");
+    check(prices[1].asset_id === apple && prices[1].source === "YAHOO" && prices[1].price_usd === 192.4,
+      "no se persistió la cotización de Yahoo");
+    check(storedRun.status === "SUCCESS" && storedRun.assets_processed === 1, "el conteo persistido no coincide");
     check((storedRun.failed_assets as Record<string, string>)[microsoft] === "RATE_LIMITED", "no se conservó el diagnóstico privado");
   } finally {
     globalThis.fetch = originalFetch;

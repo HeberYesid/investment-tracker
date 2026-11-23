@@ -3,16 +3,18 @@
 - Fecha: 2026-11-21.
 - Alcance: compatibilidad de fuentes y primer tramo del fallback en `sync-prices`. No incluye `sync-status`, UI, FX, métricas ni despliegue.
 
+Esta nota conserva la evidencia de cuando se ensayó el respaldo. El ensayo se cerró sin activarlo. La decisión vigente y las condiciones para reconsiderarlo están en el [ADR 010](../docs/adr/010-mercado.md).
+
 ## Trazabilidad
 
 - R4 → `src/__tests__/migrations/schema.test.ts`: «conserva las fuentes históricas y admite STOOQ sin una migración nueva» (1.1–1.2).
 - R2, R3 y R7 (tramo del worker) → `tests/asset-catalog-quote-workers.test.ts`: Yahoo `429` con Stooq exitoso, Yahoo exitoso sin consulta a Stooq, doble fallo con caché anterior intacta y continuación del lote. Observado en rojo el `429` sin fallback; el control de bolsa también falló antes de añadir el filtro.
 - El catálogo conserva el filtro de símbolos verificados; Stooq se limita al mapeo local de acciones y ETF en USD, NASDAQ/NYSE. El benchmark sigue con Yahoo.
 
-## Pendiente
+## Evidencia previa al cierre
 
 - Validación pública autorizada (2026-11-22): `GET https://stooq.com/q/l/?s=<símbolo>&f=sd2t2ohlcv&h=&e=csv` devolvió `404 text/html` para `aapl.us`, `amzn.us`, `goog.us`, `googl.us`, `meta.us`, `msft.us`, `nvda.us`, `spy.us`, `tsla.us` y `voo.us`. Variantes de la consulta de AAPL también devolvieron 404. `GET /q/d/l/?s=aapl.us&i=d` devolvió 200 con HTML de verificación de navegador, no CSV. No se pudo confirmar moneda ni hora del dato real. Las pruebas simuladas siguen siendo evidencia de comportamiento ante respuestas válidas, no de disponibilidad del proveedor. No se usaron credenciales ni datos del portafolio y no se ejecutó una sincronización remota.
-- El mapeo, el formato y la convención horaria del CSV se probaron con fixtures, no con Stooq real; confirmar antes de desplegar.
+- El mapeo, el formato y la convención horaria del CSV se probaron con fixtures, no con Stooq real. La validación quedó sin completar y ya no es una tarea abierta.
 - El build sin red pasó con respuestas CSS simuladas y fuentes de sistema. En `next start`, el backend simulado recibió dos lecturas privadas en la primera consulta y ninguna en la segunda; tras invalidar `market-prices`, recibió otras dos y el cliente obtuvo el motivo nuevo. En Chromium se observó el aviso en móvil y el indicador con título Stooq en escritorio, sin encolar sincronizaciones. No equivale a ejecutar la suite contra Supabase.
 
 ## Segunda etapa

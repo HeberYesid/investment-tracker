@@ -108,7 +108,7 @@ describe("símbolos del catálogo en los workers de precios", () => {
   });
 });
 
-describe("fallback de cotizaciones en sync-prices", () => {
+describe("sincronización de cotizaciones solo con Yahoo", () => {
   const holdings = [
     { asset_id: "apple", assets: { ticker: "AAPL", yahoo_symbol: "AAPL", currency: "USD", asset_type: "STOCK", exchange: "NASDAQ" } },
     { asset_id: "microsoft", assets: { ticker: "MSFT", yahoo_symbol: "MSFT", currency: "USD", asset_type: "STOCK", exchange: "NASDAQ" } },
@@ -118,58 +118,28 @@ describe("fallback de cotizaciones en sync-prices", () => {
     indicators: { adjclose: [{ adjclose: [80] }] },
   }] } });
 
-  it("intenta Stooq una vez tras un 429 de Yahoo y guarda la fuente efectiva", async () => {
-    const { inserts, runs } = workerFixture("PRICES", false, holdings);
-    fetchMock.mockImplementation(async (input) => {
-      const url = new URL(String(input));
-      if (url.hostname === "stooq.com") {
-        return new Response("Symbol,Date,Time,Open,High,Low,Close,Volume\nAAPL.US,2026-06-17,21:00:00,191.50,193.10,190.80,192.40,12345678\n");
-      }
-      if (url.pathname.endsWith("/AAPL")) return new Response(null, { status: 429 });
-      return yahooQuote();
-    });
-
-    const response = await handlers[0](new Request("http://localhost/fixture", { method: "POST", body: JSON.stringify({ runId }) }));
-
-    expect(response.status).toBe(200);
-    const stooqRequests = fetchMock.mock.calls.map(([url]) => new URL(String(url))).filter((url) => url.hostname === "stooq.com");
-    expect(stooqRequests.map((url) => url.searchParams.get("s"))).toEqual(["aapl.us"]);
-    expect(runs[0]).toMatchObject({ error: "yahoo_ok=2,stooq_fallback=1", failed_assets: {} });
-    expect(inserts).toEqual(expect.arrayContaining([
-      { table: "market_prices", values: expect.objectContaining({ asset_id: "apple", price_usd: 192.4, source: "STOOQ", observed_at: "2026-06-17T21:00:00.000Z" }) },
-      { table: "market_prices", values: expect.objectContaining({ asset_id: "microsoft", price_usd: 200, source: "YAHOO" }) },
-    ]));
-  });
-
-  it.each([429, 200])("conserva la cotización anterior y sigue el lote si Stooq falla (%i)", async (status) => {
+  it.each([
+    { failure: "HTTP 429", code: "RATE_LIMITED", message: "Yahoo: 429 for AAPL" },
+    { failure: "error de red", code: "TRANSIENT", message: "Yahoo: request failed for AAPL" },
+  ])("conserva la cotización anterior sin otro proveedor si Yahoo falla ($failure)", async ({ failure, code, message }) => {
     const previous = { asset_id: "apple", price_usd: 191, source: "YAHOO", observed_at: "2026-06-16T20:00:00Z" };
     const { cachedPrices, runs } = workerFixture("PRICES", false, holdings, [{ ...previous }]);
     fetchMock.mockImplementation(async (input) => {
       const url = new URL(String(input));
-      if (url.hostname === "stooq.com") return new Response("CSV inválido", { status });
-      if (url.pathname.endsWith("/AAPL")) return new Response(null, { status: 429 });
+      if (url.pathname.endsWith("/AAPL")) {
+        if (failure === "error de red") throw new Error("Fallo simulado de red");
+        return new Response(null, { status: 429 });
+      }
       return yahooQuote();
     });
 
     const response = await handlers[0](new Request("http://localhost/fixture", { method: "POST", body: JSON.stringify({ runId }) }));
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toMatchObject({ errors: [{ symbol: "AAPL", message: "Yahoo: 429 for AAPL" }] });
+    expect(await response.json()).toMatchObject({ errors: [{ symbol: "AAPL", message }] });
+    expect(new Set(fetchMock.mock.calls.map(([url]) => new URL(String(url)).hostname))).toEqual(new Set(["query1.finance.yahoo.com"]));
     expect(cachedPrices.filter((row) => row.asset_id === "apple")).toEqual([previous]);
-    expect(runs[0]).toMatchObject({ failed_assets: { apple: "RATE_LIMITED" } });
+    expect(runs[0]).toMatchObject({ status: "SUCCESS", failed_assets: { apple: code } });
     expect(cachedPrices).toContainEqual(expect.objectContaining({ asset_id: "microsoft", source: "YAHOO" }));
-  });
-
-  it("no consulta Stooq para el mismo ticker si la bolsa no coincide", async () => {
-    const holding = holdings[0];
-    workerFixture("PRICES", false, [{ ...holding, assets: { ...holding.assets, exchange: "BVC" } }]);
-    fetchMock.mockImplementation(async (input) => new URL(String(input)).pathname.endsWith("/AAPL")
-      ? new Response(null, { status: 429 })
-      : yahooQuote());
-
-    const response = await handlers[0](new Request("http://localhost/fixture", { method: "POST", body: JSON.stringify({ runId }) }));
-
-    expect(response.status).toBe(200);
-    expect(fetchMock.mock.calls.map(([url]) => new URL(String(url)).hostname)).not.toContain("stooq.com");
   });
 });

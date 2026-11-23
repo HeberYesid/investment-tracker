@@ -1,5 +1,7 @@
 ## Why
 
+> Registro histórico. Propuesta retirada del alcance por decisión del titular antes de aprobar o implementar. No se requieren muestras ni aprobación para el trabajo actual.
+
 El endpoint automatizado de Stooq devolvió HTTP 404 para los diez símbolos probados. Stooq sí publica cierres históricos para uso personal; la importación manual permite conservar ese proveedor sin depender de automatizar su verificación web.
 
 ## What Changes

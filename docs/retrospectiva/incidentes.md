@@ -41,5 +41,5 @@
 ## Preguntas que dejé abiertas
 
 - **Producto:** todavía no he validado el uso local sin cuenta, el respaldo cifrado restaurable, dos cierres propios ni demanda colombiana para una apertura pública. [ADR 013](../adr/013-uso-personal.md).
-- **Mercado:** la prueba simulada no comprueba símbolo, formato ni moneda devueltos por Stooq; el intento público quedó inconcluso. Queda 1 de 41 tareas y el cambio sigue bloqueado.
+- **Mercado:** la prueba simulada no comprobó símbolo, formato ni moneda devueltos por Stooq; el intento público quedó inconcluso. El respaldo se retiró del alcance sin activar. [ADR 010](../adr/010-mercado.md).
 - **Entrega:** el rojo/verde de CI es local. El bloqueo de un PR, el ensayo de recuperación en un destino autorizado y la revisión final del piloto siguen pendientes.

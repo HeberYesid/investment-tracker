@@ -13,7 +13,7 @@ Corte: 22 de noviembre de 2026. Estos registros retrospectivos explican por qué
 | [007](007-membresias.md) | Resolver la cartera en servidor y proteger al último propietario | Cierre local aprobado |
 | [008](008-catalogo.md) | Identidad explícita de activos y permisos acotados del catálogo | Cierre local aprobado |
 | [009](009-libro.md) | Conciliar valoración y P/L con un libro y comisiones explícitas | Integración local aprobada |
-| [010](010-mercado.md) | Desacoplar lecturas de proveedores y conservar la última cotización útil | Fallback pendiente de validar con Stooq real |
+| [010](010-mercado.md) | Conservar la última cotización útil y sincronizar solo con Yahoo | Respaldo de Stooq retirado del alcance |
 | [011](011-evidencia.md) | Aprobar specs antes de implementar y revisar contra evidencia | Adoptada |
 | [012](012-ci.md) | Probar el build con un entorno efímero antes de ensayar la entrega | Piloto local; verificación remota pendiente |
 | [013](013-uso-personal.md) | Priorizar uso personal y elegir procesamiento en el dispositivo | Dirección elegida; no implementada |

@@ -1,11 +1,9 @@
-import { createCompositeProvider } from "./composite";
-import { createStooqProvider } from "./stooq";
 import { createYahooProvider } from "./yahoo";
 
-let provider: ReturnType<typeof createCompositeProvider> | undefined;
+let provider: ReturnType<typeof createYahooProvider> | undefined;
 
 export function getPriceProvider() {
-  return provider ??= createCompositeProvider([createYahooProvider(), createStooqProvider()]);
+  return provider ??= createYahooProvider();
 }
 
 export function resetPriceProviderForTests() {

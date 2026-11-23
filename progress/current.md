@@ -1,10 +1,10 @@
 # Sesion actual
 
-## Cierres diarios de Stooq — 2026-11-22
+## Decisión vigente de precios — 2026-11-22
 
-- OpenSpec `import-stooq-daily-closes` preparado para revisión antes de editar aplicación. Las tablas oficiales corroboran símbolo y cierre diario para AAPL y SPY; no se obtuvo un archivo oficial de descarga ni se validó su formato. Quedan pendientes las dos muestras y el turno de implementación mientras `add-cicd-pilot` sigue activo. No se modificó la feature automática anterior.
+- Por decisión del titular, Yahoo es la única fuente de nuevas cotizaciones. Si falla, se conserva la última disponible y se mantiene el aviso de antigüedad. El respaldo automático y la importación local de Stooq salen de los pendientes; ni las diez cotizaciones ni las dos muestras son acciones abiertas. Consulta el [ADR 010](../docs/adr/010-mercado.md) y el catálogo para el estado vigente.
 
-## Fallback Yahoo → Stooq — 2026-11-21
+## Historial del ensayo Yahoo → Stooq — 2026-11-21 a 2026-11-22
 
 - Pausada por solicitud del usuario para liberar el turno de implementación. Estado `blocked` (no hay estado `paused` en el catálogo); 38/41 tareas, sin cambios descartados. Para retomar: validar el mapeo real de Stooq (2.3) y resolver el arranque de Supabase efímero sin relajar los permisos de `0015` (`42501`, el ejecutor no puede asumir `asset_catalog_writer`), luego ejecutar el smoke de Supabase (5.4) y E2E (9.4).
 - `node init.mjs`: entorno listo, 629 pruebas verdes; OpenSpec registra 0/41 tareas completadas.
