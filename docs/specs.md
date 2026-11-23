@@ -39,6 +39,7 @@ El `feature-name` coincide con el campo `name` de `feature_list.json`.
 | `in_progress`  | Spec aprobado. `implementer` trabajando.                       |
 | `done`         | Código verde, `reviewer` aprobó, sesión cerrada.               |
 | `blocked`      | Atascado. Razón y siguiente acción en `progress/impl_<name>.md`. |
+| `cancelled`    | Retirado del alcance. No se cuenta como pendiente ni completado; se conserva el historial. |
 
 ## La puerta de aprobación humana
 

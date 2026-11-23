@@ -5,7 +5,7 @@
     "one_feature_per_worktree": true,
     "require_tests_to_close": true,
     "require_approved_spec_to_implement": true,
-    "valid_status": ["pending", "spec_ready", "in_progress", "done", "blocked"],
+    "valid_status": ["pending", "spec_ready", "in_progress", "done", "blocked", "cancelled"],
     "sdd_required_when": "feature has \"sdd\": true"
   },
   "features": [
@@ -91,20 +91,13 @@
     {
       "id": 6,
       "name": "market-data-resilience-and-disclosure",
-      "title": "Fase 5: Market Data & FX — Yahoo Finance, Stooq, FX rates, sync automático",
-      "description": "Proveedores de precios (Yahoo Finance + Stooq fallback) y FX (USD/COP). Edge Functions Deno con pg_cron. Cache en market_prices y fx_rates. Benchmark S&P 500. Banner de precio desactualizado con diagnóstico.",
+      "title": "Respaldo automático Yahoo → Stooq",
+      "description": "Respaldo retirado del alcance por decisión del titular. Se conservan la sincronización con Yahoo, FX, el benchmark y el diagnóstico de precios desactualizados.",
       "acceptance": [
-        "PriceProvider Yahoo Finance + Stooq (composite con fallback)",
-        "FX provider open.er-api.com (USD/COP)",
-        "Edge Functions sync-prices y sync-fx-rates (Deno)",
-        "pg_cron: sync-prices cada 30 min, sync-fx-rates diario",
-        "Botón Sincronizar ahora solo en dev (gate NODE_ENV)",
-        "Banner de precio desactualizado con razón y tiempo desde última sync",
-        "Endpoint GET /api/v1/market-data/sync-status",
-        "BenchmarkChart con S&P 500 (Yahoo Finance)"
+        "Respaldo por instrumento con mapeo y cotizaciones USD verificadas en Stooq real"
       ],
       "sdd": true,
-      "status": "blocked"
+      "status": "cancelled"
     },
     {
       "id": 7,
@@ -116,21 +109,6 @@
         "Evaluación de alertas al cargar dashboard",
         "Indicador visual de alertas activas en UI",
         "Resumen de período (diario/semanal/mensual)"
-      ],
-      "sdd": true,
-      "status": "pending"
-    },
-    {
-      "id": 8,
-      "name": "pwa_exports",
-      "title": "Fase 7: PWA, Exportaciones, Crypto, Bilingüe",
-      "description": "PWA offline-capable, exportación CSV/PDF, activos crypto, interfaz bilingüe EN/ES.",
-      "acceptance": [
-        "PWA con service worker (offline-first)",
-        "Exportación de trades a CSV y PDF",
-        "Soporte para activos crypto (BTC, ETH, etc.)",
-        "Toggle de idioma EN/ES con persistencia",
-        "App instalable en mobile/desktop"
       ],
       "sdd": true,
       "status": "pending"
@@ -222,7 +200,7 @@
         "Procedencia y fecha de sesión visibles; Yahoo de la misma sesión o posterior tiene prioridad (R4)"
       ],
       "sdd": true,
-      "status": "spec_ready"
+      "status": "cancelled"
     }
   ]
 }

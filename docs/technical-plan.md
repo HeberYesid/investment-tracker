@@ -6,14 +6,12 @@ Build a mobile-first web application for tracking investments across eToro, XTB,
 
 ## Non-Negotiable Constraint: Free Operation
 
-The application must run on free tiers for MVP and early V2/V3 usage:
+The application must run on free tiers for MVP and early V2 usage:
 
 - Vercel Hobby for hosting and Next.js server routes.
 - Supabase Free for Postgres, Auth, Storage, and Edge Functions.
 - Resend Free for email notifications.
 - Yahoo Finance or another free market-data source through an internal adapter.
-- Client-side export for PDF and Excel reports.
-- Web Push API for push notifications, without paid notification providers.
 
 The architecture must avoid vendor lock-in around free services. Any external provider must sit behind a local adapter interface so it can be replaced without changing business logic.
 
@@ -30,7 +28,6 @@ The architecture must avoid vendor lock-in around free services. Any external pr
 
 - Stocks.
 - ETFs.
-- Crypto futures in V3.
 
 ### Base Currency
 
@@ -41,7 +38,7 @@ The architecture must avoid vendor lock-in around free services. Any external pr
 
 ### MVP Features
 
-- Spanish UI.
+- Interfaz únicamente en español.
 - Manual trade entry.
 - CSV import for the four brokers.
 - Consolidated dashboard with charts.
@@ -55,15 +52,6 @@ The architecture must avoid vendor lock-in around free services. Any external pr
 - Automatic COP to USD conversion.
 - Price alerts, dividend alerts, 5 percent movement alerts.
 - Monthly email summary.
-
-### V3 Features
-
-- Installable PWA.
-- Offline read support.
-- Push notifications.
-- Crypto futures support.
-- Exportable PDF and Excel reports.
-- Spanish and English UI.
 
 ## Tech Stack Decisions
 
@@ -90,7 +78,6 @@ The architecture must avoid vendor lock-in around free services. Any external pr
 - `FxRateProvider` for COP to USD conversion.
 - `EmailProvider` for alerts and monthly summaries.
 - `CsvBrokerParser` per broker.
-- `ReportExporter` for client-side PDF and Excel generation.
 
 ## Database Schema
 
@@ -415,9 +402,8 @@ investment-tracker/
 5. Phase 4: Auth And Permissions.
 6. Phase 5: Market Data And FX.
 7. Phase 6: Alerts And Monthly Summary.
-8. Phase 7: PWA, Exports, Crypto, Bilingual.
 
-Detailed phase plans are stored in `docs/investment-tracker/phases/`.
+Detailed phase plans are stored in `docs/phases/`.
 
 ## Risk Register
 

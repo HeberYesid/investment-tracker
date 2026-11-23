@@ -122,7 +122,7 @@ Phase 5 wires up two free providers behind adapter interfaces:
 
 - **Yahoo Finance** (`https://query1.finance.yahoo.com/v8/finance/chart/{symbol}`) for delayed quotes and the S&P 500 benchmark series. No API key. CORS-restricted, so the call lives inside a Supabase Edge Function.
 - **open.er-api.com** (`https://open.er-api.com/v6/latest/USD`) for the USD/COP rate. No API key.
-- **Stooq** es el respaldo de Yahoo para acciones y ETF en USD explícitamente mapeados. Si ambos proveedores fallan, se conserva la cotización anterior. No se restringieron las fuentes históricas de `market_prices`.
+- **Yahoo Finance** es la única fuente para las nuevas cotizaciones automáticas. Si falla, se conserva la cotización anterior y se indica su antigüedad cuando corresponde. No se restringen las fuentes históricas de `market_prices`.
 - `GET /api/v1/market-data/sync-status` requiere sesión y devuelve fechas de corrida, motivo y contador agregado para las posiciones abiertas del portafolio activo. El aviso del dashboard usa esos datos cuando están disponibles; no muestra errores crudos.
 
 The providers sit behind `src/lib/market-data/{yahoo,open-er-api,config,types}.ts` and the dashboard / trade form read from the cached `market_prices` and `fx_rates` tables — they never call the providers on the read path. The benchmark chart overlays a normalized S&P 500 series on the portfolio evolution chart, and the trade form pre-fills `fx_rate_to_usd` with the latest USD→COP rate when the user picks COP.
@@ -172,10 +172,11 @@ The project is designed to run at USD 0 monthly operating cost for MVP and early
 - Keep CSV processing in memory and do not store original CSV files by default.
 - Keep external providers behind adapters so paid replacements are optional.
 - Use delayed/free market data only in V2.
-- Use client-side exports for PDF and Excel in V3.
 - Avoid paid cron, queue, analytics, email, and notification services.
 
 ## Phase Status
+
+La interfaz se mantiene únicamente en español.
 
 - Phase 0: foundation complete.
 - Phase 1: trades MVP complete.
@@ -185,7 +186,6 @@ The project is designed to run at USD 0 monthly operating cost for MVP and early
 - Phase 4.1: member management + role-aware UI complete (`/settings/members`, VIEWER read-only banner, API `403 FORBIDDEN` envelope).
 - Phase 5: market data and FX complete.
 - Phase 6: alerts and monthly summary pending.
-- Phase 7: PWA, exports, crypto, and bilingual support pending.
 
 ## Notes
 
