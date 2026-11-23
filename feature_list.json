@@ -208,7 +208,7 @@
         "El check funcional bloquea una regresión y el ensayo registra la recuperación por revisión (R5–R6)"
       ],
       "sdd": true,
-      "status": "in_progress"
+      "status": "blocked"
     },
     {
       "id": 19,

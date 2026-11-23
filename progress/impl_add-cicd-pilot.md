@@ -5,7 +5,7 @@
 - R1: `scripts/ci-e2e/run.mjs --prepare-only` verifica el historial de migraciones, los propietarios de las funciones del catálogo, el seed, Auth, Mailpit y el cierre del stack. El runner completo construye el candidato y arranca Playwright contra `next start`.
 - R2: `tests/e2e/home.spec.ts` verifica la demo pública, la redirección de `/trades` y el `401` de la API, además del formulario de login.
 - R3–R4: `tests/e2e/csv-import.spec.ts` verifica login con Mailpit, importación Trii, una operación y USD 20 invertidos, y reconfirmación `409` sin cambios en importe, conteo ni ID.
-- R5: `scripts/ci-e2e/verify-report.test.mjs` rechaza reportes con pruebas faltantes, omitidas, fallidas o sustituidas. El check agregado requiere ambos jobs; queda pendiente la demostración en un PR autorizado.
+- R5: `scripts/ci-e2e/verify-report.test.mjs` rechaza reportes con pruebas faltantes, omitidas, fallidas o sustituidas. El check agregado requiere ambos jobs; el PR #3 demostró el bloqueo de merge y la vuelta a verde en la rama de prueba (evidencia abajo).
 - R6: `docs/cicd.md` describe el ensayo; no se ha ejecutado en un destino remoto.
 
 ## Evidencia local
@@ -25,3 +25,9 @@
 - El PR #2 demostró el fallo del check, no el bloqueo del merge: `main` no lo exige y no se cambiaron sus reglas. La prueba de aplicación de la regla se hizo aparte en el PR #3. La 3.3 sigue pendiente de un destino aislado autorizado.
 - Con autorización, la regla `27858130` exige el check de GitHub Actions solo en `test/ci-pilot-base`, sin excepciones. El [PR #3](https://github.com/HeberYesid/investment-tracker/pull/3) no es borrador y no tiene conflictos. Con [`4be33a3`](https://github.com/HeberYesid/investment-tracker/actions/runs/45070000161), Playwright falló únicamente donde esperaba USD 21; el check obligatorio terminó en fallo y GitHub devolvió `mergeStateStatus: BLOCKED`. `18764ce` restaura USD 20 y se publicó sin fusionar.
 - Con [`18764ce`](https://github.com/HeberYesid/investment-tracker/actions/runs/45070258763) pasaron las cinco pruebas obligatorias sin omisiones y GitHub devolvió `CLEAN`. El PR permanece abierto sin fusionar. Supabase Preview quedó omitido; GitHub reportó cero despliegues en ambas ramas. `main` conserva `f73e668` y no tiene reglas nuevas. Tarea 3.2 verificada.
+
+## Para retomar
+
+- OpenSpec: 7/8. [Procedimiento de recuperación](../docs/cicd.md#ensayo-de-entrega-no-automático) documentado. El usuario decidió aplazar el ensayo porque solo dispone de la app de uso real. No se crearon recursos ni se hizo un despliegue para el ensayo; la tarea 3.3 sigue abierta y R6 no está verificado.
+- Siguiente acción, con autorización específica: confirmar proyecto de prueba, cuenta o sesión, dos revisiones y operaciones permitidas; verificar backend aislado, datos sintéticos y costo cero. Activar A, activar B y restaurar A en el mismo destino. Registrar IDs/SHA, smoke y tiempo de recuperación. El permiso del PR #3 no cubre este ensayo.
+- Después de obtener evidencia de R6, completar la revisión independiente y pasar `node init-full.mjs` antes de marcar la feature como `done`.

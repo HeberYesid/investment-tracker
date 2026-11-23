@@ -2,7 +2,7 @@
 
 La CI separa `Lint · TypeCheck · Vitest` del job que construye y prueba con Supabase local. El check agregado (`Lint · TypeCheck · Test · Build`, conserva el nombre anterior) solo pasa si ambos terminan con éxito. Esto no configura por sí solo que GitHub lo exija antes del merge.
 
-**Estado:** el arranque local desde cero ya no se detiene en `0015_secure_shared_asset_catalog.sql`. El build de producción y las cinco pruebas obligatorias pasaron en Chromium local, sin omisiones. Falta demostrar en GitHub que el check bloquea una regresión antes de adoptarlo como obligatorio. El ensayo de recuperación continúa separado y requiere un destino autorizado.
+**Estado:** el piloto pasó las cinco pruebas obligatorias contra el build de producción. El [PR #3](https://github.com/HeberYesid/investment-tracker/pull/3) demostró que el check bloquea el merge cuando es obligatorio: pasó de `BLOCKED` con una aserción rota a `CLEAN` después de corregirla. La regla se probó solo en `test/ci-pilot-base`; no se cambió `main` ni se fusionó el PR. Sigue pendiente el ensayo de recuperación en un destino aislado autorizado. Consulta la [bitácora del piloto](../progress/impl_add-cicd-pilot.md) para ver las ejecuciones y sus SHA.
 
 ## Repetir el piloto en un checkout limpio
 
@@ -24,10 +24,14 @@ El CLI aplica las migraciones anteriores a `0015`. Para esa única migración, e
 |---|---|
 | R1–R2 | Build de producción y stack local; `/` muestra demo, `/trades` pide sesión, API privada devuelve `401`. |
 | R3–R4 | Login real, carga de CSV Trii, compra por COP 80 000 con TRM 4 000, persistencia de una operación y USD 20 invertidos; la reconfirmación secuencial del mismo ID devuelve `409` sin cambios. |
-| R5 | El check agregado exige ambos jobs y el runner exige las cinco pruebas del piloto sin skips; falta la demostración en GitHub hasta que se autorice. |
+| R5 | El check agregado exige ambos jobs y el runner exige las cinco pruebas sin omisiones. El PR #3 verificó el bloqueo y la vuelta a verde en la rama de prueba. |
 
 ## Ensayo de entrega (no automático)
 
-1. Autorizar por separado el entorno de prueba, cuenta, rama y operación. Revisar que la previsualización utiliza únicamente datos aislados; no activar una ruta de despliegue que adelante o ignore la CI. Mantener USD 0 al mes.
-2. Registrar SHA e ID del último candidato sano y del nuevo. Si el proveedor promueve el artefacto probado, conservarlo; si vuelve a construir, comprobar que corresponde al SHA aprobado y repetir el smoke sobre ese resultado.
-3. Probar que la demo pública carga y la ruta privada solicita sesión. Restaurar la revisión sana y repetir el smoke, registrando revisión, resultado y tiempo de recuperación. Para cambios de esquema, verificar compatibilidad con el código anterior; un rollback de código no revierte datos. No realizar un ensayo o despliegue en producción como sustituto.
+**Aplazado:** el procedimiento queda listo para cuando haya un destino de prueba autorizado. No se ha verificado la recuperación y no se usará la app real para ensayarla.
+
+1. Autorizar el proyecto de prueba, la cuenta o sesión, las revisiones y las operaciones de despliegue y restauración. Confirmar que el destino usa un backend aislado con datos sintéticos, no comparte secretos ni dominios de producción y permite recuperar una revisión sin costo adicional. Si no se puede confirmar el aislamiento o mantener USD 0 al mes, detener el ensayo. No activar un despliegue que adelante o ignore la CI.
+2. Activar la revisión sana A y luego la candidata B, ambas con CI verde. Registrar el SHA y el ID de despliegue de cada una y comprobar que coinciden con la revisión activa del destino. Si el proveedor vuelve a construir, comprobar el SHA del nuevo build y hacer el smoke sobre ese resultado. En cada revisión, usar el mismo punto de entrada de prueba y una sesión sin cookies de la aplicación: `/` debe mostrar el banner de demo y `/trades` debe redirigir a `/login`.
+3. Restaurar A en ese mismo punto de entrada. Verificar en el proveedor que el ID y SHA activos vuelven a coincidir con los registrados para A y repetir ambas comprobaciones. Registrar en la bitácora el destino, los IDs/SHA de A y B, los resultados del smoke y el tiempo desde el inicio de la restauración hasta confirmar revisión y smoke. Abrir solo una URL histórica no demuestra que A haya vuelto a quedar activa.
+
+La restauración de código no revierte datos. Usar revisiones compatibles con el mismo esquema de prueba y no cambiar políticas de datos. No usar producción como sustituto.

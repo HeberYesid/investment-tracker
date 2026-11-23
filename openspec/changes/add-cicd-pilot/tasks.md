@@ -14,3 +14,5 @@
 - [x] 3.1 Ejecutar `node init-full.mjs`, lint, tipos, Vitest, build y E2E acotado; registrar trazabilidad requisito → prueba y resultados. R1–R5.
 - [x] 3.2 Con autorización específica, demostrar bloqueo por regresión y recuperación a verde en un PR de prueba. Sin autorización, dejar pendiente la evidencia remota. R5.
 - [ ] 3.3 Documentar `docs/cicd.md`. Con autorización específica, probar dos revisiones en entorno de prueba, registrar IDs/SHA y recuperar la anterior con smoke, sin tocar producción ni cambiar políticas de datos. R6.
+
+  El [procedimiento](../../../docs/cicd.md#ensayo-de-entrega-no-automático) está documentado. Por decisión del usuario, el ensayo queda aplazado: solo está disponible la app de uso real y no se preparará ahora un entorno aislado. R6 sigue vigente y sin verificar; mantener 3.3 abierta hasta contar con un destino de prueba autorizado y registrar la evidencia.
