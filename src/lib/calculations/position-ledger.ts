@@ -13,7 +13,7 @@ export type LedgerTrade = {
   deleted_at: string | null;
 };
 
-export type LedgerAsset = AssetMeta & { exchange?: string | null };
+export type LedgerAsset = AssetMeta & { exchange?: string | null; currency?: string | null };
 export type LedgerPrice = { asset_id: string; price_usd: string; observed_at: string; delayed_until: string | null };
 export type LedgerBalance = { quantity: bigint; cost: bigint; realized: bigint };
 export type LedgerPosition = {
@@ -30,7 +30,7 @@ const uuid = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
 const inputDecimal = /^\d{1,12}(?:\.\d{1,8})?$/;
 const tradeTypes = new Set(["BUY", "SELL", "TRANSFER_IN", "TRANSFER_OUT", "DIVIDEND", "FEE"]);
 
-function isCivilDate(value: string) {
+export function isCivilDate(value: string) {
   if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value) || value.startsWith("0000-")) return false;
   const date = new Date(`${value}T00:00:00Z`);
   return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;

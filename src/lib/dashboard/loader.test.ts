@@ -86,7 +86,7 @@ describe("loadDashboardData - historical prices", () => {
           commission_usd: 0,
           total_invested_usd: 1000,
           deleted_at: null,
-          assets: { ticker: "AAPL", name: "Apple", sector: null, country: null },
+          assets: { ticker: "AAPL", name: "Apple", sector: null, country: null, currency: "USD" },
           brokers: { code: "ETORO", name: "eToro" },
         },
       ],
@@ -116,6 +116,8 @@ describe("loadDashboardData - historical prices", () => {
     const userSupabase = { from: fromMock } as unknown as SupabaseClient;
     const data = await loadDashboardData(PORTFOLIO_ID, userSupabase);
 
+    expect(findCall(tradesSpy, "select")?.args[0]).toContain("assets(ticker, name, sector, country, exchange, currency)");
+    expect(data.assets).toMatchObject([{ id: "a1", currency: "USD" }]);
     expect(findCall(historySpy, "eq")?.args).toEqual(["source", "PRICE_HISTORY"]);
     expect(findCall(historySpy, "in")?.args).toEqual(["asset_id", ["a1"]]);
     expect(findCall(historySpy, "gte")?.args).toEqual([

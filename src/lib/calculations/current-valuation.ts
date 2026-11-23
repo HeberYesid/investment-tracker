@@ -1,4 +1,5 @@
-import { MONEY_SCALE, QUANTITY_SCALE, parseLedgerDecimal, type buildPositionLedger, type LedgerPrice } from "@/lib/calculations/position-ledger";
+import { QUANTITY_SCALE, parseLedgerDecimal, type buildPositionLedger, type LedgerPrice } from "@/lib/calculations/position-ledger";
+import { formatLedgerMoney as decimal } from "@/lib/calculations/ledger-money";
 import { UNCLASSIFIED, translateCountry, translateSector } from "@/lib/i18n/asset-metadata";
 import { isQuoteStale } from "@/lib/market-data/config";
 import type { AssetStaleness, DistributionDimension, LedgerIssue } from "@/lib/validations/dashboard";
@@ -9,13 +10,6 @@ const zero = (): Amounts => ({ cost: 0n, value: 0n, realized: 0n });
 const compare = (a: string, b: string) => a < b ? -1 : a > b ? 1 : 0;
 const descending = (a: bigint, b: bigint) => a > b ? -1 : a < b ? 1 : 0;
 const severity = { fresh: 0, stale: 1, estimated: 2 };
-
-function decimal(value: bigint): string {
-  const negative = value < 0n;
-  const amount = negative ? -value : value;
-  const tail = (amount % MONEY_SCALE).toString().padStart(24, "0").replace(/0+$/, "");
-  return `${negative ? "-" : ""}${amount / MONEY_SCALE}${tail ? `.${tail}` : ""}`;
-}
 
 function add(target: Amounts, value: Amounts) {
   target.cost += value.cost;

@@ -60,6 +60,7 @@ vi.mock("@/lib/supabase/auth", () => ({
 }));
 
 import { GET as summaryGET } from "@/app/api/v1/dashboard/summary/route";
+import { GET as aggregateGET } from "@/app/api/v1/dashboard/aggregate/route";
 import { GET as snapshotGET } from "@/app/api/v1/dashboard/snapshot/route";
 import { GET as distributionGET } from "@/app/api/v1/dashboard/distribution/route";
 import { GET as evolutionGET } from "@/app/api/v1/dashboard/evolution/route";
@@ -94,6 +95,23 @@ function pushHistoricalPrices(rows: unknown[] = []) {
 function pushNoBenchmarkAsset() {
   queuedResults.push({ data: null, error: null });
 }
+
+it("conserva las claves del agregado público y no activa el resumen por URL", async () => {
+  pushTrades([{
+    asset_id: assetId, broker_id: brokerId, trade_type: "BUY", quantity: 1, price_usd: 10, commission_usd: 0,
+    total_invested_usd: 10, deleted_at: null, assets: { ticker: "AAPL", name: "Apple", currency: "USD" },
+  }]);
+  pushPrices();
+  pushHistoricalPrices();
+  pushNoBenchmarkAsset();
+  const response = await aggregateGET(new NextRequest("http://localhost/api/v1/dashboard/aggregate?includeMonthlySummary=true&monthlySummary=true"));
+  expect(response.status).toBe(200);
+  expect(Object.keys(await response.json()).sort()).toEqual(["distribution", "evolution", "returns", "snapshot", "summary"]);
+  const tables = mockSupabase.from.mock.calls.map(([table]) => table);
+  expect(tables.filter((table) => table === "trades")).toHaveLength(1);
+  expect(tables.filter((table) => table === "market_prices")).toHaveLength(1);
+  expect(builders[0].select.mock.calls[0]).toHaveLength(1);
+});
 
 describe("GET /api/v1/dashboard/summary", () => {
   it("returns 422 on invalid query params", async () => {

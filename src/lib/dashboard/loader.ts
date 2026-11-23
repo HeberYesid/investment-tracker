@@ -2,7 +2,7 @@ import { cache } from "react";
 import { cacheLife, cacheTag } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AssetMeta, BrokerMeta, DashboardTrade } from "@/lib/calculations/holdings";
-import type { LedgerAsset, LedgerPrice, LedgerTrade } from "@/lib/calculations/position-ledger";
+import { parseLedgerDecimal, type LedgerAsset, type LedgerPrice, type LedgerTrade } from "@/lib/calculations/position-ledger";
 import type { MarketPriceRow } from "@/lib/calculations/pricing";
 import { createServiceSupabaseClient } from "@/lib/supabase/server";
 
@@ -22,7 +22,12 @@ export type DashboardData = {
 };
 
 type CachedLedgerPrice = LedgerPrice & { source?: string };
-export type DashboardDataWithLedger = DashboardData & { ledgerTrades: LedgerTrade[]; ledgerPrices: CachedLedgerPrice[] };
+export type DashboardDataWithLedger = DashboardData & {
+  assets: LedgerAsset[];
+  ledgerTrades: LedgerTrade[];
+  ledgerPrices: CachedLedgerPrice[];
+  ledgerTradesComplete?: boolean;
+};
 
 type TradeRow = Omit<LedgerTrade, "trade_type"> & {
   trade_type: DashboardTrade["trade_type"];
@@ -46,18 +51,19 @@ function firstJoin<T>(value: T | T[] | null | undefined): T | null {
 export const loadTradesAndAssets = async (
   portfolioId: string,
   supabase: SupabaseClient,
+  verifyCompleteness = false,
 ): Promise<{
   trades: DashboardTrade[];
   ledgerTrades: LedgerTrade[];
   assets: LedgerAsset[];
   brokers: BrokerMeta[];
   assetIds: string[];
+  ledgerTradesComplete?: boolean;
 }> => {
-  const { data: tradesData, error: tradesError } = await supabase
-    .from("trades")
-    .select(
-      "id, asset_id, broker_id, trade_type, trade_date, quantity::text, price_usd::text, commission_usd::text, total_invested_usd, deleted_at, assets(ticker, name, sector, country, exchange), brokers(code, name)",
-    )
+  const columns = "id, asset_id, broker_id, trade_type, trade_date, quantity::text, price_usd::text, commission_usd::text, total_invested_usd, deleted_at, assets(ticker, name, sector, country, exchange, currency), brokers(code, name)";
+  const table = supabase.from("trades");
+  const selection = verifyCompleteness ? table.select(columns, { count: "exact" }) : table.select(columns);
+  const { data: tradesData, error: tradesError, count } = await selection
     .eq("portfolio_id", portfolioId)
     .is("deleted_at", null);
 
@@ -96,6 +102,7 @@ export const loadTradesAndAssets = async (
         sector: asset.sector,
         country: asset.country,
         exchange: asset.exchange ?? null,
+        currency: asset.currency ?? null,
       });
     }
     const broker = firstJoin(row.brokers);
@@ -114,8 +121,18 @@ export const loadTradesAndAssets = async (
     assets: Array.from(assetMap.values()),
     brokers: Array.from(brokerMap.values()),
     assetIds: Array.from(assetIds),
+    ...(verifyCompleteness ? { ledgerTradesComplete: Array.isArray(tradesData) && count === rows.length } : {}),
   };
 };
+
+export async function countTradesThroughCutoff(
+  portfolioId: string, supabase: SupabaseClient, endDate: string,
+): Promise<number | null> {
+  const { count, error } = await supabase.from("trades").select("id", { count: "exact", head: true })
+    .eq("portfolio_id", portfolioId).is("deleted_at", null).lte("trade_date", endDate);
+  if (error) throw new Error(error.message);
+  return count;
+}
 
 async function fetchLatestMarketPricesInner(
   assetIds: string[],
@@ -218,14 +235,88 @@ export function groupHistoricalPricesByAsset(
   return grouped;
 }
 
+interface MonthlyPriceQuery {
+  assetIds: readonly string[];
+  fromInclusive: string;
+  toExclusive: string;
+}
+
+interface MonthlyPriceRow {
+  id: string;
+  asset_id: string;
+  observed_at: string;
+  price_usd: string;
+}
+
+const MONTHLY_PRICE_ASSET_BATCH = 100;
+const MONTHLY_PRICE_PAGE_SIZE = 500;
+const PRICE_CURSOR_ID = /^[\da-f]{8}(?:-[\da-f]{4}){3}-[\da-f]{12}$/i;
+const PRICE_CURSOR_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$/;
+
+export async function loadMonthlyClosingPrices(
+  supabase: SupabaseClient,
+  { assetIds, fromInclusive, toExclusive }: MonthlyPriceQuery,
+): Promise<Map<string, string>> {
+  const ids = [...new Set(assetIds)];
+  const values = new Map<string, string>();
+  const fromMs = Date.parse(fromInclusive);
+  const toMs = Date.parse(toExclusive);
+  for (let start = 0; start < ids.length; start += MONTHLY_PRICE_ASSET_BATCH) {
+    const batch = ids.slice(start, start + MONTHLY_PRICE_ASSET_BATCH);
+    const pending = new Set(batch);
+    let cursor: MonthlyPriceRow | undefined;
+    while (pending.size > 0) {
+      const query = supabase
+        .from("market_prices")
+        .select("id, asset_id, observed_at, price_usd::text")
+        .in("asset_id", batch)
+        .eq("source", "PRICE_HISTORY")
+        .eq("currency", "USD")
+        .gte("observed_at", fromInclusive)
+        .lt("observed_at", toExclusive)
+        .order("observed_at", { ascending: false })
+        .order("id", { ascending: false });
+      if (cursor) {
+        const { id, observed_at } = cursor;
+        query.or(`observed_at.lt.${observed_at},and(observed_at.eq.${observed_at},id.lt.${id})`);
+      }
+      const { data, error } = await query.limit(MONTHLY_PRICE_PAGE_SIZE);
+      if (error || !data) throw new Error(error?.message ?? "Missing monthly price response");
+      const rows = data as unknown as MonthlyPriceRow[];
+      if (rows.length === 0) break;
+      for (const { asset_id, observed_at, price_usd } of rows) {
+        if (!pending.has(asset_id)) continue;
+        const time = Date.parse(observed_at);
+        const price = parseLedgerDecimal(price_usd);
+        if (time >= fromMs && time < toMs && price !== null && price > 0n) {
+          pending.delete(asset_id);
+          values.set(asset_id, price_usd);
+        }
+      }
+      if (pending.size === 0) break;
+      const last = rows[rows.length - 1];
+      if (!PRICE_CURSOR_ID.test(last.id) || !PRICE_CURSOR_TIMESTAMP.test(last.observed_at) ||
+        !Number.isFinite(Date.parse(last.observed_at)) ||
+        (cursor?.id === last.id && cursor.observed_at === last.observed_at)) {
+        throw new Error("Invalid monthly price cursor");
+      }
+      // Mantener los microsegundos del timestamp para no repetir ni saltar filas.
+      cursor = last;
+    }
+  }
+  return values;
+}
+
 export const loadDashboardData = cache(
   async (
     portfolioId: string,
     supabase: SupabaseClient,
+    verifyCompleteness = false,
   ): Promise<DashboardDataWithLedger> => {
-    const { trades, ledgerTrades, assets, brokers, assetIds } = await loadTradesAndAssets(
+    const { trades, ledgerTrades, assets, brokers, assetIds, ledgerTradesComplete } = await loadTradesAndAssets(
       portfolioId,
       supabase,
+      verifyCompleteness,
     );
     const ledgerPrices = await loadLatestMarketPrices(assetIds, supabase);
     const latestMarketPrices = toSnapshotMarketPrices(ledgerPrices);
@@ -251,6 +342,7 @@ export const loadDashboardData = cache(
       ledgerPrices,
       historicalPrices,
       portfolioId,
+      ...(verifyCompleteness ? { ledgerTradesComplete } : {}),
     };
   },
 );

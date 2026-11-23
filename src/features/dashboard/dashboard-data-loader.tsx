@@ -3,6 +3,7 @@ import { loadDemoDashboardAggregate } from "@/lib/dashboard/demo-loader";
 import type { PortfolioContext } from "@/lib/supabase/auth";
 
 import { DashboardPageClient } from "./dashboard-page-client";
+import { MonthlySummaryCard } from "./monthly-summary-card";
 
 export async function DashboardDataLoader({ context }: {
   context: Extract<PortfolioContext, { kind: "active" | "anonymous" }>;
@@ -18,18 +19,22 @@ export async function DashboardDataLoader({ context }: {
         evolutionGranularity: "monthly",
         returnsGroupBy: "stock",
         distributionDimension: "broker",
+        includeMonthlySummary: true,
       },
     );
 
     return (
-      <DashboardPageClient
-        initialPayload={{
-          summary: aggregate.summary ?? null,
-          evolution: aggregate.evolution ?? null,
-          returns: aggregate.returns ?? null,
-          snapshot: aggregate.snapshot ?? null,
-        }}
-      />
+      <>
+        <MonthlySummaryCard result={aggregate.monthlySummary} />
+        <DashboardPageClient
+          initialPayload={{
+            summary: aggregate.summary ?? null,
+            evolution: aggregate.evolution ?? null,
+            returns: aggregate.returns ?? null,
+            snapshot: aggregate.snapshot ?? null,
+          }}
+        />
+      </>
     );
   }
 

@@ -50,3 +50,8 @@
 ## Archivo de la bitácora anterior
 
 - La bitácora anterior conserva el diagnóstico del callback de magic link y las cronologías del ensayo de Stooq y del piloto de CI/CD. Consulta la copia exacta con `git show 37b2dfcc1b5fbe9d242214aac7a81dad9fa18f17:progress/current.md`; sus listas de acciones son históricas.
+
+<!-- SESIÓN: 2026-11-22 | Feature: monthly-portfolio-summary | Agente: opencode | Resultado: done -->
+
+- Añadido el resumen del último mes completo al dashboard privado: valoración de posiciones en USD, cambio de valor y actividad registrada. Sin alertas, correos ni migraciones.
+- Revisión independiente aprobada; `node init-full.mjs` pasó y Chromium aprobó 8/8 contra el build y Supabase locales. Se cerraron los procesos de prueba; no se desplegó. [Evidencia y trazabilidad](impl_monthly-portfolio-summary.md#evidencia-de-implementación).
